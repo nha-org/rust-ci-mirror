@@ -1,0 +1,20 @@
+# The mirror's CI (nha-org/rust-ci-mirror), Linux only (@nha, 2026-11-04: « linux. locally we can test macos when
+# running it so that covers enough »). Tests built once, then a 2-minute test phase (rfc-rust-unified section 17).
+name: rust
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      # Section 4's allocators stay buildable for the next measure; the memory test runs on the system's.
+      - run: cargo check --locked --features mimalloc
+      - run: cargo check --locked --features jemalloc
+      - run: cargo nextest run --locked --no-run
+      - run: timeout 120 cargo nextest run --locked

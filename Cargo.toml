@@ -1,0 +1,20 @@
+# The Rust app of rfc-rust-unified, grown slice by slice from this tracer (task rust-ci-mirror, CLAUDE.md Coordination 6).
+# CI: dash ci mirror rust pushes the files rust/ci-mirror.txt lists to nha-org/rust-ci-mirror, Linux only.
+[package]
+name = "dash"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+# Section 4: « the harness picks by measure ». Neither: the system allocator, the pick so far (section 20).
+mimalloc = ["dep:mimalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
+
+[dependencies]
+mimalloc = { version = "0.1", optional = true }
+rusqlite = { version = "0.41", features = ["bundled"] }
+tikv-jemallocator = { version = "0.6", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"

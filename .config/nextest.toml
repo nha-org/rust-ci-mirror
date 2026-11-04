@@ -1,0 +1,7 @@
+# Section 17: a test past 5 s is named slow, a test past 30 s is ended. Section 20: the memory test prints its footprints.
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 6 }
+
+[[profile.default.overrides]]
+filter = "test(the_binary_stays_inside_its_budgets)"
+success-output = "immediate"
