@@ -1,0 +1,9 @@
+# The Rust app of rfc-rust-unified, grown slice by slice from this tracer (task rust-ci-mirror, CLAUDE.md Coordination 6).
+# CI: dash ci mirror rust pushes the files rust/ci-mirror.txt lists to nha-org/rust-ci-mirror, Linux only.
+[package]
+name = "dash"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
