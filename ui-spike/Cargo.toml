@@ -1,0 +1,10 @@
+# The UI spike of rfc-rust-unified section 9: the same 100,000-row list in Slint and in Blitz. Its own workspace, so the
+# app's workspace never builds two UI stacks. resolver 3 as edition 2024 sets.
+[workspace]
+members = ["common", "slint-list", "blitz-list"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
