@@ -1,0 +1,9 @@
+# Section 17: a test past 5 s is named slow, a test past 30 s is ended, the whole run past 120 s fails. Section 20: the
+# memory test prints its footprints and the line gate its count.
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 6 }
+global-timeout = "120s"
+
+[[profile.default.overrides]]
+filter = "test(the_binary_stays_inside_its_budgets) | test(the_rust_stays_under_the_line_limit)"
+success-output = "immediate"
