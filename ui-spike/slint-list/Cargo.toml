@@ -1,0 +1,24 @@
+[package]
+name = "slint-list"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "slint-list"
+required-features = ["window"]
+
+[features]
+default = ["window"]
+# The real window of section 9's numbers. The picture test needs none of it, so Linux CI builds no windowing stack.
+window = ["slint/backend-winit", "slint/renderer-femtovg"]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "renderer-software", "software-renderer-systemfonts"] }
+# std-widgets embeds its icons and slint names no feature for their decoder without a window backend; its own
+# image-default-formats asks for ravif 0.13, which crates.io does not have.
+i-slint-core = { version = "=1.18.1", features = ["image-decoders"] }
+ui-spike-common = { path = "../common" }
+
+[build-dependencies]
+slint-build = "=1.18.1"
