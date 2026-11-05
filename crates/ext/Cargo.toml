@@ -1,0 +1,19 @@
+[package]
+name = "dash-ext"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+libc = "0.2"
+serde_json.workspace = true
+steel-core = "0.8.3"
+
+[dev-dependencies]
+dash-meter.workspace = true
+
+# One nextest test per script: it lists crates/ext/extensions.d itself, so a new script needs no new Rust.
+[[test]]
+name = "scripts"
+harness = false
