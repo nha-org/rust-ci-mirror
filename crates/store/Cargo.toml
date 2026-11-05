@@ -1,0 +1,12 @@
+[package]
+name = "dash-store"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+rusqlite = { version = "0.41", features = ["bundled"] }
+
+[dev-dependencies]
+dash-meter.workspace = true
