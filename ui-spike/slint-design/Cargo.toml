@@ -1,0 +1,25 @@
+[package]
+name = "slint-design"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "slint-design"
+required-features = ["window"]
+
+[features]
+default = ["window"]
+# The real window of the numbers. The script's test needs none of it, so Linux CI builds no windowing stack.
+window = ["slint/backend-winit", "slint/renderer-femtovg", "slint/unstable-winit-030"]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "compat-1-2", "renderer-software", "software-renderer-systemfonts"] }
+# As slint-list: no window backend names the image decoders otherwise.
+i-slint-core = { version = "=1.18.1", features = ["image-decoders"] }
+# ElementHandle: the script finds a part by its accessible-id and reads its live state, as Dioxus's reads the document.
+i-slint-backend-testing = "=1.18.1"
+ui-spike-common = { path = "../common" }
+
+[build-dependencies]
+slint-build = "=1.18.1"
