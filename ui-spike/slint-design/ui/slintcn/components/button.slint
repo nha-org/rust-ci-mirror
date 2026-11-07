@@ -1,0 +1,112 @@
+// slintcn's Button, owned as `slintcn add` means: design.json's five kinds for its eight variants, and `force`, since nothing
+// outside a TouchArea can set has-hover or pressed. `state` holds real and forced alike, so a test reads either the same way.
+import { Tokens, Ds } from "../theme/tokens.slint";
+
+export enum ButtonKind { primary, accept, reject, warn, quiet }
+
+export component Button inherits Rectangle {
+    in property <ButtonKind> kind: ButtonKind.primary;
+    in property <string> text;
+    in property <bool> disabled: false;
+    // « hover », « active » or « focus »: the state drawn still, as CSS's forced class.
+    in property <string> force;
+    // Dimmed, its work still running.
+    in property <bool> dim: false;
+    callback clicked();
+
+    out property <string> state: force != "" ? force
+        : disabled ? "disabled"
+        : touch.pressed ? "active"
+        : touch.has-hover ? "hover"
+        : "rest";
+    out property <bool> focused: force == "focus" || focus-scope.has-focus;
+
+    property <color> rest:
+        kind == ButtonKind.accept ? Ds.color-success :
+        kind == ButtonKind.reject ? Ds.soft-danger :
+        kind == ButtonKind.warn ? Ds.color-warning :
+        kind == ButtonKind.quiet ? Ds.color-base-200 : Ds.color-primary;
+    property <color> hover:
+        kind == ButtonKind.accept ? Ds.color-success-700 :
+        kind == ButtonKind.reject ? Ds.soft-danger-2 :
+        kind == ButtonKind.warn ? Ds.color-warning-700 :
+        kind == ButtonKind.quiet ? Ds.color-base-300 : Ds.color-primary-700;
+    property <color> pressed:
+        kind == ButtonKind.accept ? Ds.color-success-800 :
+        kind == ButtonKind.reject ? Ds.soft-danger-3 :
+        kind == ButtonKind.warn ? Ds.color-warning-800 :
+        kind == ButtonKind.quiet ? Ds.color-base-300.mix(Ds.color-base-content, 0.8) : Ds.color-primary-800;
+
+    property <color> face: state == "active" ? pressed : state == "hover" ? hover : rest;
+    animate face { duration: Tokens.motion-fast; easing: ease-out; }
+
+    height: Tokens.density-button-default;
+    min-width: row.preferred-width + 2 * Ds.spacing-s3;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: Tokens.radius-md;
+    background: face;
+    drop-shadow-blur: disabled ? 0px : 2px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: Ds.veil;
+    opacity: disabled ? 0.45 : dim ? 0.75 : 1;
+    transform-scale: state == "active" ? 0.97 : 1;
+
+    accessible-role: button;
+    accessible-label: root.text;
+    // The live colour, so a test sees a frame between the two ends of the transition.
+    accessible-value: root.state + " " + (root.focused ? "focus " : "") + round(face.to-hsv().value * 1000);
+    accessible-action-default => { root.clicked(); }
+
+    row := HorizontalLayout {
+        alignment: center;
+        spacing: Ds.spacing-s2;
+        @children
+        Text {
+            text: root.text;
+            vertical-alignment: center;
+            font-size: Tokens.typography-body-size;
+            font-weight: Tokens.typography-weight-medium;
+            color: kind == ButtonKind.accept ? Ds.color-success-content
+                : kind == ButtonKind.reject ? Ds.on-danger
+                : kind == ButtonKind.warn ? Ds.color-warning-content
+                : kind == ButtonKind.quiet ? Ds.color-base-content
+                : Ds.color-primary-content;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: root.disabled ? default : pointer;
+        clicked => {
+            if (!root.disabled) {
+                focus-scope.focus();
+                root.clicked();
+            }
+        }
+    }
+
+    forward-focus: focus-scope;
+    focus-scope := FocusScope {
+        enabled: !root.disabled;
+        // Slint 1.18: true by default, the first press takes the focus and never reaches the TouchArea, so a first click did nothing.
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == "\n" || event.text == " ") {
+                if (!root.disabled) { root.clicked(); }
+                return accept;
+            }
+            return reject;
+        }
+    }
+
+    if root.focused: Rectangle {
+        x: -4px;
+        y: -4px;
+        width: parent.width + 8px;
+        height: parent.height + 8px;
+        border-width: 2px;
+        border-color: Ds.color-primary;
+        border-radius: Tokens.radius-md + 4px;
+    }
+}
