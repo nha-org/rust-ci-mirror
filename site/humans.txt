@@ -1,0 +1,13 @@
+# humanstxt.org/
+# The humans responsible & technology colophon
+
+# TEAM
+    Nicolas HA
+
+# THANKS
+
+    start bootstrap
+
+# TECHNOLOGY COLOPHON
+
+    CSS3, HTML5, JavaScript

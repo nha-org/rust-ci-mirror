@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <meta name="description" content="Nicolas HA - Senior software engineer building AI systems: small specialized models, agentic orchestration, RAG, MCP tooling and agent memory, on 12+ years of distributed systems and banking-grade infrastructure.">
+    <meta name="author" content="Nicolas HA">
+    <link rel="canonical" href="https://nicolas-ha.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Nicolas HA - Senior Software Engineer, AI Systems">
+    <meta property="og:description" content="Building AI systems: small specialized models, agentic orchestration, RAG and agent memory, on 12+ years of distributed systems.">
+    <meta property="og:url" content="https://nicolas-ha.com/">
+    <meta property="og:image" content="https://nicolas-ha.com/img/eiffel2-bg-min.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Nicolas HA - Senior Software Engineer, AI Systems">
+    <meta name="twitter:description" content="Building AI systems: small specialized models, agentic orchestration, RAG and agent memory, on 12+ years of distributed systems.">
+    <meta name="twitter:image" content="https://nicolas-ha.com/img/eiffel2-bg-min.jpg">
+    <link rel="alternate" type="application/json" href="/resume.json" title="JSON Resume">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>Nicolas HA - Senior Software Engineer, AI Systems</title>
+    <style>
+:root {
+    --color-bg: #121212;
+    --color-text: #f8f8f8;
+    --color-accent: #2ecc71;
+    --color-overlay-start: rgba(0, 0, 0, 0.3);
+    --color-overlay-end: rgba(0, 0, 0, 0.55);
+    --color-pill-bg: rgba(255, 255, 255, 0.8);
+    --color-pill-bg-hover: rgba(255, 255, 255, 1);
+    --color-pill-text: #333;
+
+    --font-family-base: "Lato", sans-serif;
+    --font-size-h1: 3.5em;
+    --font-size-h2: 1.5em;
+    --font-size-body: 1.1em;
+    --font-size-small: 0.9em;
+
+    --space-3: 24px;
+    --space-4: 32px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family-base);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+a {
+    color: inherit;
+}
+
+.intro-header {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url(img/eiffel2-bg-min.jpg) no-repeat center center fixed;
+    background-size: cover;
+}
+
+.container {
+    text-align: center;
+    padding: var(--space-4) var(--space-3);
+    background: linear-gradient(to bottom, var(--color-overlay-start), var(--color-overlay-end));
+}
+
+.intro-message h1 {
+    font-size: var(--font-size-h1);
+    margin: 0 0 0.2em;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+.intro-message h2 {
+    font-size: var(--font-size-h2);
+    font-weight: 400;
+    margin: 0 0 1em;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+.intro-message .bio {
+    font-size: var(--font-size-body);
+    font-weight: 300;
+    margin: 0 auto 1.5em;
+    max-width: 600px;
+    line-height: 1.6;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.availability {
+    margin: 0 0 var(--space-3);
+}
+
+.availability-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: var(--color-accent);
+    color: #fff;
+    font-size: var(--font-size-small);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.projects {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto var(--space-3);
+    max-width: 600px;
+    line-height: 1.8;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.projects a {
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+.intro-social-buttons {
+    list-style-type: none;
+    padding: 0;
+    margin: var(--space-4) 0 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.intro-social-buttons li {
+    margin: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--color-pill-bg);
+    color: var(--color-pill-text);
+    text-decoration: none;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.btn:hover, .btn:focus {
+    background-color: var(--color-pill-bg-hover);
+    outline: 2px solid #fff;
+}
+
+.network-name {
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    margin-left: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .intro-message, .intro-social-buttons {
+        animation: fadeIn 1s ease-out;
+    }
+}
+
+@media (max-width: 767px) {
+    .container {
+        padding: var(--space-3) 16px;
+    }
+    .intro-message h1 {
+        font-size: 2.4em;
+    }
+    .intro-message h2 {
+        font-size: 1.2em;
+    }
+    .intro-message .bio {
+        font-size: 1em;
+        padding: 0 10px;
+    }
+    .intro-social-buttons {
+        flex-direction: column;
+    }
+    .intro-social-buttons li {
+        margin: 5px 0;
+    }
+}
+
+.fab {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+
+.fa-fw {
+    text-align: center;
+    width: 1.25em;
+}
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,400,700" media="print" onload="this.media='all'">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+</head>
+<body>
+    <div class="intro-header">
+        <div class="container">
+            <div class="intro-message">
+                <h1>Nicolas HA</h1>
+                <h2>Senior Software Engineer &middot; AI Systems</h2>
+                <p class="bio">AI systems: small specialized models, agentic orchestration, RAG and agent memory. Twelve years of distributed systems and banking-grade infrastructure behind it.</p>
+                <div class="availability">
+                    <span class="availability-badge">Available for work</span>
+                </div>
+                <h2>Projects</h2>
+                <ul class="projects">
+                    <li><a href="/projects/klar.html">Klar</a>: an AI spam filter that never leaves the Mac (<a href="/projects/klar.fr.html" hreflang="fr" lang="fr">FR</a>)</li>
+                    <li><a href="/projects/flare.html">Flare</a>: a memory for AI agents, measured before it is trusted (<a href="/projects/flare.fr.html" hreflang="fr" lang="fr">FR</a>)</li>
+                    <li><a href="/projects/griffin.html">Griffin Bank</a>: moving a bank's core without stopping production (<a href="/projects/griffin.fr.html" hreflang="fr" lang="fr">FR</a>)</li>
+                </ul>
+            </div>
+            <ul class="intro-social-buttons">
+                <li>
+                    <a href="https://calendly.com/nicolas_ha/15min" class="btn" aria-label="Schedule a call with me">
+                        <i class="fas fa-phone fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">Schedule a call</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://stackoverflow.com/users/1327651/nha" class="btn" aria-label="Visit my Stack Overflow profile">
+                        <i class="fab fa-stack-overflow fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">StackOverflow</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://github.com/nha" class="btn" aria-label="Visit my GitHub profile">
+                        <i class="fab fa-github fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">Github</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://flare.nicolas-ha.com" class="btn" aria-label="Try the Flare demo: drop a PDF, get JSON">
+                        <i class="fas fa-file-code fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">Flare demo</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/public/HA_Nicolas_CV_EN_2026_AI.pdf" class="btn" aria-label="View my CV in English">
+                        <i class="fas fa-file-pdf fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">CV (EN)</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/public/HA_Nicolas_CV_FR_2026_AI.pdf" class="btn" aria-label="Voir mon CV en français">
+                        <i class="fas fa-file-pdf fa-fw" aria-hidden="true"></i>
+                        <span class="network-name">CV (FR)</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"></noscript>
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:300,400,700"></noscript>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Nicolas HA",
+  "jobTitle": "Senior Software Engineer, AI Systems",
+  "description": "Senior software engineer with 12+ years building production systems, now working on AI: small specialized models, agentic orchestration and workflows, RAG, MCP tooling and agent memory. Founder of klar.im, a shipped on-device AI spam filter for Apple Mail.",
+  "url": "https://nicolas-ha.com",
+  "email": "mailto:nicolas@klar.im",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Paris",
+    "addressCountry": "FR"
+  },
+  "sameAs": [
+    "https://github.com/nha",
+    "https://stackoverflow.com/users/1327651/nha",
+    "https://www.linkedin.com/in/nicolasha/",
+    "https://klar.im",
+    "https://github.com/klar-im/engine"
+  ],
+  "worksFor": {
+    "@type": "Organization",
+    "name": "Independent / klar.im"
+  },
+  "alumniOf": [
+    { "@type": "CollegeOrUniversity", "name": "ENSSAT Lannion" },
+    { "@type": "CollegeOrUniversity", "name": "Edinburgh Napier University" }
+  ],
+  "knowsAbout": [
+    "Artificial Intelligence", "Agentic AI", "Large Language Models",
+    "Retrieval-Augmented Generation", "Model Context Protocol", "Agent Memory",
+    "Multi-agent Workflows", "LangChain", "LangGraph", "Machine Learning",
+    "Vector Search", "On-device Inference", "Python",
+    "Distributed Systems", "Clojure", "TypeScript", "JavaScript", "C++",
+    "Node.js", "React.js", "Kubernetes", "Docker", "PostgreSQL",
+    "Apache Kafka", "Apache Pulsar"
+  ],
+  "availableFor": "Freelance, contract and full-time senior/staff AI and software engineering opportunities"
+}
+</script>
+</body>
+</html>

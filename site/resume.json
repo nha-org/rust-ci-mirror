@@ -1,0 +1,241 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Nicolas Ha",
+    "label": "Senior freelance software engineer",
+    "email": "nicolas@klar.im",
+    "url": "https://nicolas-ha.com",
+    "summary": "Senior freelance software engineer, 12+ years, now building AI systems: small specialized AI models, agentic orchestration and workflows, RAG, MCP tooling, agent memory. References: Griffin Bank, MailOnline. I have led a backend team on a pipeline serving 1.3B views a month, helped stand up new teams inside a bank going for its licence. I have shipped several products from 0 to 1, the latest Klar, an AI spam filter for Apple Mail.",
+    "location": {
+      "countryCode": "FR"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "url": "https://github.com/nha",
+        "username": "nha"
+      },
+      {
+        "network": "Stack Overflow",
+        "url": "https://stackoverflow.com/u/1327651",
+        "username": "1327651"
+      },
+      {
+        "network": "LinkedIn",
+        "url": "https://www.linkedin.com/in/nicolasha/",
+        "username": "nicolasha"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Klar (klar.im)",
+      "position": "Founder & Lead AI Engineer",
+      "location": "Remote, France",
+      "startDate": "2026-01",
+      "summary": "In production on the App Store: on-device, privacy-preserving spam filter for Apple Mail.",
+      "highlights": [
+        "Trained the classifier in Python: a four-class head on a frozen XLM-RoBERTa encoder, quantised to run on the Mac's own GPU in under 50ms a message, with no network access.",
+        "Built the C++17 engine it runs on (llama.cpp/GGML) behind a stable C API, with Node and Swift bindings, a Postfix milter and Docker end-to-end tests.",
+        "AI tooling: custom memory and retrieval (MCP, LangChain, RAG, agent hooks and skills)."
+      ],
+      "url": "https://klar.im"
+    },
+    {
+      "name": "Narval (GM NFT)",
+      "position": "Staff developer",
+      "location": "Paris, France",
+      "startDate": "2025-06",
+      "summary": "Joined a company of 4 as an early engineer, before any product existed.",
+      "highlights": [
+        "Built custodian integrations (BitGo, Zodia) enabling institutional custodians to access DeFi (Aave staking, TON transactions), with GNAP/OAuth authn/authz on an OPA policy engine.",
+        "Built transaction decoding/proxy infrastructure for on-chain transaction validation (EIP-7730)."
+      ],
+      "endDate": "2025-12"
+    },
+    {
+      "name": "Griffin Bank (BaaS)",
+      "position": "Senior software engineer",
+      "location": "London, United Kingdom",
+      "startDate": "2022-04",
+      "summary": "Built platform components a UK banking licence depended on, in a heavily regulated environment.",
+      "highlights": [
+        "Led several new platform initiatives end-to-end, and helped build out new engineering teams as the org scaled toward its licence.",
+        "Implemented secure admin authorization, a webhooks architecture, and passkey-based multi-factor authentication.",
+        "Designed the queuing and processing systems, audit logging, scheduled-job infrastructure, and HTTP message signing behind it."
+      ],
+      "endDate": "2025-06"
+    },
+    {
+      "name": "TurtleQueue (SaaS)",
+      "position": "Independent Developer",
+      "location": "London, United Kingdom",
+      "startDate": "2019-09",
+      "summary": "Led development of TurtleQueue, a message broker SaaS platform compatible with Apache Pulsar and Apache Kafka.",
+      "highlights": [
+        "Took the product 0-to-1: designed and built the entire technology stack from scratch; secured R&D tax incentives.",
+        "Built a proxy speaking the Apache Kafka and Apache Pulsar wire protocols, so existing client applications connected without changes.",
+        "Hired and led a small team of contractor engineers to scale delivery.",
+        "Ran freelance contract engineering for MailOnline in parallel."
+      ],
+      "endDate": "2022-04"
+    },
+    {
+      "name": "MailOnline (Media)",
+      "position": "Backend team lead software engineer",
+      "location": "London, United Kingdom",
+      "startDate": "2016-08",
+      "summary": "Promoted from Senior Engineer to Backend Team Lead, managing a team of experienced developers.",
+      "highlights": [
+        "Architected and scaled the core publishing pipeline to 1.3B views a month.",
+        "Implemented ad placement that increased revenue; delivered real-time analytics that reduced feedback cycles."
+      ],
+      "endDate": "2019-07"
+    },
+    {
+      "name": "Go Find It (Startup mobile apps)",
+      "position": "Software engineer",
+      "location": "Paris, France",
+      "startDate": "2015-05",
+      "summary": "Built a full-stack mobile CMS for luxury hotels.",
+      "highlights": [
+        "Ran the pipeline from development through DevOps to App Store publishing for a team of 10 mobile developers, with Python SSH deployment tooling."
+      ],
+      "endDate": "2016-04"
+    },
+    {
+      "name": "Apizee (Startup web telecommunications)",
+      "position": "Software engineer",
+      "location": "Lannion, France",
+      "startDate": "2014-03",
+      "summary": "First backend engineer hire.",
+      "highlights": [
+        "Took a prototype 0-to-1: connectors bridging WebRTC customers with legacy phone systems (Alcatel-Lucent SIP IMS, RCS), and the measurement tooling for Orange Labs that won a multi-year contract with Orange.",
+        "Technology demoed at Mobile World Congress Barcelona, on HP's booth."
+      ],
+      "endDate": "2015-05"
+    },
+    {
+      "name": "Siléane (Robotics SMB)",
+      "position": "Intern",
+      "location": "France",
+      "startDate": "2012",
+      "summary": "",
+      "highlights": [
+        "Prototyped 0-to-1 a controller for a Fanuc industrial robotic arm driven by Microsoft Kinect vision, so non-technical users could program movement paths by gesture."
+      ],
+      "endDate": "2012"
+    },
+    {
+      "name": "Dassault Aviation (equipments division)",
+      "position": "Intern",
+      "location": "France",
+      "startDate": "2010",
+      "summary": "",
+      "highlights": [
+        "Developed an automated debugging bench to stress-test military avionics flight-control circuit boards, enabling 24-hour testing cycles that cut testing time by 50%."
+      ],
+      "endDate": "2010"
+    }
+  ],
+  "education": [
+    {
+      "institution": "ENSSAT",
+      "area": "Master's degree in computer science",
+      "startDate": "2011",
+      "endDate": "2014",
+      "location": "Lannion, France",
+      "summary": "Student representative. Erasmus exchange in Germany, with classes taught in German."
+    },
+    {
+      "institution": "Edinburgh Napier University",
+      "area": "Bachelor of Engineering in Electronic and Computer Engineering",
+      "startDate": "2010",
+      "endDate": "2011",
+      "location": "Edinburgh, United Kingdom",
+      "summary": "Coursework included C, embedded/real-time systems design, and state machines."
+    }
+  ],
+  "skills": [
+    {
+      "name": "AGENTIC AI & LLM SYSTEMS",
+      "keywords": [
+        "LangChain / LangGraph",
+        "MCP servers and tools",
+        "RAG and hybrid search",
+        "Agent memory",
+        "Multi-agent workflows",
+        "Agent evaluation and benchmarking",
+        "Embeddings and local inference (ONNX, llama.cpp)",
+        "Vector search"
+      ]
+    },
+    {
+      "name": "LEADERSHIP",
+      "keywords": [
+        "Technical leadership",
+        "Leading and mentoring engineers",
+        "Standing up new teams",
+        "Hiring and running contractors",
+        "Architecture ownership"
+      ]
+    },
+    {
+      "name": "PROGRAMMING LANGUAGES",
+      "keywords": [
+        "Python",
+        "C++",
+        "Clojure",
+        "TypeScript",
+        "JavaScript"
+      ]
+    },
+    {
+      "name": "PLATFORMS & INFRASTRUCTURE",
+      "keywords": [
+        "Node.js",
+        "React",
+        "Docker",
+        "Kubernetes",
+        "AWS",
+        "CI/CD",
+        "Git/GitLab"
+      ]
+    },
+    {
+      "name": "DATA & MESSAGING",
+      "keywords": [
+        "PostgreSQL",
+        "Redis",
+        "SQLite",
+        "FoundationDB",
+        "ElasticSearch",
+        "MongoDB",
+        "Kafka",
+        "Pulsar",
+        "RabbitMQ"
+      ]
+    },
+    {
+      "name": "HOW I WORK",
+      "keywords": [
+        "Benchmark-driven iteration",
+        "Scalable, reliable production systems",
+        "Testing (unit, integration, e2e, generative)"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "French",
+      "fluency": "Native speaker"
+    },
+    {
+      "language": "English"
+    }
+  ],
+  "meta": {
+    "canonical": "https://nicolas-ha.com/resume.json",
+    "version": "v1.0.0"
+  }
+}

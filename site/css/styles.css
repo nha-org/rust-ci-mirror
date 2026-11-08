@@ -1,0 +1,173 @@
+:root {
+    --color-bg: #121212;
+    --color-text: #f8f8f8;
+    --color-accent: #2ecc71;
+    --color-overlay-start: rgba(0, 0, 0, 0.3);
+    --color-overlay-end: rgba(0, 0, 0, 0.55);
+    --color-pill-bg: rgba(255, 255, 255, 0.8);
+    --color-pill-bg-hover: rgba(255, 255, 255, 1);
+    --color-pill-text: #333;
+
+    --font-family-base: "Lato", sans-serif;
+    --font-size-h1: 3.5em;
+    --font-size-h2: 1.5em;
+    --font-size-body: 1.1em;
+    --font-size-small: 0.9em;
+
+    --space-3: 24px;
+    --space-4: 32px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family-base);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+a {
+    color: inherit;
+}
+
+.intro-header {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url(../img/eiffel2-bg-min.jpg) no-repeat center center fixed;
+    background-size: cover;
+}
+
+.container {
+    text-align: center;
+    padding: var(--space-4) var(--space-3);
+    background: linear-gradient(to bottom, var(--color-overlay-start), var(--color-overlay-end));
+}
+
+.intro-message h1 {
+    font-size: var(--font-size-h1);
+    margin: 0 0 0.2em;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+.intro-message h2 {
+    font-size: var(--font-size-h2);
+    font-weight: 400;
+    margin: 0 0 1em;
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+.intro-message .bio {
+    font-size: var(--font-size-body);
+    font-weight: 300;
+    margin: 0 auto 1.5em;
+    max-width: 600px;
+    line-height: 1.6;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.availability {
+    margin: 0 0 var(--space-3);
+}
+
+.availability-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: var(--color-accent);
+    color: #fff;
+    font-size: var(--font-size-small);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.intro-social-buttons {
+    list-style-type: none;
+    padding: 0;
+    margin: var(--space-4) 0 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.intro-social-buttons li {
+    margin: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--color-pill-bg);
+    color: var(--color-pill-text);
+    text-decoration: none;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.btn:hover, .btn:focus {
+    background-color: var(--color-pill-bg-hover);
+    outline: 2px solid #fff;
+}
+
+.network-name {
+    text-transform: uppercase;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    margin-left: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .intro-message, .intro-social-buttons {
+        animation: fadeIn 1s ease-out;
+    }
+}
+
+@media (max-width: 767px) {
+    .container {
+        padding: var(--space-3) 16px;
+    }
+    .intro-message h1 {
+        font-size: 2.4em;
+    }
+    .intro-message h2 {
+        font-size: 1.2em;
+    }
+    .intro-message .bio {
+        font-size: 1em;
+        padding: 0 10px;
+    }
+    .intro-social-buttons {
+        flex-direction: column;
+    }
+    .intro-social-buttons li {
+        margin: 5px 0;
+    }
+}
+
+.fab {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+
+.fa-fw {
+    text-align: center;
+    width: 1.25em;
+}

@@ -1,0 +1,297 @@
+#!/bin/bash
+# nicolas-ha.com's test (rfc-dashboard R23): every file of site/ answers 200 with the same bytes, a folder its index
+# after a 301 to its slash, CLAUDE.md and the dashboard's paths 404, and every answer carries HSTS.
+#   bin/site-check image <image>   also: the image holds no private/ path, no dashboard module, no CRM data; www.
+#                                  redirects to the bare domain; the container's memory under the plan's 256 MB
+#                                  (.github/workflows/site.yml, on the image it deploys, run by $OCI: docker on a hosted
+#                                  machine, Apple's container, the default, on this Mac)
+#   bin/site-check builder-stop    stops Apple's container image builder VM, idle once a build ends (site.yml, after its
+#                                  build; task load-wakes-orchestrator); never under another job's running build
+#   bin/site-check url <base>      against a live host: https://nicolas-ha.fly.dev, https://nicolas-ha.com
+#   bin/site-check gap <url> <command...>  runs the command (a deploy) while GETting <url> once a second, then until it
+#                                  answers (180 s at most): prints the longest stretch with no answer, a visitor's gap
+#                                  (rfc-dashboard-architecture U3), and exits with the command's status
+#   bin/site-check fly             the org's usage inside the Legacy Hobby plan's free allowance (task fly-legacy-guard): its
+#                                  apps, machines and volumes read with flyctl ($FLY, bin/fly by default), FAIL past one
+#                                  machine or one volume in the whole org (a builder or a second app counts) or a machine
+#                                  past the free VM (shared, 1 CPU, 256 MB); each machine named on its own line
+#                                  (Dashboard.FlyWatch runs it hourly)
+#   bin/site-check relay <base>    the Nanolathe relay (rfc-nanolathe section 6): /healthz ok, /status.json its protocol,
+#                                  /status its page; base https://nicolas-ha.com:8443 or the game's
+#                                  https://play.nicolas-ha.com:8443
+#   bin/site-check relay-idle <base> <seconds>  waits until no battle runs on the relay, at most <seconds>; a relay that
+#                                  that does not answer /healthz (none deployed, or dead) is idle. site.yml's deploy waits on it, so a site
+#                                  ship never ends a battle while it has the time (rfc-nanolathe 6, option A)
+#   bin/site-check chat <base>     the live chat (R23's chat test, PublicSite.Chat): an off-topic question refused by
+#                                  Jev, a relevant one answered, one the text cannot answer declined; pays Jev 3
+#                                  times and Claude twice, so never in CI; a chat switched off asks nothing
+set -euo pipefail
+self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
+cd "$(dirname "$0")/.."
+tmp=
+c=
+# the engine: docker and Apple's container take the same run, exec, logs and rm (task ci-portable)
+oci=${OCI:-container}
+trap 'rm -f "$tmp"; [ -z "$c" ] || "$oci" rm -f "$c" >/dev/null' EXIT
+
+pages() { # base
+  local base=$1 n=0 f h
+  tmp=$(mktemp)
+  # the committed site/, never the working tree: another session's unshipped edit or a .DS_Store is not the site
+  # (/code-review of dashboard-tools-status); -m 30 on each curl: a stalled host fails, never hangs the smoke
+  while IFS= read -r f; do
+    # pasted into the URL as they are: a name needing escapes fails here, not as a wrong page; -g: no curl globbing
+    case $f in *[!A-Za-z0-9._/~-]*) echo "FAIL $f: a name that needs URL escapes"; exit 1 ;; esac
+    curl -gfsS -m 30 -o "$tmp" "$base/${f#site/}" || { echo "FAIL $f: no 200"; exit 1; }
+    git cat-file blob "HEAD:$f" | cmp -s "$tmp" - || { echo "FAIL $f: other bytes"; exit 1; }
+    n=$((n + 1))
+  done < <(git ls-files site | grep -v '\(^\|/\)CLAUDE\.md$')
+  echo "pages: $n files of site/, each 200 with the same bytes"
+  expect "$base/public" 301 "$base/public/"
+  expect "$base/CLAUDE.md" 404
+  expect "$base/dashboard" 404
+  expect "$base/dashboard/model/write" 404
+  # captured first: grep -q exiting early would fail curl with exit 23 under pipefail
+  h=$(curl -sSI -m 30 "$base/") || { echo "FAIL: no answer to HEAD /"; exit 1; }
+  grep -qi '^strict-transport-security: max-age=31536000' <<<"$h" || { echo "FAIL: no HSTS"; exit 1; }
+  echo "pages: /public 301 to /public/, /CLAUDE.md and /dashboard 404, HSTS on"
+}
+
+# the chat's off switch (config/site.exs :public_chat): this script follows it, so turning it back on edits nothing here.
+# Read from the config, never from a 404: a chat that is on and answers 404 is broken and fails (/code-review of PR 1151)
+chat_off() { grep -q '^config :dashboard, public_chat: false$' private/dashboard/config/site.exs; }
+
+chat_closed() { # base
+  expect "$1/chat/" 404
+  expect "$1/chat" 404 "" -X POST -H 'content-type: application/json' --data '{"question":"x"}'
+  expect "$1/live/websocket" 404
+  echo "chat: switched off, its page, POST /chat and its socket 404"
+}
+
+ask() { # base question: prints the chat's {"kind","message"}; a stalled chat fails, never hangs a deploy
+  curl -sS -m 90 -X POST -H 'content-type: application/json' --data "$(printf '{"question":"%s"}' "$2")" "$1/chat"
+}
+
+kind() { # base question kind-regex
+  local got
+  got=$(ask "$1" "$2") || { echo "FAIL: no answer to: $2 (a timeout or a refused connection)"; exit 1; }
+  echo "chat: $2 -> $got"
+  # a cap (this address's 10 questions, the day's budget, Jev's quota) asks neither Jev nor Claude: nothing is checked
+  grep -q '"kind":"capped"' <<<"$got" && { echo "FAIL: a cap answered, the chat is not checked (run it tomorrow)"; exit 1; }
+  grep -qE "\"kind\":\"($3)\"" <<<"$got" || { echo "FAIL: wanted $3"; exit 1; }
+}
+
+expect() { # url status [location] [curl args...]
+  local url=$1 want="$2 ${3:-}" got
+  got=$(curl -sS -m 30 -o /dev/null -w '%{http_code} %{redirect_url}' "${@:4}" "$url")
+  [ "$got" = "$want" ] || { echo "FAIL $url: $got, wanted $want"; exit 1; }
+}
+
+ms() { perl -MTime::HiRes=time -e 'printf "%d\n", time * 1000'; }
+
+# A failed GET opens a gap at its start, the next answer closes it: the longest one is what a visitor saw
+gap() { # url command...
+  local url=$1 pid rc=0 t first="" worst=0 n=0 bad=0 ended=""
+  shift
+  "$@" &
+  pid=$!
+  while :; do
+    t=$(ms)
+    n=$((n + 1))
+    # 2 s at most a GET, so a sample is every 1 to 3 s and a gap is measured within 3 s; an answer slower than that is a
+    # visitor's gap too (/code-review of PR 774)
+    if curl -fsS -m 2 -o /dev/null "$url" 2>/dev/null; then
+      if [ -n "$first" ]; then [ $((t - first)) -le "$worst" ] || worst=$((t - first)); first=; fi
+      [ -z "$ended" ] || break
+    else
+      bad=$((bad + 1))
+      [ -n "$first" ] || first=$t
+      # still dark 180 s after the command: the gap runs to now, said so
+      if [ -n "$ended" ] && [ $((t - ended)) -gt 180000 ]; then
+        # a deploy that exited 0 with the site down fails here (/code-review)
+        worst=$((t - first)); [ "$rc" != 0 ] || rc=1; echo "FAIL: $url still dark"; break
+      fi
+    fi
+    if [ -z "$ended" ] && ! kill -0 "$pid" 2>/dev/null; then wait "$pid" || rc=$?; ended=$(ms); fi
+    sleep 1
+  done
+  echo "gap: $n GETs of $url, $bad failed, longest gap $worst ms"
+  return "$rc"
+}
+
+# every app of the org, then each one's machines and volumes: one VM and one volume at most, in any state (a stopped
+# machine's disk is billed too)
+fly_usage() {
+  local fly=${FLY:-bin/fly} org=${FLY_ORG:-personal} apps app ms m=0 v=0 big=0 out
+  py() { python3 -c "import json, sys; d = json.load(sys.stdin) or []; $1"; } # bin/site-deploy's, copied
+  apps=$($fly apps list -o "$org" --json | py 'print(" ".join(a["Name"] for a in d))')
+  for app in $apps; do
+    # each machine named with its app, so the wake on a red verdict says what to stop (task fly-capacity-watch: graal's
+    # 1 GB machine ran unseen from 2024-06-01 to 2026-11-01); the last line, its count past the free VM: shared, one
+    # CPU, 256 MB. A size flyctl does not give counts past it: unknown is never free (/code-review)
+    out=$($fly machines list -a "$app" --json | APP=$app py '
+import os
+big = 0
+for x in d:
+    g = (x.get("config") or {}).get("guest") or {}
+    mb, kind, cpus = g.get("memory_mb"), g.get("cpu_kind"), g.get("cpus")
+    big += not (isinstance(mb, int) and mb <= 256 and kind == "shared" and cpus == 1)
+    print("machine: %s %s %s %s %s MB %s x%s" % (os.environ["APP"], x.get("id"), x.get("name"), x.get("state"), mb, kind, cpus))
+print("%d %d" % (len(d), big))')
+    # an app with no machine adds no line (/code-review: a blank one in the list)
+    [ "$(wc -l <<<"$out")" -le 1 ] || ms="${ms:+$ms
+}$(sed '$d' <<<"$out")"
+    read -r n b <<<"$(tail -1 <<<"$out")"
+    m=$((m + n))
+    big=$((big + b))
+    v=$((v + $($fly volumes list -a "$app" --json | py 'print(len(d))')))
+  done
+  echo "fly: org $org, apps: ${apps:-none}; $m machines, $v volumes"
+  [ -z "${ms:-}" ] || echo "$ms"
+  [ "$m" -le 1 ] || { echo "FAIL: $m machines, the free allowance kept is one VM"; exit 1; }
+  [ "$v" -le 1 ] || { echo "FAIL: $v volumes, the site keeps one"; exit 1; }
+  [ "$big" -eq 0 ] || { echo "FAIL: $big machines past the plan's free VM (shared, 1 CPU, 256 MB)"; exit 1; }
+}
+
+# the relay's status, one field: python3 reads the JSON (bin/site-deploy's py, copied)
+status_field() { # base field
+  curl -fsS -m 10 "$1/status.json" | python3 -c "import json, sys; print(json.load(sys.stdin)$2)"
+}
+
+relay() { # base
+  local base=$1 v
+  expect "$base/healthz" 200
+  v=$(status_field "$base" '["protocol"]') || { echo "FAIL: $base/status.json is not the relay's status"; exit 1; }
+  # captured first: grep -q exiting early would fail curl with exit 23 under pipefail on a long page (/code-review)
+  page=$(curl -fsS -m 10 "$base/status") || { echo "FAIL: no $base/status"; exit 1; }
+  grep -qi '<html' <<<"$page" || { echo "FAIL: $base/status is not the status page"; exit 1; }
+  echo "relay: $base/healthz ok, protocol $v, $(status_field "$base" '["matches"]') battles running, status page served"
+}
+
+relay_idle() { # base seconds
+  local base=$1 until=$(($(date +%s) + $2)) n rc
+  while :; do
+    # idle unless the relay itself answers /healthz: Fly's edge accepts 8443 even with the relay dead, answering 502
+    # or a TLS error, which waited the full time (/code-review). Only a timeout (28) is no proof either way, so it waits
+    rc=0
+    n=$(status_field "$base" '["matches"]' 2>/dev/null) || rc=$?
+    if [ "$rc" = 0 ] && [ "$n" = 0 ]; then echo "relay: no battle running on $base"; return; fi
+    if [ "$rc" != 0 ]; then
+      rc=0
+      curl -fsS -m 10 -o /dev/null "$base/healthz" 2>/dev/null || rc=$?
+      case $rc in 0 | 28) ;; *) echo "relay: no relay answers on $base (curl $rc), idle"; return ;; esac
+      n="an unread number of"
+    fi
+    # ponytail: past the wait the deploy goes on, the relay's drain (bin/site-start) giving the battles 50 s more;
+    # a deploy held for an evening's battles would hold every site fix behind them
+    [ "$(date +%s)" -lt "$until" ] || { echo "relay: $n battles still running after $2 s, deploying anyway"; return; }
+    sleep 15
+  done
+}
+
+case "${1:-}" in
+  fly) fly_usage ;;
+  relay) relay "${2%/}" ;;
+  relay-idle) relay_idle "${2%/}" "$3" ;;
+  gap) shift; gap "$@" ;;
+  image)
+    img=$2
+    # linux/amd64, as site.yml builds it for Fly: run under Rosetta on this Mac. A free port: two runners share this Mac
+    run=(--platform linux/amd64)
+    [ "$oci" != container ] || run+=(--rosetta)
+    # +JPperf true as in site.yml's container build: the BEAM crashes at boot under this emulation. Emulated runs only:
+    # the image Fly runs is native and gets no flag, which would have it write perf files for nothing
+    [ "$(uname -m)" = x86_64 ] || run+=(-e 'ERL_FLAGS=+JPperf true')
+    # listed by a container of its own that never boots the site, so the list is the image's, no file the app wrote:
+    # Apple's container builds a rootfs only at start, so an export of a created one failed « rootfs.ext4 not found »
+    # (run 41957320647). -xdev stays off /proc and /sys; paths as tar printed them
+    files=$("$oci" run --rm "${run[@]}" "$img" find / -xdev | sed 's#^/##') || { echo "FAIL: no file list from the image"; exit 1; }
+    # an empty list would pass the private-file check below
+    grep -q '^app/' <<<"$files" || { echo "FAIL: no app/ in the image's file list"; exit 1; }
+    # the repository's files are all under app/ (the Dockerfile's COPY); Debian has its own etc/ssl/private
+    echo "image: $(wc -l <<<"$files") files, $(grep -c '^app/' <<<"$files") under app/"
+    if grep -E '^app/(.*/)?(private(/|$)|[^/]*\.edn$|CLAUDE\.md$)|Elixir\.Dashboard' <<<"$files"; then
+      echo "FAIL: the image holds the private files above"; exit 1
+    fi
+    echo "image: no private/ path, no dashboard module, no .edn, no CLAUDE.md"
+    # ponytail: probed then freed, so another job may take it first; container run then fails to publish, loudly
+    port=$(perl -MIO::Socket::INET -e 'print IO::Socket::INET->new(Listen => 1, LocalAddr => "127.0.0.1:0")->sockport')
+    rport=$(perl -MIO::Socket::INET -e 'print IO::Socket::INET->new(Listen => 1, LocalAddr => "127.0.0.1:0")->sockport')
+    [ -n "$port" ] && [ -n "$rport" ] || { echo "FAIL: no free port for the image"; exit 1; }
+    c=$("$oci" run -d "${run[@]}" -p "127.0.0.1:$port:8080" -p "127.0.0.1:$rport:8090" "$img")
+    base=http://127.0.0.1:$port
+    rbase=http://127.0.0.1:$rport
+    # container's -p forwarder is a launchd helper that macOS's Local Network privacy can refuse, with no prompt in a job,
+    # while the container's own address answers (apple/container 2067, 919; run 41975861940: the site up, no request in
+    # its log): so its address too. The site is what is checked here; Fly never runs this forwarder
+    ip=
+    [ "$oci" != container ] || ip=$("$oci" inspect "$c" | grep -Eo '[0-9]+(\.[0-9]+){3}/[0-9]+' | head -1 | cut -d/ -f1) || true
+    up=
+    err=
+    iperr=
+    # -m 2: a stalled answer fails, never hangs the job; 60 tries: this boot may run emulated
+    for _ in $(seq 60); do
+      err=$(curl -fsS -m 2 -o /dev/null "$base/" 2>&1) && { up=1; break; }
+      if [ -n "$ip" ]; then
+        iperr=$(curl -fsS -m 2 -o /dev/null "http://$ip:8080/" 2>&1) && {
+          up=1
+          echo "image: read at $ip, the published port answers « $err »"
+          base=http://$ip:8080
+          rbase=http://$ip:8090
+          break
+        }
+      fi
+      sleep 1
+    done
+    # curl's words and the log before the trap removes it: run 41959322415 died here with only « is not running » to read
+    [ -n "$up" ] || {
+      echo "FAIL: the image never answered on /: $err${ip:+; at $ip: $iperr}; its log:"
+      "$oci" logs "$c" 2>&1 | tail -50 || true
+      exit 1
+    }
+    pages "$base"
+    expect "$base/public/?a=1" 301 "https://nicolas-ha.com/public/?a=1" -H "Host: www.nicolas-ha.com"
+    echo "www: 301 to the bare domain"
+    if chat_off; then
+      chat_closed "$base"
+    else
+      # no key in the image: the chat answers, refusing with his contact, and calls nothing
+      kind "$base" "What did Nicolas build at Griffin?" unavailable
+      # the chat's page is the LiveView, with its scripts from the release
+      curl -fsS -m 30 "$base/chat/" | grep -q 'phx-hook="Complete"' || { echo "FAIL: /chat/ is not the chat"; exit 1; }
+      echo "chat: /chat/ the LiveView"
+    fi
+    expect "$base/assets/phoenix_live_view.min.js" 200
+    # its records need the token, unset here
+    expect "$base/ops/chat" 404
+    "$oci" exec "$c" sh -c 'test -s /data/site.db' || { echo "FAIL: no /data/site.db"; exit 1; }
+    echo "chat: its script served, /ops/chat closed without a token, /data/site.db written"
+    # the relay beside it (bin/site-start), its own port, as Fly's TLS handler forwards 8443 to it
+    relay "$rbase"
+    # the image's processes, their resident memory summed: container's stats count its whole VM, kernel and cache (/code-review)
+    # no VmRSS line (exec refused, the container gone) fails: 0 would pass under the limit (/code-review)
+    mem=$("$oci" exec "$c" sh -c 'cat /proc/[0-9]*/status 2> /dev/null; true' |
+      awk '/^VmRSS:/ { k += $2; n++ } END { if (!n) exit 1; printf "%.1fMiB", k / 1024 }') ||
+      { echo "FAIL: no memory read in the container"; exit 1; }
+    echo "memory after every page$(chat_off && echo ', the chat not loaded'): $mem (plan's limit: 256MiB)"
+    awk -v m="$mem" 'BEGIN { v = m + 0; if (m ~ /GiB/) v *= 1024; if (m ~ /KiB/) v /= 1024; exit !(v < 256) }' \
+      || { echo "FAIL: over 256MiB"; exit 1; } ;;
+  # ponytail: a build starting in the seconds of this stop fails, red and rerun; a lock across jobs if that ever shows.
+  # A stop that fails or a pgrep refused only warns: an idle VM never fails a built image
+  builder-stop)
+    rc=0; pgrep -f '(^|/)container build ' > /dev/null || rc=$?
+    case $rc in
+      0) echo "builder: another build runs, its job stops it after" ;;
+      1) if container builder stop; then echo "builder: stopped"
+         else echo "::warning::container builder stop failed: the builder VM stays up"; fi ;;
+      *) echo "::warning::pgrep exit $rc: the builder VM stays up" ;;
+    esac ;;
+  url) pages "${2%/}" ;;
+  chat)
+    chat_off && { chat_closed "${2%/}"; echo "chat: nothing asked"; exit 0; }
+    kind "${2%/}" "Write me a poem about Paris" refused
+    kind "${2%/}" "What did Nicolas build at Griffin?" answer
+    # the text holds no patent: the answer says it does not know, or the number check refuses it
+    kind "${2%/}" "How many patents does Nicolas hold?" "answer|refused" ;;
+  *) sed -n '2,/^set /{/^#/p;}' "$self"; exit 2 ;;
+esac

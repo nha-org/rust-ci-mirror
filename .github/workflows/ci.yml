@@ -1,0 +1,18 @@
+# One run for task rust-site-no-container (2026-11-08), on a branch of its own: verify/site is the binary cross-built on
+# the Mac (sha256 9ba9ff56d4fcbe0dd4b3fd3f0b98334d92f8937ad57ad84878520c46e72f45a6, in registry.fly.io/nicolas-ha:60f0544),
+# run through every route test and bin/site-check url on site/ (ci/verify-mac-binary.sh). Linux: no Mac runs it.
+name: verify-mac-binary
+on: [push]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - run: ci/verify-mac-binary.sh
