@@ -1,0 +1,1993 @@
+//! The binary's wiring of section 20b's orchestrator: the store, the older app's list and judge, herdr, the approved
+//! `make claude`, Claude Code, git and GitHub, on orch. One process per run: a run that crashes takes its claim's lock with it
+//! and nothing else, and `dash orch` frees it on its next look.
+use crate::reporting::{reporting, say_memory};
+use dash_agent::ClaudeCode;
+use dash_bridge::{Dash, Issue};
+use dash_core::tasks::{
+    Agent, Claim, Limit, Outcome, Pick, Plan, Queue, Standing, TaskList, Terminal, plan,
+    waits_unmet,
+};
+use dash_forge::GitHub;
+use dash_launcher::{ApprovedMake, mxc};
+use dash_meter::cap::STOP_CODE;
+use dash_orch::{Pace, Ports, next, run_task, seats_taken};
+use dash_policy::Defaults;
+use dash_store::tasks::{self as store, AgentRow, Row, SqliteTasks};
+use dash_surface as surface;
+use dash_terminal::Herdr;
+use serde_json::{Map, Value, json};
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{IsTerminal, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, ExitStatus};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+const PACE: Pace = Pace {
+    poll: Duration::from_secs(2),
+    // session.sh's wait for the prompt.
+    start_limit: Duration::from_secs(3 * 60),
+    limit: Duration::from_secs(8 * 60 * 60),
+    // Past it nothing moves the session: a minute of Enters, then a margin for a slow start.
+    stuck_limit: Duration::from_secs(3 * 60),
+    stop_polls: 15,
+    // Once a minute, as dash ci wait: its 3 s kin hit GitHub's rate limit (gh-meter).
+    ci_poll: Duration::from_secs(60),
+    ci_limit: Duration::from_secs(3 * 60 * 60),
+    judge_poll: Duration::from_secs(60),
+    // A wait on him can last a night: each look spawns a tool and rereads a whole transcript.
+    patient_poll: Duration::from_secs(60),
+    // A limit its readings show waits on them; this bounds one they do not.
+    limit_retry: Duration::from_secs(30 * 60),
+};
+
+/// A look for what to start. A task runs long, so nothing here needs to be faster than a person's look.
+const ORCH_POLL: Duration = Duration::from_secs(60);
+
+fn or_exit<T>(result: Result<T, String>) -> T {
+    result.unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(1);
+    })
+}
+
+/// The tools of the real thing. `DASH_REPO`, `DASH_WORKTREES`, `DASH_CLI` name another checkout and app; the app's own
+/// CLI takes `DASHBOARD_URL`, so a branch's app answers it.
+struct Tools {
+    list: Dash,
+    terminal: Herdr,
+    launcher: ApprovedMake,
+    agent: ClaudeCode,
+    forge: GitHub,
+    policy: Defaults,
+}
+
+fn home() -> String {
+    or_exit(std::env::var("HOME").map_err(|e| format!("HOME: {e}")))
+}
+
+fn path(var: &str, default: &str) -> PathBuf {
+    std::env::var(var).map_or_else(|_| Path::new(&home()).join(default), PathBuf::from)
+}
+
+pub(crate) fn repo() -> PathBuf {
+    path("DASH_REPO", "repo/site_perso")
+}
+
+/// The folder the task worktrees sit in, and with them each claim's lock.
+fn worktrees() -> PathBuf {
+    path("DASH_WORKTREES", ".herdr/worktrees/site_perso")
+}
+
+fn this_folder() -> PathBuf {
+    or_exit(std::env::current_dir().map_err(|e| format!("this folder: {e}")))
+}
+
+fn open_tasks(dir: &Path) -> Result<SqliteTasks, String> {
+    store::open(dir, &worktrees())
+}
+
+/// The data folder of the running tool, outside git: what `dash serve --port <n>` reads, and `make rust/serve` names.
+pub fn live_data() -> PathBuf {
+    repo().join("private/live/rust/data")
+}
+
+pub(crate) fn older_app() -> Dash {
+    let bin = std::env::var("DASH_CLI");
+    let bin = bin.unwrap_or_else(|_| {
+        repo()
+            .join("private/dashboard/bin/dash")
+            .display()
+            .to_string()
+    });
+    Dash { bin }
+}
+
+fn claude_code(home: &str) -> ClaudeCode {
+    let claude = Path::new(home).join(".claude");
+    ClaudeCode {
+        projects: claude.join("projects"),
+        limits: claude.join("weekly-limit"),
+    }
+}
+
+fn tools() -> Tools {
+    let home = home();
+    let repo = repo();
+    Tools {
+        list: older_app(),
+        terminal: Herdr::from_env(),
+        launcher: ApprovedMake { home: home.clone() },
+        agent: claude_code(&home),
+        forge: GitHub {
+            repo,
+            root: worktrees(),
+            base: "main".into(),
+        },
+        policy: Defaults,
+    }
+}
+
+fn ports<'a>(
+    tasks: &'a mut SqliteTasks,
+    tools: &'a Tools,
+    step: &'a dyn Fn(&str, Duration),
+) -> Ports<'a> {
+    Ports {
+        tasks,
+        list: &tools.list,
+        terminal: &tools.terminal,
+        launcher: &tools.launcher,
+        agent: &tools.agent,
+        forge: &tools.forge,
+        policy: &tools.policy,
+        step,
+    }
+}
+
+/// The older app's queue, and when it was read (Unix milliseconds).
+type QueueAt = (Result<Queue, String>, i64);
+
+#[derive(Default)]
+struct QueueRead {
+    last: Option<QueueAt>,
+    /// What a task's page shows that this store does not hold, read with it.
+    issues: Option<Result<Vec<Issue>, String>>,
+    /// The sessions and the spend read with it, what a pick reads beside the queue.
+    seats: Option<Result<(usize, Vec<Limit>), String>>,
+    reading: bool,
+}
+
+/// What the page at / reads: this store's runs, and what the older app says Rust may pick next.
+pub struct Board {
+    tasks: SqliteTasks,
+    queue: Arc<Mutex<QueueRead>>,
+}
+
+impl Board {
+    pub fn open(dir: &Path) -> Result<Board, String> {
+        let tasks = open_tasks(dir)?;
+        let queue = Arc::default();
+        Ok(Board { tasks, queue })
+    }
+
+    fn look(&self) -> Result<Look, String> {
+        let rows = self.tasks.rows()?;
+        let standing = dash_core::tasks::TaskStore::standing(&self.tasks)?;
+        let now_ms = now_ms();
+        let (queue, issues, seats) = {
+            let mut queue = self.queue.lock().expect("the queue");
+            let stale = queue
+                .last
+                .as_ref()
+                .is_none_or(|(_, at)| now_ms - at >= ORCH_POLL.as_millis() as i64);
+            if stale && !queue.reading {
+                let claims = dash_core::tasks::TaskStore::claims(&self.tasks)?;
+                queue.reading = self.read_queue(claims);
+            }
+            (
+                queue.last.clone(),
+                queue.issues.clone(),
+                queue.seats.clone(),
+            )
+        };
+        let plan = match (&queue, seats) {
+            (Some((Ok(queue), _)), Some(Ok((sessions, limits)))) => Some(Ok(plan(
+                &Defaults,
+                queue.clone(),
+                &standing,
+                sessions,
+                limits,
+            ))),
+            (Some((Ok(_), _)), Some(Err(e))) => Some(Err(e)),
+            _ => None,
+        };
+        Ok(Look {
+            rows,
+            standing,
+            now_ms,
+            queue,
+            issues,
+            plan,
+        })
+    }
+
+    pub fn page(&self) -> Result<String, String> {
+        let look = self.look()?;
+        let plan = match &look.plan {
+            Some(Ok(plan)) => plan_text(plan),
+            Some(Err(e)) => format!("{}\n\n", not_known(e)),
+            None => String::new(),
+        };
+        // The agents' read failing costs their lines only, never the tasks'.
+        let agents = match self.tasks.agents() {
+            Ok(agents) => agents_text(&agents, look.now_ms),
+            Err(e) => format!("Agents: {}\n\n", not_known(&e)),
+        };
+        let above = agents + &plan;
+        Ok(page(
+            &look.rows,
+            look.queue.as_ref(),
+            &above,
+            look.now_ms,
+            option_env!("DASH_COMMIT"),
+        ))
+    }
+
+    /// The page at /graph.
+    pub fn graph(&self) -> Result<String, String> {
+        surface::page("Rust tasks: the graph", &graph_tree(&self.look()?))
+    }
+
+    /// The page at /tasks.
+    pub fn list(&self) -> Result<String, String> {
+        surface::page("Rust tasks", &list_tree(&self.look()?))
+    }
+
+    /// The page at /tasks/<id>; `None`: no open task of that id.
+    pub fn task(&self, id: &str) -> Result<Option<String>, String> {
+        let look = self.look()?;
+        let page = |tree: String| surface::page(&format!("Rust task: {id}"), &tree);
+        task_tree(&look, id).map(page).transpose()
+    }
+
+    /// Only while someone reads the page, so a closed page costs the older app nothing. On its own thread: a read can take its
+    /// 60 s limit, and the store's loop is serial. The next reload shows it; true when the thread started.
+    fn read_queue(&self, claims: Vec<Claim>) -> bool {
+        let shared = Arc::clone(&self.queue);
+        let started = std::thread::Builder::new().spawn(move || {
+            let read = older_app().queue();
+            let answered = read.is_ok();
+            // Shown at once: a slow terminal never holds back the older app's line.
+            shared.lock().expect("the queue").last = Some((read, now_ms()));
+            // No queue, no plan: nothing else is asked of the terminal.
+            let seats = answered.then(|| {
+                let sessions = seats_taken(&Herdr::from_env(), &claims)?;
+                // No HOME is no spend known. `home()` would exit, and from this thread that ends the whole server.
+                let home = std::env::var("HOME");
+                let limits = home.map(|home| claude_code(&home).limits().unwrap_or_default());
+                Ok((sessions, limits.unwrap_or_default()))
+            });
+            shared.lock().expect("the queue").seats = seats;
+            // Last, so a slow answer holds back no Next line; not after a queue that failed, whose wait would only double.
+            let issues = answered.then(|| older_app().issues());
+            let mut queue = shared.lock().expect("the queue");
+            // A queue that failed keeps the last words read: one slow answer never blanks every page (/code-review of #1197).
+            match issues {
+                Some(issues) => queue.issues = Some(issues),
+                None => {
+                    queue
+                        .issues
+                        .get_or_insert_with(|| Err("its queue did not answer".into()));
+                }
+            }
+            queue.reading = false;
+        });
+        started.is_ok()
+    }
+}
+
+/// What both pages read, in one look. `plan`: `None` until the queue has answered, an error when the sessions did not.
+struct Look {
+    rows: Vec<Row>,
+    standing: Vec<Standing>,
+    now_ms: i64,
+    queue: Option<QueueAt>,
+    /// `None` until the older app has answered.
+    issues: Option<Result<Vec<Issue>, String>>,
+    plan: Option<Result<Plan, String>>,
+}
+
+pub(crate) fn now_ms() -> i64 {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+    now.map_or(0, |d| d.as_millis() as i64)
+}
+
+fn age(ms: i64) -> String {
+    match ms / 1000 {
+        s if s < 60 => format!("{} s ago", s.max(0)),
+        s if s < 3600 => format!("{} min ago", s / 60),
+        s if s < 86400 => format!("{} h ago", s / 3600),
+        s => format!("{} d ago", s / 86400),
+    }
+}
+
+/// The first pull request link in what a run said: a merge says only that, a session's report says it among other words,
+/// often in markdown. Exactly `<owner>/<repo>/pull/<digits>`, cut there, so `/pull/12/files` and `(…/pull/12).` are #12.
+/// ponytail: a report citing another PR first shows that one; a `pr` field in the store once a run records it.
+fn pr_in(said: &str) -> Option<&str> {
+    const SITE: &str = "https://github.com/";
+    let name = |w: &str| {
+        !w.is_empty()
+            && w.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    };
+    said.match_indices(SITE).find_map(|(start, _)| {
+        let rest = &said[start..];
+        let mut parts = rest[SITE.len()..].splitn(4, '/');
+        let (owner, repo, pull, tail) =
+            (parts.next()?, parts.next()?, parts.next()?, parts.next()?);
+        let digits = tail.chars().take_while(char::is_ascii_digit).count();
+        let ends = !tail[digits..].starts_with(|c: char| c.is_ascii_alphanumeric());
+        let good = name(owner) && name(repo) && pull == "pull" && digits > 0 && ends;
+        good.then(|| &rest[..SITE.len() + owner.len() + repo.len() + "//pull/".len() + digits])
+    })
+}
+
+/// Words a session or the older app wrote, on one line: a control character (newline, tab, a terminal's escape), a line separator
+/// or an invisible format character (bidi override, zero width) is a space, so they cannot fake a row or rewrite what is shown.
+/// std has no Unicode category test, so these are spelled. crates/gate's `graph::one_line` is its copy: dash links gate only to build.
+fn one_line(words: &str) -> String {
+    let hidden = |c: char| {
+        c.is_control()
+            || matches!(c, '\u{ad}' | '\u{61c}' | '\u{200b}'..='\u{200f}' | '\u{2028}'..='\u{202e}' | '\u{2060}'..='\u{206f}' | '\u{feff}')
+    };
+    words
+        .chars()
+        .map(|c| if hidden(c) { ' ' } else { c })
+        .collect()
+}
+
+/// A line, tab-separated as /search answers. Every field goes through `one_line`: an id comes from the older app's queue or an
+/// argument, `words`, last, is a session's first line or a queued task's title.
+fn line(
+    id: &str,
+    state: &str,
+    tries: u32,
+    last: &str,
+    outcome: &str,
+    pr: &str,
+    words: &str,
+) -> String {
+    let tries = tries.to_string();
+    let fields = [id, state, &tries, last, outcome, pr, words].map(one_line);
+    format!("{}\n", fields.join("\t"))
+}
+
+/// A claim in a word: whatever its row says, one whose lock is free runs nowhere.
+fn claim_word(gone: bool) -> &'static str {
+    if gone { "run gone" } else { "running" }
+}
+
+/// What a run's session waits on, for a claimed row: it is alive and nothing has ended.
+fn waits_on(outcome: Option<&str>) -> Option<&'static str> {
+    match outcome {
+        Some("offline") => Some("waits on the network"),
+        Some("limited") => Some("waits on its limit"),
+        _ => None,
+    }
+}
+
+/// A row's last run: what it said, how it ended, when.
+struct LastRun<'a> {
+    said: &'a str,
+    outcome: &'a str,
+    when: String,
+}
+
+fn last_run(row: &Row, now_ms: i64) -> LastRun<'_> {
+    // claim() keeps the last attempt's outcome and words: a running task shows neither. A claim whose lock is free runs nowhere,
+    // whatever its row says: a crash, or a reboot with no `dash orch` to free it.
+    let running = row.status == "claimed";
+    let said = if running {
+        ""
+    } else {
+        row.said.as_deref().unwrap_or_default()
+    };
+    let outcome = if row.run_gone {
+        claim_word(true)
+    } else if running {
+        waits_on(row.outcome.as_deref()).unwrap_or(claim_word(false))
+    } else {
+        row.outcome.as_deref().unwrap_or("none yet")
+    };
+    // No try, no run: what `add` wrote, or what a reopen forgot.
+    let when = if row.attempts == 0 {
+        "never".to_string()
+    } else {
+        age(now_ms - row.last_ms)
+    };
+    LastRun {
+        said,
+        outcome,
+        when,
+    }
+}
+
+fn row_line(row: &Row, now_ms: i64) -> String {
+    let run = last_run(row, now_ms);
+    let first: String = run
+        .said
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .chars()
+        .take(100)
+        .collect();
+    let pr = pr_in(run.said).unwrap_or_default();
+    line(
+        &row.id,
+        &row.status,
+        row.attempts,
+        &run.when,
+        run.outcome,
+        pr,
+        &first,
+    )
+}
+
+fn not_known(e: &str) -> String {
+    format!(
+        "Next: not known, the sessions did not answer: {}",
+        one_line(e)
+    )
+}
+
+fn next_line(plan: &Plan) -> String {
+    match &plan.next {
+        Pick::Start { id, .. } => format!("Next: {}", one_line(id)),
+        Pick::Wait(why) => format!("Next: nothing, {}", one_line(why)),
+    }
+}
+
+/// What runs next and why the others wait, as `plan` says it: the words the picker acts on.
+fn plan_text(plan: &Plan) -> String {
+    let next = next_line(plan);
+    let waiting: String = plan
+        .waiting
+        .iter()
+        .map(|held| format!("{}\t{}\n", one_line(&held.id), one_line(&held.why)))
+        .collect();
+    format!("{next}\n{waiting}\n")
+}
+
+/// Each open task and what it waits on, the plan's own words on each. A finished task is drawn only as what an open one names, with
+/// no edge of its own: the past stays out of the picture.
+fn graph_tasks(look: &Look) -> Vec<Value> {
+    let plan = look.plan.as_ref().and_then(|p| p.as_ref().ok());
+    let queue = look.queue.as_ref().and_then(|(q, _)| q.as_ref().ok());
+    // By id on one line, the drawn name: two raw ids that read the same are one task, the first row standing for both, since a
+    // graph refuses a name twice.
+    let mut rows = HashMap::new();
+    for row in &look.standing {
+        rows.entry(one_line(&row.id)).or_insert(row);
+    }
+    let mut whys = HashMap::new();
+    for held in plan.iter().flat_map(|p| &p.waiting) {
+        whys.entry(one_line(&held.id)).or_insert(held.why.as_str());
+    }
+    // Finished as the store says: a reopen is the store's to judge (`reopen_held`, with the open-task cap), and the next
+    // `dash orch` pass resets the row; a copy of that rule here disagreed with it (second /simplify of #1197).
+    let finished = |id: &str| rows.get(id).is_some_and(|r| r.status == "finished");
+    let next = plan.and_then(|p| match &p.next {
+        Pick::Start { id, .. } => Some(id.as_str()),
+        Pick::Wait(_) => None,
+    });
+    let held = plan.iter().flat_map(|p| &p.waiting).map(|h| h.id.as_str());
+    let open = look.standing.iter().map(|r| r.id.as_str());
+    let offered = queue.iter().flat_map(|q| &q.tasks).map(|t| t.id.as_str());
+    let mut ids: Vec<String> = vec![];
+    let mut seen = HashSet::new();
+    for id in next.into_iter().chain(held).chain(open).chain(offered) {
+        let id = one_line(id);
+        if !finished(&id) && seen.insert(id.clone()) {
+            ids.push(id);
+        }
+    }
+    // Grows as it goes: what a task names may name more.
+    let mut at = 0;
+    while let Some(id) = ids.get(at) {
+        let row = rows.get(id.as_str()).filter(|r| r.status != "finished");
+        for wait in row.iter().flat_map(|r| &r.waits).map(|w| one_line(w)) {
+            if seen.insert(wait.clone()) {
+                ids.push(wait);
+            }
+        }
+        at += 1;
+    }
+    let next = next.map(one_line);
+    let pending = look.plan.is_none() && !queue_failed(look);
+    let says = |id: &str| -> (&str, String) {
+        let row = rows.get(id);
+        if next.as_deref() == Some(id) {
+            return ("next", "the next pick".into());
+        }
+        if finished(id) {
+            let outcome = row.and_then(|r| r.outcome.as_deref());
+            let merged = outcome == Some("merged");
+            let state = if merged { "finished" } else { "ended" };
+            return (state, outcome.unwrap_or("finished").into());
+        }
+        if row.is_some_and(|r| r.status == "claimed") {
+            let gone = (look.rows.iter()).any(|r| r.run_gone && one_line(&r.id) == id);
+            let waits = waits_on(row.and_then(|r| r.outcome.as_deref())).filter(|_| !gone);
+            if let Some(waits) = waits {
+                return ("waiting", waits.into());
+            }
+            let state = if gone { "waiting" } else { "running" };
+            return (state, claim_word(gone).into());
+        }
+        let known = match plan {
+            Some(_) => "no row",
+            None if pending => "not known yet",
+            None => "not known",
+        };
+        ("waiting", whys.get(id).copied().unwrap_or(known).into())
+    };
+    let task = |id: &String| {
+        let (state, words) = says(id);
+        let row = rows.get(id.as_str()).filter(|_| !finished(id));
+        let waits: Vec<String> = row
+            .iter()
+            .flat_map(|r| &r.waits)
+            .map(|w| one_line(w))
+            .collect();
+        json!({"id": id, "state": state, "says": one_line(&words), "waits": waits})
+    };
+    ids.iter().map(task).collect()
+}
+
+fn queue_failed(look: &Look) -> bool {
+    matches!(look.queue, Some((Err(_), _)))
+}
+
+/// The screen at /graph as a UI tree: what runs next, how old that is, the graph, then each waiting task's whole why, which a node
+/// may clip. With no graph to draw it says why in its place, and the rest stands.
+fn graph_tree(look: &Look) -> String {
+    let text = |t: String| json!({"type": "text", "props": {"text": t}});
+    let next = next_words(look);
+    let note = queue_note(look.queue.as_ref(), look.now_ms);
+    let tasks = graph_tasks(look);
+    let graph = match tasks.len() {
+        0 => text(none_open(look).into()),
+        n if n > surface::GRAPH_LIMIT => text(format!(
+            "{n} tasks: past the {} a graph draws. /, the list, shows them.",
+            surface::GRAPH_LIMIT
+        )),
+        _ => json!({"type": "task-graph", "props": {"tasks": tasks}}),
+    };
+    let mut elements = Map::new();
+    let heading = json!({"type": "heading", "props": {"text": "Rust tasks"}});
+    elements.insert("title".into(), heading);
+    elements.insert("next".into(), text(next));
+    elements.insert("note".into(), text(note));
+    elements.insert("graph".into(), graph);
+    let mut children: Vec<String> = ["title", "next", "note", "graph"].map(String::from).into();
+    let held = look.plan.iter().flatten().flat_map(|p| &p.waiting);
+    for (i, h) in held.enumerate() {
+        let key = format!("why-{i}");
+        let words = format!("{}: {}", one_line(&h.id), one_line(&h.why));
+        elements.insert(key.clone(), text(words));
+        children.push(key);
+    }
+    elements.insert(
+        "page".into(),
+        json!({"type": "stack", "children": children}),
+    );
+    json!({"root": "page", "elements": elements}).to_string()
+}
+
+fn next_words(look: &Look) -> String {
+    match &look.plan {
+        Some(Ok(plan)) => next_line(plan),
+        Some(Err(e)) => not_known(e),
+        None if queue_failed(look) => {
+            "Next: not known, the older app's queue did not answer.".into()
+        }
+        None => "Next: not known yet: the next reload shows it.".into(),
+    }
+}
+
+fn none_open(look: &Look) -> &'static str {
+    match look.queue {
+        Some((Ok(_), _)) => "No Rust task open.",
+        _ => "This store has no task open, and the older app's queue has not answered.",
+    }
+}
+
+/// An open task as the list shows it. `status`: a surface `issue-status`.
+struct Listed {
+    id: String,
+    status: &'static str,
+    says: String,
+}
+
+/// The older app's words on a task, whichever of its ids reads as this one.
+fn issue_of<'a>(look: &'a Look, id: &str) -> Option<&'a Issue> {
+    let issues = look.issues.as_ref().and_then(|i| i.as_ref().ok());
+    issues.and_then(|issues| issues.iter().find(|i| one_line(&i.id) == id))
+}
+
+/// Its title: the older app's list, else its queue, which answers first; else its id.
+fn title_of(look: &Look, id: &str) -> String {
+    let queue = look.queue.as_ref().and_then(|(q, _)| q.as_ref().ok());
+    let queued = queue.and_then(|q| q.tasks.iter().find(|t| one_line(&t.id) == id));
+    let title = issue_of(look, id).map(|i| i.title.as_str());
+    let title = title.or(queued.map(|t| t.title.as_str()));
+    one_line(title.filter(|t| !t.is_empty()).unwrap_or(id))
+}
+
+fn row_of<'a>(look: &'a Look, id: &str) -> Option<&'a Row> {
+    look.rows.iter().find(|r| one_line(&r.id) == id)
+}
+
+/// Each open task, in pick order: the plan's own, as the graph reads it (next, then what waits), its status beside it, its words
+/// the plan's; with no plan known, the queue's order, which the plan would follow. After them what the older app holds open that no
+/// plan names: held there, or its run over here and not yet merged.
+fn listed(look: &Look) -> Vec<Listed> {
+    let queue = look.queue.as_ref().and_then(|(q, _)| q.as_ref().ok());
+    let offered = |id: &str| {
+        let mut tasks = queue.iter().flat_map(|q| &q.tasks);
+        tasks.any(|t| one_line(&t.id) == id)
+    };
+    let standing = |id: &str| (look.standing.iter()).find(|r| one_line(&r.id) == id);
+    let unmet = |id: &str| standing(id).and_then(|r| waits_unmet(&look.standing, &r.waits));
+    let mut all = vec![];
+    for task in graph_tasks(look) {
+        let word = |field: &str| task[field].as_str().unwrap_or_default().to_string();
+        let (id, state) = (word("id"), word("state"));
+        let status = match state.as_str() {
+            // Named by an open task, its own run over: the past stays out, unless the older app holds it open, below.
+            "finished" | "ended" => continue,
+            "running" => "in-progress",
+            "next" => "todo",
+            // A gone run is still In Progress until `dash orch` frees it: « run gone » says so, as the older board's « dead ».
+            _ if standing(&id).is_some_and(|r| r.status == "claimed") => "in-progress",
+            _ if offered(&id) && unmet(&id).is_none() => "todo",
+            _ => "backlog",
+        };
+        let says = word("says");
+        all.push(Listed { id, status, says });
+    }
+    if !matches!(look.plan, Some(Ok(_))) {
+        let tasks = queue.iter().flat_map(|q| &q.tasks).enumerate();
+        let order: HashMap<String, usize> = tasks.map(|(at, t)| (one_line(&t.id), at)).collect();
+        all.sort_by_key(|t: &Listed| order.get(&t.id).copied().unwrap_or(usize::MAX));
+    }
+    let issues = look.issues.as_ref().and_then(|i| i.as_ref().ok());
+    for issue in issues.into_iter().flatten() {
+        let id = one_line(&issue.id);
+        // an issue with no id has no page to link to (/code-review of #1197)
+        if id.is_empty() || all.iter().any(|t: &Listed| t.id == id) {
+            continue;
+        }
+        let run = row_of(look, &id).map(|row| last_run(row, look.now_ms));
+        let (status, says) = match run {
+            Some(run) => match pr_in(run.said) {
+                Some(pr) => ("in-review", format!("{}, {}", run.outcome, pr_name(pr))),
+                None => ("backlog", format!("its run ended: {}", run.outcome)),
+            },
+            None => ("backlog", "the older app's queue does not offer it".into()),
+        };
+        let says = one_line(&says);
+        all.push(Listed { id, status, says });
+    }
+    all
+}
+
+fn pr_name(url: &str) -> String {
+    format!("PR #{}", url.rsplit('/').next().unwrap_or_default())
+}
+
+/// Words a person or a session wrote, their lines kept: each as safe as `one_line`.
+fn lines_kept(words: &str) -> String {
+    let lines: Vec<String> = words.lines().map(one_line).collect();
+    lines.join("\n")
+}
+
+/// Why a task's words are missing, when they are.
+fn no_words(look: &Look) -> String {
+    match &look.issues {
+        None => "Not read yet: the next reload shows it.".into(),
+        // A bad answer's error quotes all of it: a line here, the whole in the log of whoever runs the command.
+        Some(Err(e)) => {
+            let e: String = one_line(e).chars().take(200).collect();
+            format!("The older app did not answer: {e}")
+        }
+        Some(Ok(_)) => "The older app holds no such task.".into(),
+    }
+}
+
+/// The screen at /tasks as a UI tree: what runs next, how old that is, then the open tasks by status, each in pick order. A task on
+/// a comment says so on its row, as `Dashboard.Board.Inbox` on the older board: no panel beside the list (done-when 3 of
+/// rust-linear-view).
+fn list_tree(look: &Look) -> String {
+    let text = |t: String| json!({"type": "text", "props": {"text": t}});
+    let mut elements = Map::new();
+    let heading = json!({"type": "heading", "props": {"text": "Rust tasks"}});
+    elements.insert("title".into(), heading);
+    elements.insert("next".into(), text(next_words(look)));
+    let note = queue_note(look.queue.as_ref(), look.now_ms);
+    elements.insert("note".into(), text(note));
+    let mut children: Vec<String> = ["title", "next", "note"].map(String::from).into();
+    if let Some(Err(_)) = &look.issues {
+        elements.insert("words".into(), text(no_words(look)));
+        children.push("words".into());
+    }
+    let tasks = listed(look);
+    for status in ["in-review", "in-progress", "todo", "backlog"] {
+        let rows: Vec<(usize, &Listed)> = (tasks.iter().enumerate())
+            .filter(|(_, t)| t.status == status)
+            .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        let mut names = vec![];
+        for (i, task) in rows {
+            let comments = issue_of(look, &task.id).map_or(0, |i| i.comments.len());
+            let row = json!({"type": "issue-row", "props": {
+                "id": task.id, "title": title_of(look, &task.id), "status": status, "says": task.says, "comments": comments,
+            }});
+            let name = format!("row-{i}");
+            elements.insert(name.clone(), row);
+            names.push(name);
+        }
+        let group = json!({"type": "issue-group", "props": {"status": status}, "children": names});
+        elements.insert(status.into(), group);
+        children.push(status.into());
+    }
+    if tasks.is_empty() {
+        // The queue leaves out what is held: only the list can say none is open.
+        let none = match look.issues {
+            Some(Ok(_)) => none_open(look),
+            _ => "This store has no task open, and the older app's list has not answered.",
+        };
+        elements.insert("none".into(), text(none.into()));
+        children.push("none".into());
+    }
+    let page = json!({"type": "stack", "children": children});
+    elements.insert("page".into(), page);
+    json!({"root": "page", "elements": elements}).to_string()
+}
+
+/// The screen at /tasks/<id> as a UI tree: its title, status, why, checks and last run, then his comments on it. `None`: the older
+/// app's list has answered and no open task reads as `id`. Before it has, a task may still be one: the page says its words are not
+/// known, never that it does not exist.
+fn task_tree(look: &Look, id: &str) -> Option<String> {
+    let tasks = listed(look);
+    let unknown = Listed {
+        id: id.to_string(),
+        status: "backlog",
+        says: no_words(look),
+    };
+    let task = match tasks.iter().find(|t| t.id == id) {
+        Some(task) => task,
+        None if matches!(look.issues, Some(Ok(_))) => return None,
+        None => &unknown,
+    };
+    let issue = issue_of(look, id);
+    let text = |t: String| json!({"type": "text", "props": {"text": t}});
+    let quote = |t: String| json!({"type": "quote", "props": {"text": t}});
+    let mut elements = Map::new();
+    let mut add = |key: String, element: Value| {
+        elements.insert(key.clone(), element);
+        key
+    };
+    let mut part = |key: &str, title: String, parts: Vec<(String, Value)>| {
+        let names: Vec<String> = parts.into_iter().map(|(k, e)| add(k, e)).collect();
+        add(
+            key.into(),
+            json!({"type": "section", "props": {"title": title}, "children": names}),
+        )
+    };
+
+    let why = issue.map(|i| lines_kept(&i.why)).filter(|w| !w.is_empty());
+    let why = part(
+        "why",
+        "Why".into(),
+        vec![(
+            "why-text".into(),
+            text(why.unwrap_or_else(|| no_words(look))),
+        )],
+    );
+
+    let parts = issue.iter().flat_map(|i| &i.checks);
+    let judged = parts.clone().filter(|c| c.met.is_some()).count();
+    let met = parts.clone().filter(|c| c.met == Some(true)).count();
+    let total = parts.clone().count();
+    let title = if judged > 0 {
+        format!("Checks: {met} of {total} met")
+    } else {
+        "Checks".to_string()
+    };
+    let mut checks: Vec<(String, Value)> = parts
+        .enumerate()
+        .map(|(i, c)| {
+            let props = json!({"text": one_line(&c.text), "met": c.met});
+            let check = json!({"type": "check", "props": props});
+            (format!("check-{i}"), check)
+        })
+        .collect();
+    if checks.is_empty() {
+        let none = issue.map_or_else(|| no_words(look), |_| "None written.".into());
+        checks.push(("no-checks".into(), text(none)));
+    }
+    let checks = part("checks", title, checks);
+
+    let mut run: Vec<(String, Value)> = vec![];
+    match row_of(look, id).filter(|r| r.attempts > 0) {
+        None => run.push(("run-line".into(), text("Never run.".into()))),
+        Some(row) => {
+            let last = last_run(row, look.now_ms);
+            let line = format!("Try {}, {}: {}.", row.attempts, last.when, last.outcome);
+            run.push(("run-line".into(), text(one_line(&line))));
+            if let Some(pr) = pr_in(last.said) {
+                let link = json!({"type": "pull-request", "props": {"url": pr}});
+                run.push(("run-pr".into(), link));
+            }
+            if !last.said.is_empty() {
+                run.push(("run-said".into(), quote(lines_kept(last.said))));
+            }
+        }
+    }
+    let run = part("run", "Last run".into(), run);
+
+    let said = issue.iter().flat_map(|i| &i.comments).enumerate();
+    let comments: Vec<(String, Value)> = said
+        .map(|(i, c)| (format!("comment-{i}"), quote(lines_kept(c))))
+        .collect();
+    let comments =
+        (!comments.is_empty()).then(|| part("comments", "Your comments".into(), comments));
+
+    let bar = add(
+        "bar".into(),
+        json!({"type": "issue-bar", "props": {"id": task.id}}),
+    );
+    let heading = add(
+        "title".into(),
+        json!({"type": "heading", "props": {"text": title_of(look, id)}}),
+    );
+    let state = add(
+        "state".into(),
+        json!({"type": "issue-state", "props": {"status": task.status, "says": task.says}}),
+    );
+    let mut children = vec![bar, heading, state, why, checks, run];
+    children.extend(comments);
+    add(
+        "page".into(),
+        json!({"type": "stack", "children": children}),
+    );
+    Some(json!({"root": "page", "elements": elements}).to_string())
+}
+
+fn queue_note(queue: Option<&QueueAt>, now_ms: i64) -> String {
+    match queue {
+        Some((Ok(_), at)) => format!("The older app's queue, read {}.", age(now_ms - at)),
+        Some((Err(e), at)) => format!(
+            "The older app's queue did not answer, {}: {}",
+            age(now_ms - at),
+            one_line(e)
+        ),
+        None => "The older app's queue is being read: the next reload shows it.".into(),
+    }
+}
+
+const AGENTS_SHOWN: usize = 10;
+
+/// The agents `dash claude` started, above the tasks: none, no lines.
+fn agents_text(agents: &[AgentRow], now_ms: i64) -> String {
+    if agents.is_empty() {
+        return String::new();
+    }
+    // The newest first: past sessions never push the tasks down the page.
+    let lines = agents.iter().take(AGENTS_SHOWN).map(|a| {
+        // Every field through one_line, the pane's id and folder too: one agent, one line (/code-review).
+        format!(
+            "{}\t{}\t{}\t{}\n",
+            one_line(&a.pane),
+            one_line(&a.state),
+            age(now_ms - a.last_ms),
+            one_line(&a.folder)
+        )
+    });
+    let more = match agents.len().saturating_sub(AGENTS_SHOWN) {
+        0 => String::new(),
+        n => format!("and {n} more, older\n"),
+    };
+    format!(
+        "Agent\tState\tLast write\tFolder\n{}{more}\n",
+        lines.collect::<String>()
+    )
+}
+
+/// Plain text: the drawn screen is `graph_tree`'s. `make rust/deploy` matches the whole « Built from » line.
+/// `above`: the lines over the tasks table, the agents and the plan.
+fn page(
+    rows: &[Row],
+    queue: Option<&QueueAt>,
+    above: &str,
+    now_ms: i64,
+    commit: Option<&str>,
+) -> String {
+    let mut table: String = rows.iter().map(|r| row_line(r, now_ms)).collect();
+    if let Some((Ok(queue), _)) = queue {
+        let waiting = queue
+            .tasks
+            .iter()
+            .filter(|t| !rows.iter().any(|r| r.id == t.id));
+        for task in waiting {
+            table += &line(&task.id, "queued", 0, "never", "", "", &task.title);
+        }
+    }
+    let note = queue_note(queue, now_ms);
+    if table.is_empty() {
+        table = "No Rust task yet.\n".into();
+    }
+    let commit = commit.unwrap_or("a local build");
+    format!(
+        "Rust tasks\nList: /tasks\nGraph: /graph\nDependencies: /deps\n{note}\n\n{above}Task\tState\tTries\tLast run\tOutcome\tPR\tWords\n{table}\nBuilt from {commit}.\n"
+    )
+}
+
+fn names_in(waits: &str) -> Vec<String> {
+    let names = waits.split(',').filter(|w| !w.is_empty());
+    names.map(String::from).collect()
+}
+
+/// A write, then its row. A refusal is its line on stderr, with exit 1.
+fn written(
+    dir: &Path,
+    id: &str,
+    mut out: File,
+    write: impl FnOnce(&mut SqliteTasks) -> Result<(), String>,
+) {
+    let mut tasks = or_exit(open_tasks(dir));
+    or_exit(write(&mut tasks));
+    let row = or_exit(tasks.show(id));
+    writeln!(out, "{}", row.unwrap_or_default()).expect("stdout");
+}
+
+/// A new open task.
+pub fn add(dir: &Path, id: &str, waits: &str, out: File) {
+    written(dir, id, out, |tasks| tasks.add(id, &names_in(waits)));
+}
+
+/// The list a task waits on replaced, emptied by an empty word.
+pub fn waits(dir: &Path, id: &str, waits: &str, out: File) {
+    written(dir, id, out, |tasks| tasks.waits(id, &names_in(waits)));
+}
+
+/// An open task given up on, out from under the cap.
+pub fn close(dir: &Path, id: &str, why: &str, out: File) {
+    written(dir, id, out, |tasks| tasks.close(id, why));
+}
+
+pub fn show(dir: &Path, id: &str, mut out: File) {
+    let row = or_exit(or_exit(open_tasks(dir)).show(id));
+    let row = or_exit(row.ok_or(format!("{id}: no such task")));
+    writeln!(out, "{row}").expect("stdout");
+}
+
+/// Exit 0 on a task merged; any other outcome prints the same, with exit 1. A stop at the memory cap prints no outcome: exit
+/// `STOP_CODE`, which `orchestrate` flags by name.
+pub fn run(dir: &Path, id: &str, account: Option<&str>, mut out: File) {
+    let report = reporting(dir, "run");
+    let step = |name: &str, took: Duration| report.step_took(name, took);
+    let tools = tools();
+    let mut tasks = or_exit(open_tasks(dir));
+    let run = run_task(id, account, &mut ports(&mut tasks, &tools, &step), PACE);
+    say_memory(&report);
+    let run = or_exit(run);
+    let (kind, said) = run.outcome.parts();
+    let (pane, session) = (
+        run.pane.unwrap_or_default(),
+        run.session.unwrap_or_default(),
+    );
+    writeln!(
+        out,
+        "pane: {pane}\nsession: {session}\noutcome: {kind}\nsaid: {said}"
+    )
+    .expect("stdout");
+    if !matches!(run.outcome, Outcome::Merged(_)) {
+        std::process::exit(1);
+    }
+}
+
+/// `dash claude`: one Claude Code session in a herdr pane of its own, in this folder, isolated by MXC (rust-dash-claude). The
+/// pane runs the live dash, which records the agent on `dir` for the page at /. Prints the pane.
+pub fn claude(dir: &Path, mut out: File) {
+    let _report = reporting(dir, "claude");
+    let folder = this_folder();
+    let herdr = Herdr::from_env();
+    let pane = or_exit(herdr.open(&folder.display().to_string(), "rust claude"));
+    let dash = repo().join("private/live/rust/dash");
+    let line = mxc::pane_line(&dash.display().to_string(), &dir.display().to_string());
+    or_exit(herdr.run(&pane, &line));
+    writeln!(out, "pane: {pane}").expect("stdout");
+}
+
+/// `dash claude --in-pane`, the pane's line: the session under the approved copy's policy for the claude job, recorded on
+/// `dir` as it starts and as it ends. Exits with the session's code, 1 when it never started.
+pub fn claude_in_pane(dir: &Path) {
+    let _report = reporting(dir, "claude-in-pane");
+    let folder = this_folder();
+    let folder = folder.display().to_string();
+    // herdr's own name for the pane, as sandbox-apply's DASH_SESSION falls back to it.
+    let pane =
+        std::env::var("HERDR_PANE_ID").unwrap_or_else(|_| format!("pid-{}", std::process::id()));
+    // Its row by pane and process: a pane id herdr hands out again never overwrites an earlier agent (/code-review).
+    let row = format!("{pane} {}", std::process::id());
+    let mut tasks = open_tasks(dir).unwrap_or_else(|why| held(&why));
+    tasks
+        .agent(&row, &folder, "running")
+        .unwrap_or_else(|why| held(&why));
+    let home = home();
+    // The approved policy is Seatbelt's: elsewhere a clear refusal, never mxc's spawn error (/code-review).
+    let mac = if cfg!(target_os = "macos") {
+        Ok(())
+    } else {
+        Err("dash claude runs on macOS only: the approved policy is Seatbelt's".to_string())
+    };
+    let ran = mac
+        .and_then(|()| mxc::approved_job(&home, &folder, "claude"))
+        .and_then(|job| {
+            let policy = mxc::approved_profile(&home, &folder, "claude")?;
+            let env = mxc::environment(&job, &pane, std::env::vars());
+            mxc::in_terminal(mxc::request(&policy, &folder, &job.command, env))
+        });
+    let (state, code) = match &ran {
+        Ok(code) => (format!("ended {code}"), *code),
+        Err(why) => (format!("refused: {why}"), 1),
+    };
+    // The row first: after a closed pane, a write to its terminal fails, and nothing may stop the row being written.
+    or_exit(tasks.agent(&row, &folder, &state));
+    if let Err(why) = &ran {
+        held(why);
+    }
+    std::process::exit(code);
+}
+
+/// The pane's line is `exec dash claude --in-pane`: an exit closes it, so `why` waits for Enter to be read, then exits 1
+/// (/code-review).
+fn held(why: &str) -> ! {
+    let _ = writeln!(std::io::stderr(), "{why}\nEnter closes this pane.");
+    if std::io::stdin().is_terminal() {
+        let _ = std::io::stdin().read_line(&mut String::new());
+    }
+    std::process::exit(1);
+}
+
+/// Picks and starts, each run a process of its own. `once`: the first pick's run, its exit this one's, nothing else started.
+pub fn orchestrate(dir: &Path, once: bool, began: Instant, mut out: File) {
+    let report = reporting(dir, "orch");
+    let step = |name: &str, took: Duration| report.step_took(name, took);
+    let tools = tools();
+    let mut tasks = or_exit(open_tasks(dir));
+    let mut first = true;
+    let mut running: Vec<(String, Child)> = vec![];
+    let mut said = String::new();
+    loop {
+        running.retain_mut(|(id, c)| {
+            let Ok(Some(status)) = c.try_wait() else {
+                return true;
+            };
+            // The next look reads this run as a crash and retries within its tries: only this exit code says why.
+            if let Some(what) = stopped_at_cap(status) {
+                let _ = tools.list.flag(id, what);
+            }
+            false
+        });
+        let look = report.step("pass", || next(&mut ports(&mut tasks, &tools, &step)));
+        // To its first useful answer: a look that failed is none.
+        if first && look.is_ok() {
+            first = false;
+            report.started(began);
+        }
+        let line = match look {
+            Ok(Pick::Start { id, account }) => {
+                let child = start(dir, &id, account.as_deref());
+                if once {
+                    let status = or_exit(child).wait().map_err(|e| e.to_string());
+                    say_memory(&report);
+                    std::process::exit(or_exit(status).code().unwrap_or(1));
+                }
+                match child {
+                    Ok(child) => running.push((id.clone(), child)),
+                    Err(e) => eprintln!("{id}: {e}"),
+                }
+                format!(
+                    "started {id} on {}",
+                    account.unwrap_or("its default account".into())
+                )
+            }
+            Ok(Pick::Wait(why)) if once => {
+                writeln!(out, "{why}").expect("stdout");
+                say_memory(&report);
+                std::process::exit(3);
+            }
+            Ok(Pick::Wait(why)) => why,
+            // A look that failed is no verdict: the app may be restarting.
+            Err(e) => e,
+        };
+        // Once per change: a day's waits are one line.
+        if line != said {
+            writeln!(out, "{line}").expect("stdout");
+            said = line;
+        }
+        std::thread::sleep(ORCH_POLL);
+    }
+}
+
+fn stopped_at_cap(status: ExitStatus) -> Option<&'static str> {
+    (status.code() == Some(STOP_CODE)).then_some("its run stopped at the memory cap")
+}
+
+fn start(dir: &Path, id: &str, account: Option<&str>) -> Result<Child, String> {
+    let me = std::env::current_exe().map_err(|e| e.to_string())?;
+    let mut command = Command::new(me);
+    command.args(["task", "run", "--data"]).arg(dir).arg(id);
+    if let Some(account) = account {
+        command.args(["--account", account]);
+    }
+    detached(&mut command).spawn().map_err(|e| e.to_string())
+}
+
+/// A run in its own process group outlives this job: launchd ends the job's group, and a restart must not close a healthy session
+/// and spend one of its tries.
+fn detached(command: &mut Command) -> &mut Command {
+    std::os::unix::process::CommandExt::process_group(command, 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dash_bridge::Check;
+    use dash_core::tasks::Queued;
+    use dash_meter::memory::TestBudget;
+
+    #[test]
+    fn only_the_cap_s_exit_code_reads_as_a_stop_at_the_cap() {
+        let _budget = TestBudget::new();
+        let exit = |code: i32| {
+            Command::new("sh")
+                .args(["-c", &format!("exit {code}")])
+                .status()
+                .expect("sh")
+        };
+        assert!(stopped_at_cap(exit(STOP_CODE)).is_some());
+        assert_eq!(stopped_at_cap(exit(1)), None);
+        assert_eq!(stopped_at_cap(exit(0)), None);
+    }
+
+    #[test]
+    fn a_run_leads_its_own_process_group() {
+        let _budget = TestBudget::new();
+        let mut perl = Command::new("perl");
+        perl.args(["-e", "print getpgrp"])
+            .stdout(std::process::Stdio::piped());
+        let child = detached(&mut perl).spawn().expect("perl");
+        let pid = child.id().to_string();
+        let out = child.wait_with_output().expect("its group");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), pid);
+    }
+
+    fn row(said: &str) -> Row {
+        Row {
+            id: "a-task".into(),
+            status: "finished".into(),
+            attempts: 2,
+            outcome: Some("merged".into()),
+            said: Some(said.into()),
+            last_ms: 1_000,
+            run_gone: false,
+        }
+    }
+
+    #[test]
+    fn a_page_shows_a_run_with_its_pr_and_what_a_session_said() {
+        let _budget = TestBudget::new();
+        let said = "TASK_DONE\npr: https://github.com/o/r/pull/12, ready";
+        let text = page(&[row(said)], None, "", 301_000, Some("abc123"));
+        let line =
+            "a-task\tfinished\t2\t5 min ago\tmerged\thttps://github.com/o/r/pull/12\tTASK_DONE\n";
+        assert!(text.contains(line), "{text}");
+        assert!(text.contains("Dependencies: /deps\n"), "{text}");
+        assert!(text.ends_with("\nBuilt from abc123.\n"), "{text}");
+    }
+
+    #[test]
+    fn the_page_lists_each_agent_dash_claude_started_and_none_says_nothing() {
+        let _budget = TestBudget::new();
+        assert_eq!(agents_text(&[], 0), "");
+        let agent = |pane: &str, state: &str| AgentRow {
+            pane: pane.into(),
+            folder: "/w".into(),
+            state: state.into(),
+            last_ms: 1_000,
+        };
+        let text = agents_text(
+            &[agent("p1", "running"), agent("p2", "refused: no\npolicy")],
+            61_000,
+        );
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines[0], "Agent\tState\tLast write\tFolder");
+        assert!(
+            lines[1].starts_with("p1\trunning\t") && lines[1].ends_with("\t/w"),
+            "{text}"
+        );
+        assert!(
+            lines[2].starts_with("p2\trefused: no policy\t"),
+            "one line a row: {text}"
+        );
+        let many: Vec<_> = (0..12)
+            .map(|n| agent(&format!("p{n}"), "ended 0"))
+            .collect();
+        let text = agents_text(&many, 0);
+        let shown = text.lines().count();
+        assert_eq!(
+            shown,
+            1 + AGENTS_SHOWN + 2,
+            "the newest 10, a title, the rest named and a gap"
+        );
+        assert!(text.contains("and 2 more, older\n"));
+    }
+
+    #[test]
+    fn a_row_that_never_ran_shows_no_time() {
+        let _budget = TestBudget::new();
+        let mut added = row("");
+        added.attempts = 0;
+        let text = page(&[added], None, "", 301_000, None);
+        assert!(text.contains("a-task\tfinished\t0\tnever\t"), "{text}");
+    }
+
+    #[test]
+    fn words_cannot_fake_a_row() {
+        let _budget = TestBudget::new();
+        let queue = Ok(Queue {
+            seats: 1,
+            tasks: vec![Queued {
+                id: "ne\nxt\x1b[2J".into(),
+                title: "its\nfaked\trow\x1b[2J\r\u{202e}\u{2028}".into(),
+                reopened_ms: None,
+            }],
+        });
+        let text = page(&[], Some(&(queue, 0)), "", 0, None);
+        assert!(text.contains("\nne xt [2J\tqueued\t"), "{text}");
+        assert!(text.contains("\tits faked row [2J   \n"), "{text}");
+        let failed = page(
+            &[],
+            Some(&(Err("down\nBuilt from x.".into()), 0)),
+            "",
+            0,
+            Some("y"),
+        );
+        assert!(failed.contains("0 s ago: down Built from x.\n"), "{failed}");
+        assert!(!failed.contains("\nBuilt from x.\n"), "{failed}");
+        let forged = "\nBuilt from x.\n";
+        let queue = Ok(Queue {
+            seats: 1,
+            tasks: vec![Queued {
+                id: forged.into(),
+                title: forged.into(),
+                reopened_ms: None,
+            }],
+        });
+        let quoted = page(&[], Some(&(queue, 0)), "", 0, Some("y"));
+        assert!(!quoted.contains("\nBuilt from x.\n"), "{quoted}");
+    }
+
+    #[test]
+    fn a_task_on_its_next_try_shows_nothing_of_the_last_one() {
+        let _budget = TestBudget::new();
+        let mut retried = row("failed at https://github.com/o/r/pull/12");
+        retried.status = "claimed".into();
+        retried.outcome = Some("failed".into());
+        let text = page(&[retried], None, "", 1_000, None);
+        assert!(text.contains("running"), "{text}");
+        assert!(!text.contains("failed"), "{text}");
+        assert!(!text.contains("pull/12"), "{text}");
+    }
+
+    #[test]
+    fn a_claim_whose_lock_is_free_says_run_gone_never_running() {
+        let _budget = TestBudget::new();
+        let mut gone = row("");
+        gone.status = "claimed".into();
+        gone.run_gone = true;
+        let text = page(std::slice::from_ref(&gone), None, "", 1_000, None);
+        assert!(text.contains("run gone"), "{text}");
+        assert!(!text.contains("running"), "{text}");
+        gone.run_gone = false;
+        let text = page(&[gone], None, "", 1_000, None);
+        assert!(text.contains("running"), "{text}");
+        assert!(!text.contains("run gone"), "{text}");
+    }
+
+    #[test]
+    fn a_session_waiting_on_the_network_reads_so_never_ended_and_a_gone_run_stays_gone() {
+        let _budget = TestBudget::new();
+        let mut waiting = row("API Error: Can't reach the API server");
+        waiting.status = "claimed".into();
+        waiting.outcome = Some("offline".into());
+        let text = page(std::slice::from_ref(&waiting), None, "", 1_000, None);
+        assert!(text.contains("waits on the network"), "{text}");
+        assert!(
+            !text.contains("ended") && !text.contains("running"),
+            "{text}"
+        );
+        waiting.outcome = Some("limited".into());
+        let text = page(std::slice::from_ref(&waiting), None, "", 1_000, None);
+        assert!(text.contains("waits on its limit"), "{text}");
+        waiting.outcome = Some("offline".into());
+        waiting.run_gone = true;
+        let text = page(&[waiting], None, "", 1_000, None);
+        assert!(text.contains("run gone"), "{text}");
+        assert!(!text.contains("waits on the network"), "{text}");
+    }
+
+    #[test]
+    fn a_queued_task_shows_once_and_a_queue_that_failed_says_so() {
+        let _budget = TestBudget::new();
+        let queued = |id: &str| Queued {
+            id: id.into(),
+            title: "its words".into(),
+            reopened_ms: None,
+        };
+        let queue = Ok(Queue {
+            seats: 1,
+            tasks: vec![queued("a-task"), queued("next")],
+        });
+        let text = page(&[row("")], Some(&(queue, 1_000)), "", 121_000, None);
+        assert!(text.contains("queue, read 2 min ago."), "{text}");
+        assert_eq!(text.matches("a-task\t").count(), 1, "{text}");
+        assert!(
+            text.contains("next\tqueued\t0\tnever\t\t\tits words\n"),
+            "{text}"
+        );
+        let failed = page(&[], Some(&(Err("down now".into()), 0)), "", 0, None);
+        assert!(
+            failed.contains("did not answer, 0 s ago: down now"),
+            "{failed}"
+        );
+        assert!(failed.contains("No Rust task yet."), "{failed}");
+    }
+
+    /// The picker's half of this same case is run_on_store's the_picker_starts_what_the_page_names.
+    #[test]
+    fn the_page_names_what_plan_runs_next_and_why_the_others_wait() {
+        let _budget = TestBudget::new();
+        let dir = dash_meter::TestDir::new("tasks-page-plan");
+        let mut tasks = store::open(&dir.0, &dir.0).expect("open");
+        tasks.add("first", &[]).expect("add");
+        tasks.add("after", &["first".into()]).expect("add");
+        let queued = |id: &str| Queued {
+            id: id.into(),
+            title: String::new(),
+            reopened_ms: None,
+        };
+        let queue = Queue {
+            seats: 5,
+            tasks: vec![queued("after"), queued("first"), queued("also")],
+        };
+        let rows = dash_core::tasks::TaskStore::standing(&tasks).expect("rows");
+        let plan = plan_text(&plan(&Defaults, queue, &rows, 0, vec![]));
+        let text = page(&[], None, &plan, 0, None);
+        assert!(
+            text.contains(
+                "Next: first\nalso\tbehind first\nafter\twaits on first (open)\n\nTask\t"
+            ),
+            "{text}"
+        );
+        let full = Plan {
+            next: Pick::Wait("a waits: 5 of 5 sessions open".into()),
+            waiting: vec![],
+        };
+        assert!(plan_text(&full).starts_with("Next: nothing, a waits: 5 of 5"));
+    }
+
+    fn queued(ids: &[&str], seats: usize) -> Queue {
+        let queued = |id: &&str| Queued {
+            id: id.to_string(),
+            title: String::new(),
+            reopened_ms: None,
+        };
+        Queue {
+            seats,
+            tasks: ids.iter().map(queued).collect(),
+        }
+    }
+
+    /// What the store says of a task the fixture makes: only these fields reach the graph.
+    fn stood(id: &str, status: &str, outcome: Option<&str>, waits: &[&str]) -> Standing {
+        Standing {
+            id: id.into(),
+            status: status.into(),
+            outcome: outcome.map(String::from),
+            waits: waits.iter().map(|w| w.to_string()).collect(),
+        }
+    }
+
+    fn look(standing: Vec<Standing>, queue: Queue, sessions: usize, limits: Vec<Limit>) -> Look {
+        let plan = plan(&Defaults, queue.clone(), &standing, sessions, limits);
+        Look {
+            rows: vec![],
+            standing,
+            now_ms: 0,
+            queue: Some((Ok(queue), 0)),
+            issues: None,
+            plan: Some(Ok(plan)),
+        }
+    }
+
+    fn drawn(look: &Look) -> String {
+        surface::page("t", &graph_tree(look)).expect("a page")
+    }
+
+    /// The node of `id`, from its opening to the end of its words.
+    fn node<'a>(page: &'a str, id: &str) -> &'a str {
+        let start = page
+            .find(&format!(r#"data-task="{id}""#))
+            .unwrap_or_else(|| panic!("no node {id}: {page}"));
+        // Its class sits just before: from the node's own class word on.
+        let class = page[..start].rfind("class=").expect("its class");
+        let says = start + page[start..].find(r#"class="says">"#).expect("its words");
+        let end = says + page[says + 1..].find('<').expect("their end");
+        &page[class..=end]
+    }
+
+    /// Done-when 1: five open tasks, each drawn with its edges, and the plan's next pick marked.
+    #[test]
+    fn the_graph_draws_five_tasks_with_their_dependencies_and_marks_the_next_pick() {
+        let _budget = TestBudget::new();
+        let standing = vec![
+            stood("base", "open", None, &[]),
+            stood("also", "open", None, &[]),
+            stood("middle", "open", None, &["base"]),
+            stood("top", "open", None, &["middle", "also"]),
+            stood("busy", "claimed", None, &[]),
+        ];
+        let queue = queued(&["top", "middle", "base", "also"], 5);
+        let page = drawn(&look(standing, queue, 1, vec![]));
+        for id in ["base", "also", "middle", "top", "busy"] {
+            assert!(
+                page.contains(&format!(r#"data-task="{id}""#)),
+                "{id}: {page}"
+            );
+        }
+        for (from, to) in [("base", "middle"), ("middle", "top"), ("also", "top")] {
+            let edge = format!(r#"data-from="{from}" data-to="{to}""#);
+            assert!(page.contains(&edge), "{edge}: {page}");
+        }
+        assert_eq!(page.matches(r#"class="edge""#).count(), 3, "{page}");
+        // base is the first the queue offers that nothing holds: the plan's answer, the one marked.
+        assert_eq!(page.matches(r#"class="node next""#).count(), 1, "{page}");
+        assert!(
+            node(&page, "base").contains(r#"class="node next""#),
+            "{page}"
+        );
+        assert!(node(&page, "base").contains("the next pick"), "{page}");
+        assert!(page.contains("Next: base"), "{page}");
+        assert!(
+            node(&page, "busy").contains(r#"class="node running""#),
+            "{page}"
+        );
+        assert!(node(&page, "also").contains("behind base"), "{page}");
+    }
+
+    /// Done-when 2: a dependency, the seats and the load, each in the plan's own words on the waiting task.
+    #[test]
+    fn a_waiting_task_says_it_waits_on_a_dependency_on_seats_or_on_load() {
+        let _budget = TestBudget::new();
+        let open = |id: &str, waits: &[&str]| stood(id, "open", None, waits);
+        let on_dep = look(
+            vec![open("first", &[]), open("after", &["first"])],
+            queued(&["after", "first"], 5),
+            0,
+            vec![],
+        );
+        let page = drawn(&on_dep);
+        let after = node(&page, "after");
+        assert!(after.contains(r#"class="node waiting""#), "{after}");
+        assert!(after.contains("waits on first (open)"), "{after}");
+        assert!(
+            page.contains("after: waits on first (open)"),
+            "the list: {page}"
+        );
+
+        let on_seats = look(vec![open("a", &[])], queued(&["a", "b"], 2), 2, vec![]);
+        let page = drawn(&on_seats);
+        let says = "a waits: 2 of 2 sessions open";
+        assert!(node(&page, "a").contains(says), "{page}");
+        assert!(node(&page, "b").contains("behind a"), "{page}");
+        assert!(page.contains(&format!("Next: nothing, {says}")), "{page}");
+        assert!(!page.contains(r#"class="node next""#), "{page}");
+
+        let spent = Limit {
+            account: "one".into(),
+            five_hours: 100.0,
+            five_hours_resets: 1,
+            week: 10.0,
+            week_resets: 1,
+        };
+        let on_load = look(vec![open("a", &[])], queued(&["a"], 5), 0, vec![spent]);
+        let page = drawn(&on_load);
+        let says = "a waits: every account is at its limit";
+        assert!(node(&page, "a").contains(says), "{page}");
+        assert!(page.contains(&format!("Next: nothing, {says}")), "{page}");
+    }
+
+    #[test]
+    fn what_a_task_names_is_drawn_finished_and_the_past_stays_out() {
+        let _budget = TestBudget::new();
+        let standing = vec![
+            stood("old", "finished", Some("merged"), &[]),
+            stood("failed", "finished", Some("ended"), &["old"]),
+            stood("gone-by", "finished", Some("merged"), &[]),
+            stood("now", "open", None, &["old", "failed"]),
+        ];
+        let page = drawn(&look(standing, queued(&["now"], 5), 0, vec![]));
+        assert!(
+            node(&page, "old").contains(r#"class="node finished""#),
+            "{page}"
+        );
+        assert!(
+            node(&page, "failed").contains(r#"class="node ended""#),
+            "{page}"
+        );
+        assert!(
+            page.contains(r#"class="edge met" data-from="old""#),
+            "{page}"
+        );
+        assert!(
+            page.contains(r#"class="edge" data-from="failed""#),
+            "{page}"
+        );
+        assert!(
+            node(&page, "now").contains("waits on failed (ended)"),
+            "{page}"
+        );
+        assert!(!page.contains(r#"data-task="gone-by""#), "{page}");
+        assert!(
+            !page.contains(r#"data-from="old" data-to="failed""#),
+            "{page}"
+        );
+    }
+
+    #[test]
+    fn before_the_plan_is_known_the_graph_says_so_and_a_gone_run_never_reads_running() {
+        let _budget = TestBudget::new();
+        let mut gone = row("");
+        gone.status = "claimed".into();
+        gone.run_gone = true;
+        let mut no_plan = Look {
+            rows: vec![gone],
+            standing: vec![
+                stood("a-task", "claimed", None, &[]),
+                stood("b", "open", None, &[]),
+            ],
+            now_ms: 0,
+            queue: None,
+            issues: None,
+            plan: None,
+        };
+        let page = drawn(&no_plan);
+        assert!(page.contains("queue is being read"), "{page}");
+        assert!(node(&page, "a-task").contains("run gone"), "{page}");
+        assert!(!node(&page, "a-task").contains("running"), "{page}");
+        assert!(node(&page, "b").contains("not known yet"), "{page}");
+        let standing = no_plan.standing[0].clone();
+        no_plan.standing[0] = stood("a-task", "claimed", Some("offline"), &[]);
+        let graph = drawn(&no_plan);
+        assert!(node(&graph, "a-task").contains("run gone"), "{graph}");
+        no_plan.rows[0].run_gone = false;
+        let graph = drawn(&no_plan);
+        assert!(
+            node(&graph, "a-task").contains("waits on the network"),
+            "{graph}"
+        );
+        assert!(!node(&graph, "a-task").contains("ended"), "{graph}");
+        no_plan.rows[0].run_gone = true;
+        no_plan.standing[0] = standing;
+        no_plan.plan = Some(Err("down\nNext: fake".into()));
+        let page = drawn(&no_plan);
+        assert!(page.contains("did not answer: down Next: fake"), "{page}");
+    }
+
+    #[test]
+    fn the_graph_says_how_old_its_answer_is_and_when_the_pick_is_still_coming() {
+        let _budget = TestBudget::new();
+        let mut known = look(vec![], queued(&["a"], 5), 0, vec![]);
+        known.now_ms = 9 * 3_600_000;
+        let page = drawn(&known);
+        assert!(page.contains("Next: a"), "{page}");
+        assert!(page.contains("queue, read 9 h ago."), "{page}");
+        known.plan = None;
+        let page = drawn(&known);
+        assert!(
+            page.contains("Next: not known yet: the next reload"),
+            "{page}"
+        );
+        assert!(node(&page, "a").contains("not known yet"), "{page}");
+    }
+
+    #[test]
+    fn a_queue_that_failed_promises_no_reload_and_never_says_nothing_is_open() {
+        let _budget = TestBudget::new();
+        let failed = |standing: Vec<Standing>, queue: Option<QueueAt>| Look {
+            rows: vec![],
+            standing,
+            now_ms: 0,
+            queue,
+            issues: None,
+            plan: None,
+        };
+        let down = || Some((Err("down".to_string()), 0));
+        let page = drawn(&failed(vec![stood("b", "open", None, &[])], down()));
+        assert!(page.contains("queue did not answer."), "{page}");
+        assert!(!page.contains("next reload"), "{page}");
+        assert!(node(&page, "b").contains("not known"), "{page}");
+        assert!(!node(&page, "b").contains("not known yet"), "{page}");
+        for queue in [down(), None] {
+            let page = drawn(&failed(vec![], queue));
+            assert!(!page.contains("No Rust task open."), "{page}");
+            assert!(page.contains("has not answered"), "{page}");
+        }
+    }
+
+    #[test]
+    fn with_nothing_to_draw_or_too_much_the_page_still_stands() {
+        let _budget = TestBudget::new();
+        let empty = drawn(&look(vec![], queued(&[], 5), 0, vec![]));
+        assert!(empty.contains("No Rust task open."), "{empty}");
+        assert!(!empty.contains("task-graph\""), "{empty}");
+        let ids: Vec<String> = (0..=surface::GRAPH_LIMIT)
+            .map(|i| format!("t{i}"))
+            .collect();
+        let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
+        let many = drawn(&look(vec![], queued(&ids, 5), 0, vec![]));
+        assert!(many.contains("501 tasks: past the 500"), "the words");
+        assert!(many.contains("Next: t0"), "the next line");
+        assert!(many.contains("t500: behind t0"), "the list");
+    }
+
+    #[test]
+    fn two_ids_that_read_the_same_never_lose_the_page() {
+        let _budget = TestBudget::new();
+        let page = drawn(&look(vec![], queued(&["a\nb", "a b"], 5), 0, vec![]));
+        assert_eq!(page.matches(r#"data-task="a b""#).count(), 1, "{page}");
+        // The row of the id it reads as gives it its waits: what they name is no node adrift.
+        let standing = vec![
+            stood("a b", "open", None, &["c"]),
+            stood("c", "open", None, &[]),
+        ];
+        let page = drawn(&look(standing, queued(&["a\nb"], 5), 0, vec![]));
+        assert!(page.contains(r#"data-from="c" data-to="a b""#), "{page}");
+    }
+
+    fn issue(id: &str, title: &str, comments: &[&str]) -> Issue {
+        Issue {
+            id: id.into(),
+            title: title.into(),
+            why: format!("why of {id}"),
+            checks: vec![],
+            comments: comments.iter().map(|c| c.to_string()).collect(),
+        }
+    }
+
+    fn list_page(look: &Look) -> String {
+        surface::page("t", &list_tree(look)).expect("a page")
+    }
+
+    fn task_page(look: &Look, id: &str) -> String {
+        let tree = task_tree(look, id).unwrap_or_else(|| panic!("no task {id}"));
+        surface::page("t", &tree).expect("a page")
+    }
+
+    /// The ids of a status's rows, in order.
+    fn rows_of(page: &str, status: &str) -> Vec<String> {
+        let start = format!(r#"class="issue-group" data-status="{status}""#);
+        let Some(at) = page.find(&start) else {
+            return vec![];
+        };
+        let group = &page[at + start.len()..];
+        let end = group.find(r#"class="issue-group""#).unwrap_or(group.len());
+        group[..end]
+            .split(r#"data-task=""#)
+            .skip(1)
+            .map(|r| r[..r.find('"').expect("its id")].to_string())
+            .collect()
+    }
+
+    /// Done-when 1: a fixture of each status, each group in pick order, the groups in the Linear view's order.
+    #[test]
+    fn the_list_shows_open_tasks_by_status_in_pick_order() {
+        let _budget = TestBudget::new();
+        let open = |id: &str, waits: &[&str]| stood(id, "open", None, waits);
+        let standing = vec![
+            open("first", &[]),
+            open("held", &["first"]),
+            open("second", &[]),
+            stood("busy", "claimed", None, &[]),
+            stood("gone", "claimed", None, &[]),
+            stood("reviewed", "finished", Some("done"), &[]),
+            stood("failed", "finished", Some("ended"), &[]),
+            stood("merged", "finished", Some("merged"), &[]),
+            open("unlisted", &[]),
+        ];
+        let queue = queued(&["third", "first", "held", "second"], 5);
+        let mut look = look(standing, queue, 1, vec![]);
+        let mut gone = row("");
+        gone.id = "gone".into();
+        gone.status = "claimed".into();
+        gone.run_gone = true;
+        let mut reviewed = row("TASK_DONE pr: https://github.com/o/r/pull/12, ready");
+        reviewed.id = "reviewed".into();
+        reviewed.outcome = Some("done".into());
+        let mut failed = row("gave up");
+        failed.id = "failed".into();
+        failed.outcome = Some("ended".into());
+        look.rows = vec![gone, reviewed, failed];
+        look.issues = Some(Ok(vec![
+            issue("", "No id, no row", &[]),
+            issue("reviewed", "Its review", &[]),
+            issue("failed", "Its failure", &[]),
+            issue("only-there", "Held by the older app", &[]),
+            issue("third", "The third, <first>", &[]),
+        ]));
+        let page = list_page(&look);
+        assert!(page.contains("--color-accent:"), "its theme: {page}");
+        assert!(page.contains("Next: third"), "{page}");
+        assert_eq!(rows_of(&page, "in-review"), ["reviewed"], "{page}");
+        assert_eq!(rows_of(&page, "in-progress"), ["busy", "gone"], "{page}");
+        assert_eq!(
+            rows_of(&page, "todo"),
+            ["third", "first", "second"],
+            "next, then what is behind it, the queue's order: {page}"
+        );
+        assert_eq!(
+            rows_of(&page, "backlog"),
+            ["held", "unlisted", "failed", "only-there"],
+            "{page}"
+        );
+        assert!(!page.contains(r#"data-task="merged""#), "{page}");
+        let at = |s: &str| page.find(&format!(r#"data-status="{s}""#)).expect(s);
+        assert!(at("in-review") < at("in-progress"), "{page}");
+        assert!(at("in-progress") < at("todo"), "{page}");
+        assert!(at("todo") < at("backlog"), "{page}");
+        assert!(page.contains(r#"class="count">2"#), "{page}");
+        assert!(page.contains("The third, &lt;first&gt;"), "{page}");
+        assert!(
+            page.contains("waits on first (open)"),
+            "the plan's words: {page}"
+        );
+        assert!(page.contains("done, PR #12"), "{page}");
+        assert!(page.contains("run gone"), "{page}");
+        assert!(page.contains("its run ended: ended"), "{page}");
+        let unlisted = &page[page.find(r#"data-task="unlisted""#).expect("its row")..];
+        assert!(
+            unlisted[..unlisted.find("data-task=\"failed").expect("the next row")]
+                .contains("does not offer it"),
+            "an open row never reads as none: {page}"
+        );
+    }
+
+    #[test]
+    fn with_no_plan_known_the_list_keeps_the_queue_s_order() {
+        let _budget = TestBudget::new();
+        let open = |id: &str| stood(id, "open", None, &[]);
+        let mut look = look(
+            vec![open("a"), open("z")],
+            queued(&["z", "a"], 5),
+            0,
+            vec![],
+        );
+        assert_eq!(rows_of(&list_page(&look), "todo"), ["z", "a"]);
+        look.plan = None;
+        assert_eq!(rows_of(&list_page(&look), "todo"), ["z", "a"]);
+        look.plan = Some(Err("the sessions are down".into()));
+        assert_eq!(rows_of(&list_page(&look), "todo"), ["z", "a"]);
+    }
+
+    #[test]
+    fn a_task_is_no_404_until_the_older_app_s_list_says_so() {
+        let _budget = TestBudget::new();
+        let mut look = look_empty();
+        look.queue = None;
+        look.plan = None;
+        let page = task_page(&look, "bookmarked");
+        assert!(page.contains(r#"id="title">bookmarked"#), "{page}");
+        assert!(page.contains("Not read yet"), "{page}");
+        look.issues = Some(Err("down".into()));
+        assert!(task_page(&look, "bookmarked").contains("did not answer: down"));
+        look.issues = Some(Ok(vec![]));
+        assert!(task_tree(&look, "bookmarked").is_none());
+    }
+
+    /// Done-when 2.
+    #[test]
+    fn a_task_opens_to_its_title_why_checks_and_last_run() {
+        let _budget = TestBudget::new();
+        let mut look = look(
+            vec![stood("a-task", "open", None, &[])],
+            queued(&["a-task"], 5),
+            0,
+            vec![],
+        );
+        let mut ran = row("TASK_BLOCKED\nneeds: a <tap>\nhttps://github.com/o/r/pull/12");
+        ran.status = "open".into();
+        ran.outcome = Some("blocked".into());
+        look.rows = vec![ran];
+        look.now_ms = 301_000;
+        let mut words = issue("a-task", "Its <odd> name", &[]);
+        words.why = "(@nha: « because »)\nA second line".into();
+        words.checks = vec![
+            Check {
+                text: "One thing: a test".into(),
+                met: Some(true),
+            },
+            Check {
+                text: "Another: a test".into(),
+                met: Some(false),
+            },
+            Check {
+                text: "A third".into(),
+                met: None,
+            },
+        ];
+        look.issues = Some(Ok(vec![words]));
+        // The list opens it.
+        assert!(list_page(&look).contains(r#"href="/tasks/a-task""#));
+        let page = task_page(&look, "a-task");
+        assert!(
+            page.contains(r#"href="/tasks">Rust tasks"#),
+            "the way back: {page}"
+        );
+        assert!(
+            page.contains(r#"id="title">Its &lt;odd&gt; name"#),
+            "{page}"
+        );
+        assert!(page.contains(r#"data-status="todo""#), "{page}");
+        assert!(page.contains("the next pick"), "{page}");
+        assert!(
+            page.contains("(@nha: « because »)\nA second line"),
+            "{page}"
+        );
+        assert!(page.contains("Checks: 1 of 3 met"), "{page}");
+        assert!(page.contains(r#"class="check met""#), "{page}");
+        assert!(page.contains(r#"class="check unmet""#), "{page}");
+        assert!(page.contains("A third"), "{page}");
+        assert!(page.contains("Last run"), "{page}");
+        assert!(page.contains("Try 2, 5 min ago: blocked."), "{page}");
+        assert!(page.contains(r#">#12"#), "{page}");
+        assert!(
+            page.contains("needs: a &lt;tap&gt;\n"),
+            "its lines kept: {page}"
+        );
+        assert!(task_tree(&look, "no-such").is_none());
+    }
+
+    #[test]
+    fn a_task_that_never_ran_or_whose_words_are_not_read_says_so() {
+        let _budget = TestBudget::new();
+        let mut look = look(vec![], queued(&["a"], 5), 0, vec![]);
+        if let Some((Ok(queue), _)) = &mut look.queue {
+            queue.tasks[0].title = "From the queue".into();
+        }
+        let page = task_page(&look, "a");
+        assert!(page.contains(r#"id="title">From the queue"#), "{page}");
+        if let Some((Ok(queue), _)) = &mut look.queue {
+            queue.tasks[0].title = String::new();
+        }
+        let page = task_page(&look, "a");
+        assert!(page.contains("Never run."), "{page}");
+        assert!(page.contains("Not read yet: the next reload"), "{page}");
+        assert!(page.contains(r#"id="title">a"#), "{page}");
+        look.issues = Some(Err("x".repeat(300)));
+        assert!(
+            !list_page(&look).contains(&"x".repeat(201)),
+            "a line, not the whole answer"
+        );
+        look.issues = Some(Err("down\nNext: fake".into()));
+        let page = task_page(&look, "a");
+        assert!(page.contains("did not answer: down Next: fake"), "{page}");
+        let list = list_page(&look);
+        assert!(list.contains("did not answer: down Next: fake"), "{list}");
+        look.issues = Some(Ok(vec![issue("a", "t", &[])]));
+        let page = task_page(&look, "a");
+        assert!(page.contains("None written."), "{page}");
+        let mut empty = look_empty();
+        let unread = list_page(&empty);
+        assert!(!unread.contains("No Rust task open."), "{unread}");
+        assert!(unread.contains("list has not answered"), "{unread}");
+        empty.issues = Some(Ok(vec![]));
+        let empty = list_page(&empty);
+        assert!(empty.contains("No Rust task open."), "{empty}");
+        assert!(!empty.contains(r#"class="issue-group""#), "{empty}");
+    }
+
+    fn look_empty() -> Look {
+        look(vec![], queued(&[], 5), 0, vec![])
+    }
+
+    /// Done-when 3: the comment on the working task's own card, and nothing beside the list.
+    #[test]
+    fn a_task_on_a_comment_shows_on_its_card_and_no_panel_lists_working_tasks() {
+        let _budget = TestBudget::new();
+        let standing = vec![
+            stood("busy", "claimed", None, &[]),
+            stood("quiet", "open", None, &[]),
+        ];
+        let mut look = look(standing, queued(&["quiet"], 5), 1, vec![]);
+        look.issues = Some(Ok(vec![
+            issue("busy", "Busy", &["fix <this>", "and that"]),
+            issue("quiet", "Quiet", &[]),
+        ]));
+        let page = list_page(&look);
+        let card = |id: &str| {
+            let at = page.find(&format!(r#"data-task="{id}""#)).expect(id);
+            let after = at + 1;
+            let end = page[after..]
+                .find("data-task=")
+                .map_or(page.len(), |n| after + n);
+            page[at..end].to_string()
+        };
+        assert!(
+            card("busy").contains(r#"data-comments="2">2 comments"#),
+            "{page}"
+        );
+        assert!(!card("quiet").contains("data-comments"), "{page}");
+        // The working task once, on its card in its group: no aside, no panel, no second list of it.
+        assert_eq!(page.matches(r#"data-task="busy""#).count(), 1, "{page}");
+        assert!(!page.contains("aside"), "{page}");
+        assert!(!page.contains("panel"), "{page}");
+        let opened = task_page(&look, "busy");
+        assert!(opened.contains("Your comments"), "{opened}");
+        assert!(opened.contains("fix &lt;this&gt;"), "{opened}");
+        assert!(!task_page(&look, "quiet").contains("Your comments"));
+    }
+
+    #[test]
+    fn only_a_pull_request_link_counts() {
+        let _budget = TestBudget::new();
+        assert_eq!(
+            pr_in("see https://github.com/o/r/issues/3 then https://github.com/o/r/pull/4."),
+            Some("https://github.com/o/r/pull/4")
+        );
+        assert_eq!(pr_in("https://evil.example/pull/4"), None);
+        let twelve = Some("https://github.com/o/r/pull/12");
+        for said in [
+            "pr: [#12](https://github.com/o/r/pull/12)",
+            "pr:https://github.com/o/r/pull/12, ready",
+            "<https://github.com/o/r/pull/12>",
+            "https://github.com/o/r/pull/12/files",
+        ] {
+            assert_eq!(pr_in(said), twelve, "{said}");
+        }
+        assert_eq!(pr_in("https://github.com/o/r/pull/"), None);
+        for not_one in [
+            "https://github.com/o/r/blob/main/pull/12",
+            "https://github.com/pull/12",
+            "https://github.com/o/r/pull/12abc",
+        ] {
+            assert_eq!(pr_in(not_one), None, "{not_one}");
+        }
+        assert_eq!(
+            pr_in("[i](https://github.com/o/r/issues/3),[p](https://github.com/o/r/pull/4)"),
+            Some("https://github.com/o/r/pull/4")
+        );
+        assert_eq!(pr_in(""), None);
+    }
+}
