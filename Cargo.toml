@@ -1,0 +1,34 @@
+# The Rust app of rfc-rust-unified: the hexagonal workspace of section 3, grown slice by slice (CLAUDE.md Coordination 6).
+# CI: dash ci mirror rust pushes the files rust/ci-mirror.txt lists to nha-org/rust-ci-mirror, Linux only.
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+dash-core = { path = "crates/core" }
+dash-drafts = { path = "crates/drafts" }
+dash-comments = { path = "crates/comments" }
+dash-store = { path = "crates/store" }
+dash-meter = { path = "crates/meter" }
+dash-ext = { path = "crates/ext" }
+dash-ingest = { path = "crates/ingest" }
+dash-surface = { path = "crates/surface" }
+dash-sync = { path = "crates/sync" }
+dash-orch = { path = "crates/orch" }
+dash-terminal = { path = "crates/terminal" }
+dash-launcher = { path = "crates/launcher" }
+dash-agent = { path = "crates/agent" }
+dash-bridge = { path = "crates/bridge" }
+dash-forge = { path = "crates/forge" }
+dash-gate = { path = "crates/gate" }
+dash-policy = { path = "crates/policy" }
+dash-process = { path = "crates/process" }
+dash-statsd = { path = "crates/statsd" }
+inventory = "0.3.25"
+serde_json = "1"
+sha2 = "0.11"
