@@ -1,0 +1,15 @@
+[package]
+name = "dash-surface"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+dioxus = { workspace = true }
+dioxus-ssr = "=0.8.0-alpha.3"
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
