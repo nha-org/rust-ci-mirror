@@ -1,0 +1,42 @@
+[package]
+name = "dash"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# Section 4: « the harness picks by measure ». Neither: the system allocator, the pick so far (section 20).
+mimalloc = ["dep:mimalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
+
+[dependencies]
+dash-agent.workspace = true
+dash-bridge.workspace = true
+dash-core.workspace = true
+dash-drafts.workspace = true
+dash-comments.workspace = true
+dash-ext.workspace = true
+dash-ingest.workspace = true
+dash-forge.workspace = true
+dash-launcher.workspace = true
+dash-meter.workspace = true
+dash-orch.workspace = true
+dash-policy.workspace = true
+dash-process.workspace = true
+dash-statsd.workspace = true
+dash-store.workspace = true
+dash-surface.workspace = true
+dash-terminal.workspace = true
+libc = "0.2"
+mimalloc = { version = "0.1", optional = true }
+serde_json.workspace = true
+tikv-jemallocator = { version = "0.6", optional = true }
+
+# build.rs generates the /deps page; the test reads the same page from the code.
+[build-dependencies]
+dash-gate.workspace = true
+
+# The binary is the one crate that may reach both a port's user and its adapter (section 3): crates/dash/tests/sim.rs wires them.
+[dev-dependencies]
+dash-gate.workspace = true
+dash-sync.workspace = true
