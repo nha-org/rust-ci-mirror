@@ -1,0 +1,73 @@
+import { Tokens } from "../theme/tokens.slint";
+
+export component Input inherits Rectangle {
+    // Two-way bound to the field contents.
+    in-out property <string> text;
+    // Hint shown when the field is empty.
+    in property <string> placeholder;
+    // When false, the input dims and stops accepting keystrokes.
+    in property <bool> enabled: true;
+    // When true, the user can focus but not edit.
+    in property <bool> read-only: false;
+    // When true, characters render as bullets.
+    in property <bool> password: false;
+    // When true, the input grabs focus on mount.
+    in property <bool> auto-focus: false;
+    // Fired on every keystroke with the current text.
+    callback edited(string);
+    // Fired on Enter with the current text.
+    callback accepted(string);
+
+    forward-focus: input;
+
+    height: Tokens.density-input;
+    background: Tokens.color-surface-1;
+    border-color: input.has-focus ? Tokens.color-ring : Tokens.color-border-hairline;
+    border-width: 1px;
+    border-radius: Tokens.radius-md;
+    opacity: root.enabled ? 1.0 : 0.5;
+
+    focus-area := TouchArea {
+        clicked => { input.focus(); }
+    }
+
+    input := TextInput {
+        x: 12px;
+        y: 0;
+        width: parent.width - 24px;
+        height: parent.height;
+        text <=> root.text;
+        color: Tokens.color-foreground;
+        font-size: Tokens.typography-body-size;
+        single-line: true;
+        read-only: root.read-only || !root.enabled;
+        input-type: root.password ? InputType.password : InputType.text;
+        vertical-alignment: center;
+        edited => { root.edited(self.text); }
+        accepted => { root.accepted(self.text); }
+        init => { if (root.auto-focus) { self.focus(); } }
+    }
+
+    if root.text == "": Text {
+        x: input.x;
+        y: 0;
+        width: input.width;
+        height: parent.height;
+        text: root.placeholder;
+        color: Tokens.color-muted-foreground;
+        font-size: Tokens.typography-body-size;
+        vertical-alignment: center;
+    }
+
+    // Outer focus ring — drawn last so it's visually unclipped.
+    if input.has-focus: Rectangle {
+        x: -Tokens.focus-ring-offset;
+        y: -Tokens.focus-ring-offset;
+        width:  parent.width  + 2 * Tokens.focus-ring-offset;
+        height: parent.height + 2 * Tokens.focus-ring-offset;
+        border-width: Tokens.focus-ring-width;
+        border-color: Tokens.color-ring-muted;
+        border-radius: Tokens.radius-md + Tokens.focus-ring-offset;
+        background: transparent;
+    }
+}
