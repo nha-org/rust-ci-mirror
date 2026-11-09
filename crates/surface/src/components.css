@@ -1,0 +1,30 @@
+/* The looks of components.rs, each a `look` a page passes: /design?tab=components draws them. Layout and tokens only. */
+.avatar { display: inline-block; flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--color-base-300); color: var(--color-base-content); font-size: 10px; font-weight: 600; line-height: 24px; text-align: center; }
+.badge { display: inline-block; padding: 0 var(--spacing-s2); border-radius: 999px; font-size: var(--text-caption); font-weight: 500; line-height: 20px; }
+.button { display: inline-block; height: 32px; line-height: 32px; padding: 0 var(--spacing-s3); border-radius: var(--radius-field); border: 0; font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); font-weight: 500; background: var(--color-primary); color: var(--color-primary-content); cursor: pointer; }
+.button:hover { background: var(--color-primary-700); }
+.button.quiet { background: var(--color-base-200); color: var(--color-base-content); }
+.button.quiet:hover { background: var(--color-base-300); }
+.input { box-sizing: border-box; width: 100%; height: 32px; padding: 0 var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.input:focus { border-color: var(--color-primary); }
+.textarea { box-sizing: border-box; width: 100%; min-height: 64px; padding: var(--spacing-s2); resize: vertical; border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.textarea:focus { border-color: var(--color-primary); }
+.button.icon { display: flex; height: auto; line-height: normal; padding: 3px; border-radius: var(--radius-field); background: none; color: inherit; box-shadow: none; }
+.button.icon:hover, .button.icon[aria-pressed="true"] { background: var(--color-base-300); }
+.tabs { display: flex; gap: 2px; margin: var(--spacing-s2) 0; }
+.tabs a { color: inherit; text-decoration: none; padding: 3px 10px; border-radius: var(--radius-field); border: 1px solid var(--color-base-300); }
+.tabs a[aria-current] { background: var(--color-base-300); font-weight: 600; }
+.card { display: flex; flex-direction: column; gap: var(--spacing-s1); min-width: 0; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); color: inherit; text-decoration: none; }
+a.card:hover { border-color: var(--color-primary); }
+.card .title { font-weight: 600; overflow-wrap: anywhere; }
+.card .description { font-size: var(--text-caption); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.access { padding: var(--spacing-s2) 0; border-top: 1px solid var(--color-base-300); overflow-wrap: anywhere; }
+.access p { margin: 0; }
+.access .head { display: flex; align-items: center; gap: var(--spacing-s2); }
+.access .usage { margin-top: var(--spacing-s1); }
+.access .note, .access .place { font-size: var(--text-caption); opacity: 0.7; }
+.access .source { font-weight: 600; }
+.chip { flex: none; padding: 0 var(--spacing-s2); font-size: var(--text-caption); font-weight: 600; border-radius: var(--radius-field); background: var(--color-base-300); }
+.access[data-status="works"] .chip { background: var(--color-success); color: var(--color-success-content); }
+.access[data-status="expired"] .chip { background: var(--color-error); color: var(--color-error-content); }
+.access[data-status="refused"] .chip { background: var(--color-warning); color: var(--color-warning-content); }
