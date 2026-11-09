@@ -1,0 +1,20 @@
+[package]
+name = "dash-site"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+# nicolas-ha.com's server and its image (task rust-site-no-container): std, sha2 and serde_json alone, no C, so it
+# cross-builds to a static x86_64-unknown-linux-musl binary on this Mac with rust-lld (src/image.rs).
+[dependencies]
+serde_json.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
+sha2.workspace = true
+
+# one crate root (dash-gate): the binary alone, its tests drive it
+[[bin]]
+name = "site"
+path = "src/main.rs"
