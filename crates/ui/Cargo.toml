@@ -1,0 +1,19 @@
+[package]
+name = "dash-ui"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# The real window. The document test needs none of it, so Linux CI builds no windowing stack (as rust/ui-spike).
+window = ["dep:dioxus-native"]
+
+[dependencies]
+blitz-dom = "=0.3.0-beta.4"
+dash-core.workspace = true
+dioxus.workspace = true
+dioxus-native = { version = "=0.8.0-alpha.3", default-features = false, optional = true, features = ["html", "system-fonts", "vello-hybrid"] }
+dioxus-native-dom = "=0.8.0-alpha.3"
+
+[dev-dependencies]
+dash-meter.workspace = true
