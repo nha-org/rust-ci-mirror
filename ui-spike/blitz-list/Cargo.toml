@@ -1,0 +1,30 @@
+[package]
+name = "blitz-list"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "blitz-list"
+required-features = ["window"]
+
+[features]
+default = ["window", "vello-hybrid"]
+# The real window of section 9's numbers. The picture test needs none of it, so Linux CI builds no windowing stack.
+window = ["dep:dioxus-native", "dep:blitz-shell", "dep:winit"]
+# dioxus-native's default renderer, GPU; vello-cpu is the same list on the CPU.
+vello-hybrid = ["dioxus-native?/vello-hybrid"]
+vello-cpu = ["dioxus-native?/vello-cpu"]
+
+[dependencies]
+anyrender = "0.14"
+anyrender_vello_cpu = "0.18"
+blitz-dom = "=0.3.0-beta.4"
+blitz-paint = "=0.3.0-beta.4"
+blitz-shell = { version = "=0.3.0-beta.4", optional = true }
+blitz-traits = "=0.3.0-beta.4"
+dioxus = { version = "=0.8.0-alpha.3", default-features = false, features = ["html", "macro", "hooks", "signals"] }
+dioxus-native = { version = "=0.8.0-alpha.3", default-features = false, optional = true, features = ["html", "woff"] }
+dioxus-native-dom = "=0.8.0-alpha.3"
+ui-spike-common = { path = "../common" }
+winit = { version = "=0.31.0-beta.3", optional = true }
