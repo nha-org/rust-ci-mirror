@@ -1,0 +1,21 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "rust-ui-tree: section 10's diagram, by hand",
+  "elements": [
+    {"id": "views", "type": "rectangle", "x": 40, "y": 190, "width": 150, "height": 80, "strokeColor": "#1e1e1e", "backgroundColor": "#a5d8ff"},
+    {"id": "tree", "type": "diamond", "x": 280, "y": 165, "width": 190, "height": 130, "strokeColor": "#1e1e1e", "backgroundColor": "#ffec99"},
+    {"id": "web", "type": "rectangle", "x": 590, "y": 70, "width": 170, "height": 80, "strokeColor": "#1e1e1e", "backgroundColor": "#b2f2bb"},
+    {"id": "window", "type": "rectangle", "x": 590, "y": 310, "width": 170, "height": 80, "strokeColor": "#1e1e1e", "backgroundColor": "#b2f2bb"},
+    {"id": "agents", "type": "ellipse", "x": 290, "y": 400, "width": 170, "height": 90, "strokeColor": "#1e1e1e", "backgroundColor": "#ffc9c9"},
+    {"id": "a1", "type": "arrow", "x": 190, "y": 230, "width": 90, "height": 0, "strokeColor": "#1e1e1e", "points": [[0, 0], [90, 0]], "startBinding": {"elementId": "views"}, "endBinding": {"elementId": "tree"}},
+    {"id": "a2", "type": "arrow", "x": 470, "y": 230, "width": 120, "height": 120, "strokeColor": "#1e1e1e", "points": [[0, 0], [120, -120]], "startBinding": {"elementId": "tree"}, "endBinding": {"elementId": "web"}},
+    {"id": "a3", "type": "arrow", "x": 470, "y": 230, "width": 120, "height": 120, "strokeColor": "#1e1e1e", "points": [[0, 0], [120, 120]], "startBinding": {"elementId": "tree"}, "endBinding": {"elementId": "window"}},
+    {"id": "a4", "type": "arrow", "x": 375, "y": 400, "width": 0, "height": 105, "strokeColor": "#1e1e1e", "points": [[0, 0], [0, -105]], "startBinding": {"elementId": "agents"}, "endBinding": {"elementId": "tree"}},
+    {"id": "t1", "type": "text", "containerId": "views", "text": "Views", "x": 0, "y": 0, "width": 0, "height": 0, "fontSize": 18, "strokeColor": "#1e1e1e"},
+    {"id": "t2", "type": "text", "containerId": "tree", "text": "UI tree", "x": 0, "y": 0, "width": 0, "height": 0, "fontSize": 18, "strokeColor": "#1e1e1e"},
+    {"id": "t3", "type": "text", "containerId": "web", "text": "Web renderer", "x": 0, "y": 0, "width": 0, "height": 0, "fontSize": 18, "strokeColor": "#1e1e1e"},
+    {"id": "t4", "type": "text", "containerId": "window", "text": "Blitz window", "x": 0, "y": 0, "width": 0, "height": 0, "fontSize": 18, "strokeColor": "#1e1e1e"},
+    {"id": "t5", "type": "text", "containerId": "agents", "text": "Agents", "x": 0, "y": 0, "width": 0, "height": 0, "fontSize": 18, "strokeColor": "#1e1e1e"}
+  ]
+}
