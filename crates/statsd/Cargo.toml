@@ -1,0 +1,10 @@
+[package]
+name = "dash-statsd"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+dash-meter.workspace = true
