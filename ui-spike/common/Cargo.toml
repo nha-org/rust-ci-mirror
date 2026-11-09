@@ -1,0 +1,9 @@
+[package]
+name = "ui-spike-common"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc = "0.2"
+png = "0.18"
