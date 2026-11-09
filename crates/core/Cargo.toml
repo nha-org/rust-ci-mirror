@@ -1,0 +1,11 @@
+[package]
+name = "dash-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+inventory.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
