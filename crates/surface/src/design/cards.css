@@ -1,0 +1,48 @@
+/* A Linear card and its column, /design?tab=linear's and /tasks' board's one look (task rust-board-linear; @nha, 2026-11-09:
+   « /tasks?project=site_perso -> needs to follow the linear-like design for the cards »). Loaded before design.css on /design
+   and with page.css on every page. --muted, --hair and --veil as base.css and design.css name them on /design's root, set here
+   on the column for a page that loads neither; design.json's tokens, no colour of its own. */
+.li-column { --muted: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100)); --hair: var(--color-base-300); --veil: color-mix(in oklab, var(--color-neutral) 22%, transparent); }
+.ic { flex: none; display: inline-block; vertical-align: -3px; color: var(--color-base-content); }
+.tx-primary { color: var(--color-primary); }
+.tx-warning { color: var(--color-warning); }
+.tx-muted { color: var(--color-base-content); opacity: 0.55; }
+.li-column { width: 330px; flex: none; display: flex; flex-direction: column; gap: var(--spacing-s2); padding: var(--spacing-s2); background: var(--color-base-200); border-radius: var(--radius-box) var(--radius-box) 0 0; }
+.li-column-head { flex: none; height: 32px; display: flex; align-items: center; gap: var(--spacing-s2); padding: 0 var(--spacing-s1); font-weight: 600; }
+.li-card { position: relative; flex: none; box-sizing: border-box; padding: 10px var(--spacing-s3); background: var(--color-base-100); border-radius: var(--radius-field); box-shadow: 0 1px 2px var(--veil), 0 0 0 1px var(--hair); cursor: pointer; user-select: none; transition: box-shadow 120ms ease-out; }
+.li-card:hover { box-shadow: 0 4px 12px var(--veil), 0 0 0 1px color-mix(in oklab, var(--color-base-content) 40%, var(--color-base-100)); }
+.li-id { color: var(--muted); font-size: var(--text-caption); line-height: var(--text-caption--line-height); }
+.li-assign { position: absolute; right: var(--spacing-s3); top: 10px; color: var(--muted); }
+.li-title { display: flex; gap: var(--spacing-s2); margin: var(--spacing-s0) 0 var(--spacing-s2); font-weight: 500; line-height: 16px; }
+.li-title .ic { margin-top: 1px; }
+.li-tags { display: flex; align-items: center; gap: var(--spacing-s1); margin-bottom: var(--spacing-s2); }
+.li-tag { display: inline-flex; align-items: center; gap: var(--spacing-s1); padding: 0 var(--spacing-s2); height: 22px; border-radius: 999px; box-shadow: 0 0 0 1px var(--hair); font-size: var(--text-caption); }
+.li-urgent { width: 16px; height: 16px; border-radius: var(--radius-selector); background: var(--color-accent); color: var(--color-accent-content); text-align: center; font-size: 11px; line-height: 16px; font-weight: 700; }
+.li-who { display: inline-block; width: 18px; height: 18px; border-radius: 999px; background: var(--color-secondary); color: var(--color-secondary-content); font-size: 10px; line-height: 18px; text-align: center; font-weight: 600; }
+.li-card .meta, .li-column-head .meta { color: var(--muted); font-size: var(--text-caption); font-weight: 400; }
+/* A task's page, Linear's issue view (task rust-task-page-linear; @nha, 2026-11-09: « the tasks page need to match the linear
+   design »): the parts in a column, the properties beside them; under a phone's width the properties go first. */
+.li-issue { --muted: color-mix(in oklab, var(--color-base-content) 60%, var(--color-base-100)); --hair: var(--color-base-300); display: grid; grid-template-columns: minmax(0, 1fr) 240px; grid-template-areas: "crumbs crumbs" "main side"; gap: var(--spacing-s3) var(--spacing-s6); }
+.li-crumbs { grid-area: crumbs; display: flex; align-items: center; gap: var(--spacing-s2); padding-bottom: var(--spacing-s2); border-bottom: 1px solid var(--hair); font-size: var(--text-caption); }
+.li-crumbs a { color: inherit; text-decoration: none; }
+.li-issue-main { grid-area: main; min-width: 0; }
+.li-issue-title { margin: var(--spacing-s2) 0 var(--spacing-s3); font-size: var(--text-title); line-height: var(--text-title--line-height); font-weight: 600; overflow-wrap: anywhere; }
+.li-issue-main > p { white-space: pre-line; overflow-wrap: anywhere; }
+.li-issue-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-s2); padding-top: var(--spacing-s2); }
+.li-side-head { margin-top: var(--spacing-s2); color: var(--muted); font-size: var(--text-caption); }
+.li-prop { display: flex; align-items: center; gap: var(--spacing-s2); }
+.li-prop.meta { color: var(--muted); font-size: var(--text-caption); overflow-wrap: anywhere; }
+.li-pr { color: var(--color-primary); text-decoration: none; }
+.li-part { margin-top: var(--spacing-s4); padding-top: var(--spacing-s3); border-top: 1px solid var(--hair); }
+.li-part-head { margin: 0 0 var(--spacing-s2); font-size: var(--text-ui); font-weight: 600; }
+.li-check { display: flex; align-items: flex-start; gap: var(--spacing-s2); padding: var(--spacing-s1) 0; overflow-wrap: anywhere; }
+.li-check .ic { margin-top: 2px; }
+.tx-error { color: var(--color-error); }
+.tx-error .ic { color: inherit; }
+.li-event { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s1) 0 var(--spacing-s1) var(--spacing-s2); border-left: 1px solid var(--hair); font-size: var(--text-caption); }
+.li-event .meta { color: var(--muted); }
+.li-dot { width: 7px; height: 7px; margin-left: -12px; border-radius: 999px; background: var(--muted); }
+.li-comment { margin-top: var(--spacing-s2); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border-radius: var(--radius-box); box-shadow: 0 0 0 1px var(--hair); }
+.li-comment-head { display: flex; align-items: center; gap: var(--spacing-s2); margin-bottom: var(--spacing-s1); font-size: var(--text-caption); }
+.li-comment-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .li-issue { grid-template-columns: minmax(0, 1fr); grid-template-areas: "crumbs" "side" "main"; } }
