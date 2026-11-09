@@ -1,0 +1,70 @@
+// slintcn's ToggleGroup, one or several on, and a segment drawn in a forced state. Its stock has a single selection only.
+import { Tokens, Ds } from "../theme/tokens.slint";
+
+export component Segment inherits Rectangle {
+    in property <string> text;
+    in property <bool> on;
+    in property <bool> off;
+    in property <bool> force-hover;
+    callback clicked();
+
+    min-width: t.preferred-width + 2 * Ds.spacing-s3;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    background: on ? Ds.tint : touch.has-hover || force-hover ? Ds.color-base-200 : Ds.color-base-100;
+    animate background { duration: Tokens.motion-fast; }
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-value: root.on ? "on" : "off";
+
+    t := Text {
+        x: (parent.width - self.preferred-width) / 2;
+        y: (parent.height - self.preferred-height) / 2;
+        text: root.text;
+        opacity: root.off ? 0.6 : 1;
+        color: root.on ? Ds.color-primary : root.off ? Ds.muted : Ds.color-base-content;
+        font-size: Tokens.typography-body-size;
+        font-weight: root.on ? 600 : 400;
+    }
+    touch := TouchArea {
+        enabled: !root.off;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component SegmentGroup inherits Rectangle {
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    height: 30px;
+    border-width: 1px;
+    border-color: Ds.hair;
+    border-radius: Tokens.radius-md;
+    clip: true;
+    HorizontalLayout {
+        padding: 1px;
+        alignment: start;
+        @children
+    }
+}
+
+export component ToggleGroup inherits HorizontalLayout {
+    in property <bool> multi: false;
+    // One bit per segment.
+    property <int> picked: 2;
+    alignment: start;
+    SegmentGroup {
+        for name[i] in ["Month", "Week", "Day"]: Segment {
+            text: name;
+            on: mod(floor(root.picked / pow(2, i)), 2) == 1;
+            clicked => {
+                if (!root.multi) {
+                    root.picked = pow(2, i);
+                } else if (self.on) {
+                    root.picked -= pow(2, i);
+                } else {
+                    root.picked += pow(2, i);
+                }
+            }
+        }
+    }
+}
