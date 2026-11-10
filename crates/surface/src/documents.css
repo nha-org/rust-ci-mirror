@@ -1,0 +1,45 @@
+/* The document types (documents.rs): design.json's tokens only, flex and block, so the window's Blitz draws them alike. */
+/* A container, so a template lays out by its own width: a narrow cell of /design stacks the issue view as a phone does. */
+.doc { display: block; max-width: 48rem; container: doc / inline-size; }
+.doc-head { margin-bottom: var(--spacing-s3); }
+.doc-title { display: block; margin: 0 0 var(--spacing-s2); font-size: var(--text-title); font-weight: 600; color: inherit; }
+a.doc-title { color: var(--color-primary); text-decoration: none; }
+.doc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); font-size: var(--text-caption); opacity: 0.8; }
+.doc-lead { margin: var(--spacing-s2) 0; }
+/* A titled part: a document's and a tree's section (screen.rs), one look. */
+.doc-part, .issue-part { margin-top: var(--spacing-s4); }
+.doc-part h2, .issue-part h2 { margin: 0 0 var(--spacing-s1); font-size: var(--text-ui); font-weight: 600; opacity: 0.7; }
+.doc-text, .doc-words { margin: var(--spacing-s1) 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-facts { display: flex; flex-wrap: wrap; margin: 0; }
+.doc-facts dt { box-sizing: border-box; width: 30%; padding: var(--spacing-s1) 0; font-size: var(--text-caption); font-weight: 600; opacity: 0.7; }
+.doc-facts dd { box-sizing: border-box; width: 70%; margin: 0; padding: var(--spacing-s1) 0; overflow-wrap: anywhere; }
+/* A status's dot, the issue rows' (screen.rs status_icon), and a quote. */
+.status-icon { display: inline-block; flex: none; box-sizing: border-box; width: var(--spacing-s3); height: var(--spacing-s3); border-radius: 50%; border: 2px solid var(--color-base-content); opacity: 0.8; vertical-align: -1px; margin-right: var(--spacing-s2); }
+.status-icon.backlog { opacity: 0.4; }
+.status-icon.todo { opacity: 0.7; }
+.status-icon.in-progress { border-color: var(--color-warning); background: var(--color-warning); opacity: 1; }
+.status-icon.in-review { border-color: var(--color-success); background: var(--color-success); opacity: 1; }
+.quote { margin: var(--spacing-s1) 0; padding: var(--spacing-s2) var(--spacing-s3); font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-field); }
+/* Notion's threads, as /design?tab=notion draws them (design.css .no-thread). */
+.doc-threads { display: flex; flex-direction: column; gap: var(--spacing-s2); }
+.doc-thread { box-sizing: border-box; padding: var(--spacing-s3); background: var(--color-base-100); border-radius: var(--radius-box); border: 1px solid var(--color-base-300); }
+.doc-quote { padding-left: var(--spacing-s2); margin-bottom: var(--spacing-s2); border-left: 2px solid var(--color-warning); opacity: 0.7; }
+.doc-said { padding-bottom: var(--spacing-s2); }
+.doc-who { display: flex; align-items: center; gap: var(--spacing-s2); font-weight: 600; }
+.doc-who .avatar { width: var(--spacing-s5); height: var(--spacing-s5); line-height: var(--spacing-s5); }
+.doc-who .doc-meta { font-weight: 400; }
+.doc-words { padding-left: calc(var(--spacing-s5) + var(--spacing-s2)); }
+/* A listed document, as /drafts lists its drafts: a card, the whole of it opening its title's link. */
+.cards > .doc { position: relative; box-sizing: border-box; padding: var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); }
+.cards > .doc .doc-title { font-size: var(--text-ui); }
+.cards > .doc a.doc-title::after { content: ""; position: absolute; inset: 0; }
+.cards > .doc .doc-part { margin-top: var(--spacing-s2); }
+/* DocView (documents.rs): one markup, its view a class. Notion: a note a callout under its words. Gmail: each note beside them. */
+.dv-item { padding-left: var(--spacing-s4); }
+.dv-item > .doc-text { display: list-item; list-style: disc; }
+.dv-note { margin: var(--spacing-s1) 0; padding: var(--spacing-s2) var(--spacing-s3); font-size: var(--text-caption); background: var(--color-base-200); border-radius: var(--radius-field); }
+.dv-private { margin-right: var(--spacing-s2); font-weight: 600; opacity: 0.7; }
+.dv.gmail .dv-section { display: flex; gap: var(--spacing-s3); align-items: flex-start; }
+.dv.gmail .dv-section > .doc-text { flex: 2 1 0; min-width: 0; }
+.dv.gmail .dv-section > .dv-note { flex: 1 1 0; min-width: 0; }
+@container doc (max-width: 32rem) { .dv.gmail .dv-section { flex-direction: column; gap: 0; } }
