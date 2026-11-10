@@ -1,0 +1,409 @@
+// Notion-like comments, after private/evidence/notion/2026-11-06: select a phrase, its toolbar, a thread beside it, replies folded, a
+// page's own comments, a comment's menu. The text is made up: the evidence shows his job search, and rust/ rides to the CI mirror.
+// A line is a read-only TextInput: dragging selects as anywhere, and its two byte offsets say which phrase. Those two are
+// « internal, undocumented, only exposed for tests » in Slint 1.18, so a Slint bump can remove them: slint.rs pins the version.
+import { T, B, Meta, Surface, Ic, Paths, Ds } from "parts.slint";
+import { Avatar } from "slintcn/components/avatar.slint";
+import { Input } from "slintcn/components/input.slint";
+
+export struct NotionMark { before: string, phrase: string }
+export struct NotionLine { depth: int, words: string, link: bool, marks: [NotionMark] }
+export struct NotionSaid { id: string, words: string }
+export struct NotionThread { index: int, quote: string, said: [NotionSaid], folded-out: int }
+
+component Said {
+    in property <string> id;
+    in property <string> words;
+    accessible-role: groupbox;
+    accessible-id: root.id;
+    VerticalLayout {
+        padding-bottom: Ds.spacing-s3;
+        HorizontalLayout {
+            spacing: Ds.spacing-s2;
+            alignment: start;
+            Avatar { size: 20px; fallback: "NH"; }
+            B { text: "Nicolas Ha"; }
+            Meta { text: "Just now"; }
+        }
+        HorizontalLayout { padding-left: 28px; T { text: root.words; wrap: word-wrap; } }
+    }
+    // The ... inside the area: above it, as a sibling, it would take the hover away and remove itself.
+    hover := TouchArea {
+        if hover.has-hover: Rectangle {
+            x: parent.width - 16px;
+            y: 0;
+            width: 16px;
+            height: 16px;
+            accessible-role: groupbox;
+            accessible-id: root.id + "-more";
+            Ic { commands: Paths.dots; }
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { menu-popup.show(); }
+            }
+        }
+    }
+    // Slint's own popup: z orders siblings alone, so a surface here would draw under what follows the comment.
+    menu-popup := PopupWindow {
+        x: parent.width - 172px;
+        y: 22px;
+        width: 180px;
+        Surface {
+            raised: true;
+            accessible-role: groupbox;
+            accessible-id: "no-menu";
+            VerticalLayout {
+                padding: Ds.spacing-s1;
+                for item in ["Edit", "Copy link to discussion", "Mute replies", "Delete"]: Rectangle {
+                    height: 28px;
+                    border-radius: Ds.radius-selector;
+                    background: t.has-hover ? Ds.color-base-300 : transparent;
+                    T { x: Ds.spacing-s2; text: item; }
+                    t := TouchArea { }
+                }
+            }
+        }
+    }
+}
+
+component Reply inherits HorizontalLayout {
+    in property <string> input-id;
+    in property <string> send-id;
+    in property <string> hint;
+    in-out property <string> draft;
+    callback send();
+    spacing: Ds.spacing-s2;
+    VerticalLayout { alignment: center; Avatar { size: 24px; fallback: "NH"; } }
+    Input { text <=> root.draft; placeholder: root.hint; accessible-id: root.input-id; horizontal-stretch: 1; }
+    VerticalLayout {
+        alignment: center;
+        Rectangle {
+            width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            accessible-role: groupbox;
+            accessible-id: root.send-id;
+            background: root.draft == "" ? Ds.color-base-300 : Ds.color-info;
+            Ic { commands: Paths.send; size: 14px; tint: root.draft == "" ? Ds.color-base-content : Ds.color-info-content; }
+            TouchArea { mouse-cursor: pointer; clicked => { root.send(); } }
+        }
+    }
+}
+
+// A quoted phrase, as a thread opens on it.
+component Quote inherits HorizontalLayout {
+    in property <string> words;
+    spacing: Ds.spacing-s2;
+    padding-bottom: Ds.spacing-s2;
+    Rectangle { width: 2px; background: Ds.color-warning; }
+    Meta { text: root.words; horizontal-stretch: 1; }
+}
+
+component Line {
+    in property <NotionLine> line;
+    in property <int> index;
+    pure function offset() -> length { return line.depth == 0 ? 0px : 16px; }
+    callback selected(/* line */ int, /* start */ int, /* end */ int);
+    height: 26px;
+    accessible-role: groupbox;
+    accessible-id: "no-line-" + root.index;
+
+    if root.line.depth != 0: Rectangle {
+        x: 2px;
+        y: 10px;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        border-width: 1px;
+        border-color: Ds.color-base-content;
+        background: root.line.depth == 1 ? Ds.color-base-content : transparent;
+    }
+    // A phrase is measured by a hidden Text of what stands before it: Slint has no text-measuring call, this is the way.
+    for mark[m] in root.line.marks: Rectangle {
+        x: root.offset() + measure-before.preferred-width;
+        y: 2px;
+        width: measure-phrase.preferred-width;
+        height: 22px;
+        background: Ds.soft-warning;
+        accessible-role: groupbox;
+        accessible-id: "no-mark-" + root.index + "-" + m;
+        accessible-value: mark.phrase;
+        measure-before := Text { visible: false; text: mark.before; font-size: Ds.text-body; }
+        measure-phrase := Text { visible: false; text: mark.phrase; font-size: Ds.text-body; }
+        Rectangle { y: parent.height - 2px; height: 2px; background: Ds.color-warning; }
+    }
+    text := TextInput {
+        x: root.offset();
+        width: parent.width - self.x;
+        height: parent.height;
+        text: root.line.words;
+        read-only: true;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: Ds.text-body;
+        color: root.line.link ? Ds.muted : Ds.color-base-content;
+        selection-background-color: Ds.color-info.mix(Ds.color-base-100, 0.45);
+        selection-foreground-color: Ds.color-base-content;
+        function report() {
+            root.selected(root.index, min(self.anchor-position-byte-offset, self.cursor-position-byte-offset), max(self.anchor-position-byte-offset, self.cursor-position-byte-offset));
+        }
+        // Both ends: a click on the cursor's own place collapses the selection by moving the anchor alone.
+        changed cursor-position-byte-offset => { self.report(); }
+        changed anchor-position-byte-offset => { self.report(); }
+    }
+}
+
+export component Notion {
+    in property <[NotionLine]> lines;
+    in property <[NotionThread]> threads;
+    in property <[NotionSaid]> page-comments;
+    in-out property <int> picked: -1;
+    in property <int> picked-depth;
+    in property <string> picked-before;
+    // A composer for a phrase that has no thread yet; else `composing`, a thread's index or -1.
+    in property <bool> composing-new;
+    in property <string> new-quote;
+    in property <int> rail-line;
+    in property <string> picked-phrase;
+    in-out property <int> composing: -1;
+    in-out property <string> draft;
+    in-out property <string> page-draft;
+    in-out property <bool> page-open;
+    callback selected(int, int, int);
+    callback comment();
+    callback post();
+    callback post-page();
+    callback fold-threads();
+    callback unfold(int);
+    callback reopen(int);
+
+    property <length> line-h: 26px;
+    measure-before := Text { visible: false; text: root.picked-before; font-size: Ds.text-body; }
+    measure-phrase := Text { visible: false; text: root.picked-phrase; font-size: Ds.text-body; }
+
+    Rectangle {
+        background: Ds.color-base-100;
+        HorizontalLayout {
+            Rectangle {
+                width: 232px;
+                background: Ds.color-base-200;
+                VerticalLayout {
+                    padding: Ds.spacing-s3;
+                    padding-left: Ds.spacing-s2;
+                    padding-right: Ds.spacing-s2;
+                    spacing: 2px;
+                    alignment: start;
+                    Rectangle {
+                        height: 28px;
+                        border-radius: Ds.radius-field;
+                        border-width: 1px;
+                        border-color: Ds.hair;
+                        HorizontalLayout { padding-left: Ds.spacing-s2; padding-right: Ds.spacing-s2; Meta { text: "Search or ask"; horizontal-stretch: 1; } Meta { text: "Cmd K"; } }
+                    }
+                    for item[i] in [
+                        { t: "Home", on: true, p: Paths.inbox }, { t: "New chat", on: false, p: Paths.chat },
+                        { t: "Favorites", on: false, p: "" }, { t: "Rendering plan", on: true, p: Paths.doc }, { t: "End of year", on: false, p: Paths.doc },
+                        { t: "Visas", on: false, p: Paths.doc }, { t: "Tasks", on: false, p: Paths.doc }, { t: "Teamspaces", on: false, p: "" }, { t: "General", on: false, p: Paths.doc }
+                    ]: Rectangle {
+                        height: 28px;
+                        border-radius: Ds.radius-field;
+                        background: item.on || (over.has-hover && item.p != "") ? Ds.color-base-300 : transparent;
+                        over := TouchArea { }
+                        HorizontalLayout {
+                            padding-left: Ds.spacing-s2;
+                            spacing: Ds.spacing-s2;
+                            if item.p != "": Ic { commands: item.p; }
+                            if item.p != "": T { text: item.t; font-weight: i == 0 ? 600 : 400; }
+                            if item.p == "": Meta { text: item.t; vertical-alignment: bottom; }
+                        }
+                    }
+                }
+            }
+            VerticalLayout {
+                HorizontalLayout {
+                    height: 44px;
+                    padding-left: Ds.spacing-s4;
+                    padding-right: Ds.spacing-s4;
+                    spacing: Ds.spacing-s3;
+                    T { text: "Rendering plan"; }
+                    Meta { text: "Private"; horizontal-stretch: 1; }
+                    Meta { text: "Edited Oct 13"; }
+                    T { text: "Share"; }
+                    Ic { commands: Paths.search; }
+                    Ic { commands: Paths.dots; }
+                }
+                doc := Rectangle {
+                    clip: true;
+                    // A click off the lines closes the toolbar: the focus leaving a line collapses its selection, as Slint does on focus out.
+                    blur := FocusScope { width: 0px; height: 0px; }
+                    TouchArea { clicked => { blur.focus(); root.picked = -1; } }
+                    VerticalLayout {
+                        padding-top: Ds.spacing-s6;
+                        padding-left: Ds.spacing-s8;
+                        padding-right: 348px;
+                        alignment: start;
+                        HorizontalLayout {
+                            alignment: start;
+                            height: 24px;
+                            add := Rectangle {
+                                width: add-row.preferred-width + 8px;
+                                border-radius: Ds.radius-selector;
+                                accessible-role: groupbox;
+                                accessible-id: "no-add";
+                                background: add-touch.has-hover ? Ds.color-base-300 : transparent;
+                                add-row := HorizontalLayout { spacing: Ds.spacing-s1; Ic { commands: Paths.chat; tint: Ds.muted; } Meta { text: "Add comment"; font-size: Ds.text-ui; } }
+                                add-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        // Words being typed are never thrown away, as on a click on a quote.
+                                        if (root.draft == "") {
+                                            root.page-open = true;
+                                            root.composing = -1;
+                                            root.fold-threads();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        T { text: "Rendering plan"; font-size: 40px; height: 68px; font-weight: 700; }
+                        if root.page-open || root.page-comments.length > 0: VerticalLayout {
+                            padding-bottom: Ds.spacing-s4;
+                            for said[i] in root.page-comments: Said { id: said.id; words: said.words; }
+                            Reply {
+                                input-id: "no-page-input";
+                                send-id: "no-page-post";
+                                hint: "Add a comment...";
+                                draft <=> root.page-draft;
+                                send => { root.post-page(); }
+                            }
+                            Rectangle { height: 1px; background: Ds.hair; }
+                        }
+                        lines := VerticalLayout {
+                            for line[l] in root.lines: HorizontalLayout {
+                                padding-left: line.depth == 0 ? 0px : line.depth == 1 ? Ds.spacing-s5 : Ds.spacing-s7;
+                                Line {
+                                    line: line;
+                                    index: l;
+                                    selected(i, a, b) => { root.selected(i, a, b); }
+                                }
+                            }
+                        }
+                    }
+                    // The rail starts at the first marked line and stacks its threads, so two phrases of one line never overlap.
+                    // It wheels when they run past the window. Not by a drag: a press that slips must still press.
+                    Flickable {
+                        x: parent.width - 300px;
+                        y: lines.absolute-position.y - parent.absolute-position.y + root.rail-line * root.line-h - Ds.spacing-s2;
+                        width: 280px;
+                        height: parent.height - self.y;
+                        content-height: rail.preferred-height;
+                        interactive: false;
+                        z: 2;
+                        rail := VerticalLayout {
+                            width: 280px;
+                            spacing: Ds.spacing-s2;
+                            alignment: start;
+                            // The first comment on a phrase, first on the rail so it is never past the window.
+                            if root.composing-new: Surface {
+                                raised: true;
+                                accessible-role: groupbox;
+                                accessible-id: "no-new";
+                                VerticalLayout {
+                                    padding: Ds.spacing-s3;
+                                    Rectangle {
+                                        height: new-quote.preferred-height;
+                                        accessible-role: groupbox;
+                                        accessible-id: "no-new-quote";
+                                        accessible-value: root.new-quote;
+                                        new-quote := Quote { words: root.new-quote; }
+                                    }
+                                    Reply {
+                                        input-id: "no-input";
+                                        send-id: "no-send";
+                                        hint: "Add a comment...";
+                                        draft <=> root.draft;
+                                        send => { root.post(); }
+                                    }
+                                }
+                            }
+                            for thread in root.threads: Surface {
+                                raised: true;
+                                accessible-role: groupbox;
+                                accessible-id: "no-thread-" + thread.index;
+                                VerticalLayout {
+                                    padding: Ds.spacing-s3;
+                                    Rectangle {
+                                        height: quote.preferred-height;
+                                        accessible-role: groupbox;
+                                        accessible-id: "no-quote-" + thread.index;
+                                        accessible-value: thread.quote;
+                                        quote := Quote { words: thread.quote; }
+                                        TouchArea { mouse-cursor: pointer; clicked => { root.reopen(thread.index); } }
+                                    }
+                                    for said[i] in thread.said: VerticalLayout {
+                                        Said { id: said.id; words: said.words; }
+                                        if i == 0 && thread.folded-out > 0: Rectangle {
+                                            height: 24px;
+                                            accessible-role: groupbox;
+                                            accessible-id: "no-unfold-" + thread.index;
+                                            Meta { x: 28px; text: thread.folded-out == 1 ? "Show 1 reply" : "Show " + thread.folded-out + " replies"; }
+                                            TouchArea { mouse-cursor: pointer; clicked => { root.unfold(thread.index); } }
+                                        }
+                                    }
+                                    if root.composing == thread.index: Reply {
+                                        input-id: "no-input";
+                                        send-id: "no-send";
+                                        hint: "Reply...";
+                                        draft <=> root.draft;
+                                        send => { root.post(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if root.picked >= 0: Surface {
+                        // The line's own padding and bullet, as the Line draws them.
+                        x: lines.absolute-position.x - parent.absolute-position.x + (root.picked-depth == 0 ? 0px : (root.picked-depth == 1 ? Ds.spacing-s5 : Ds.spacing-s7) + 16px) + measure-before.preferred-width;
+                        y: lines.absolute-position.y - parent.absolute-position.y + (root.picked + 1) * root.line-h + Ds.spacing-s1;
+                        width: 226px;
+                        height: tool-body.preferred-height;
+                        raised: true;
+                        z: 3;
+                        accessible-role: groupbox;
+                        accessible-id: "no-tool";
+                        // The toolbar's own clicks stay here.
+                        TouchArea { }
+                        tool-body := VerticalLayout {
+                            padding: Ds.spacing-s2;
+                            spacing: Ds.spacing-s1;
+                            T { text: "Bulleted list"; height: 28px; }
+                            Rectangle { height: 1px; background: Ds.hair; }
+                            HorizontalLayout {
+                                height: 28px;
+                                for mark[m] in ["A", "B", "I", "U", "S"]: T {
+                                    text: mark;
+                                    horizontal-alignment: center;
+                                    font-weight: m == 1 ? 700 : 400;
+                                    font-italic: m == 2;
+                                }
+                            }
+                            Rectangle { height: 1px; background: Ds.hair; }
+                            Rectangle {
+                                height: 28px;
+                                border-radius: Ds.radius-selector;
+                                accessible-role: groupbox;
+                                accessible-id: "no-comment";
+                                background: c.has-hover ? Ds.color-base-300 : transparent;
+                                HorizontalLayout { padding-left: Ds.spacing-s2; spacing: Ds.spacing-s2; Ic { commands: Paths.chat; } T { text: "Comment"; } }
+                                c := TouchArea { mouse-cursor: pointer; clicked => { root.comment(); } }
+                            }
+                            Rectangle { height: 1px; background: Ds.hair; }
+                            Meta { text: "Skills"; height: 28px; }
+                            for name in ["Improve writing", "Proofread", "Explain"]: T { text: name; height: 28px; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
