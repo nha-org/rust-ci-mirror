@@ -1,0 +1,191 @@
+/* The looks of components.rs, each a `look` a page passes: /design?tab=components draws them. Layout and tokens only. */
+.avatar { display: inline-block; flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--color-base-300); color: var(--color-base-content); font-size: 10px; font-weight: 600; line-height: 24px; text-align: center; }
+.badge { display: inline-block; padding: 0 var(--spacing-s2); border-radius: 999px; font-size: var(--text-caption); font-weight: 500; line-height: 20px; }
+.button { display: inline-block; height: 32px; line-height: 32px; padding: 0 var(--spacing-s3); border-radius: var(--radius-field); border: 0; font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); font-weight: 500; background: var(--color-primary); color: var(--color-primary-content); cursor: pointer; }
+.button:hover { background: var(--color-primary-700); }
+.button.quiet { background: var(--color-base-200); color: var(--color-base-content); }
+.button.quiet:hover { background: var(--color-base-300); }
+.input { box-sizing: border-box; width: 100%; height: 32px; padding: 0 var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.input:focus { border-color: var(--color-primary); }
+.textarea { box-sizing: border-box; width: 100%; min-height: 64px; padding: var(--spacing-s2); resize: vertical; border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.textarea:focus { border-color: var(--color-primary); }
+.button.icon { display: flex; height: auto; line-height: normal; padding: 3px; border-radius: var(--radius-field); background: none; color: inherit; box-shadow: none; }
+.button.icon:hover, .button.icon[aria-pressed="true"] { background: var(--color-base-300); }
+.form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); margin: var(--spacing-s2) 0; }
+.form .input[type=file] { width: auto; flex: 1 1 16rem; height: auto; padding: 4px; }
+.form .textarea { flex: 1 1 100%; }
+.toggle { display: inline-flex; margin: var(--spacing-s2) 0; border: 1px solid var(--color-base-300); border-radius: var(--radius-field); overflow: hidden; }
+.toggle a { display: inline-flex; align-items: center; gap: var(--spacing-s1); padding: var(--spacing-s1) var(--spacing-s3); color: inherit; text-decoration: none; background: var(--color-base-100); }
+.toggle a + a { border-left: 1px solid var(--color-base-300); }
+.toggle a:hover { background: var(--color-base-200); }
+.toggle a[aria-current] { background: var(--color-base-300); font-weight: 600; }
+.tabs { display: flex; gap: 2px; margin: var(--spacing-s2) 0; }
+.tabs a { color: inherit; text-decoration: none; padding: 3px 10px; border-radius: var(--radius-field); border: 1px solid var(--color-base-300); }
+.tabs a[aria-current] { background: var(--color-base-300); font-weight: 600; }
+.card { display: flex; flex-direction: column; gap: var(--spacing-s1); min-width: 0; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); color: inherit; text-decoration: none; }
+a.card:hover { border-color: var(--color-primary); }
+.card .title { font-weight: 600; overflow-wrap: anywhere; }
+.card .description { font-size: var(--text-caption); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Table: a row each, a linked row's first cell taking the whole row's tap. */
+/* words a drawing says only by its shape (a bar's height, a line's points): read by the text form and screen readers, never drawn */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.table-filter { margin-bottom: var(--spacing-s2); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-ui); background: var(--color-base-100); }
+.table th, .table td { padding: var(--spacing-s1) var(--spacing-s2); border-bottom: 1px solid var(--color-base-300); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.table th { font-weight: 600; background: var(--color-base-200); }
+.table tbody tr { position: relative; }
+.table tbody tr:hover { background: var(--color-base-200); }
+.table td a { color: inherit; text-decoration: none; }
+.table td a::after { content: ""; position: absolute; inset: 0; }
+/* a head sorts by its column (rust-ui's DataGrid sortable head): its arrow drawn, never words, so the text form stays the column's name */
+.table th a { color: inherit; text-decoration: none; display: inline-flex; gap: var(--spacing-s1); }
+.table th a::after { content: "\2195"; opacity: .35; }
+.table th[aria-sort="ascending"] a::after { content: "\2191"; opacity: 1; }
+.table th[aria-sort="descending"] a::after { content: "\2193"; opacity: 1; }
+.table caption { caption-side: bottom; text-align: left; padding: var(--spacing-s1) var(--spacing-s2); color: var(--color-base-content); opacity: .7; }
+/* dioxus-components' Pagination (NOTICE-dioxus-components), on design.json's tokens */
+.pagination { display: flex; justify-content: center; margin: var(--spacing-s2) 0; }
+.pagination-content { display: flex; align-items: center; gap: .25rem; padding: 0; margin: 0; list-style: none; }
+.pagination-link, .pagination-ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem; padding: 0 .625rem; box-sizing: border-box; border-radius: .625rem; font-size: var(--text-ui); color: inherit; text-decoration: none; }
+.pagination-link:hover { background: var(--color-base-200); }
+.pagination-link[aria-current="page"] { border: 1px solid var(--color-base-300); background: var(--color-base-100); font-weight: 600; }
+/* Item's issue-row: a task's row in /tasks' list. */
+.issue-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s1) var(--spacing-s2); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); color: inherit; text-decoration: none; }
+.issue-row:hover { background: var(--color-base-200); }
+.issue-row .status-icon { margin-right: 0; }
+.issue-row .key, .issue-row .says { font-size: var(--text-caption); opacity: 0.7; }
+.issue-row .title { flex: 1 1 16rem; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.issue-row .says { flex: 0 1 auto; overflow-wrap: anywhere; }
+/* ThreadRow: a conversation of /mail's list, as the older app's /mail (Gmail's): unread bold on white, read on grey. */
+.thread-row { display: flex; align-items: baseline; gap: var(--spacing-s3); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-200); border-bottom: 1px solid var(--color-base-300); color: inherit; text-decoration: none; font-size: var(--text-ui); }
+.thread-row.unread { background: var(--color-base-100); font-weight: 600; }
+.thread-row:hover { box-shadow: inset 1px 0 0 var(--color-base-300), inset -1px 0 0 var(--color-base-300), 0 1px 2px 0 rgb(60 64 67 / 0.3); }
+.thread-row .from { flex: none; width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-row .words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-row .gist { font-weight: 400; opacity: 0.6; }
+.thread-row .at { flex: none; font-size: var(--text-caption); white-space: nowrap; }
+@media (max-width: 42rem) { .thread-row { flex-wrap: wrap; } .thread-row .from { flex: 1; width: auto; } .thread-row .words { order: 3; flex-basis: 100%; } }
+.access { padding: var(--spacing-s2) 0; border-top: 1px solid var(--color-base-300); overflow-wrap: anywhere; }
+.access p { margin: 0; }
+.access .head { display: flex; align-items: center; gap: var(--spacing-s2); }
+.access .usage { margin-top: var(--spacing-s1); }
+.access .note, .access .place { font-size: var(--text-caption); opacity: 0.7; }
+.access .source { font-weight: 600; }
+.chip { flex: none; padding: 0 var(--spacing-s2); font-size: var(--text-caption); font-weight: 600; border-radius: var(--radius-field); background: var(--color-base-300); }
+.access[data-status="works"] .chip { background: var(--color-success); color: var(--color-success-content); }
+.access[data-status="expired"] .chip { background: var(--color-error); color: var(--color-error-content); }
+.access[data-status="refused"] .chip { background: var(--color-warning); color: var(--color-warning-content); }
+/* Words for the text form alone (forms::text_of reads them): a link's target, a check's verdict that a mark shows on screen. */
+.text-only { display: none; }
+.tool { align-self: stretch; padding: var(--spacing-s2) var(--spacing-s3); border-bottom: 1px solid var(--color-base-300); }
+.tool .head { display: flex; align-items: center; gap: var(--spacing-s2); margin: 0; }
+.logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; line-height: 28px; background: var(--color-base-200); }
+.logo svg { width: 16px; height: 16px; }
+.skeleton { color: color-mix(in oklab, var(--color-base-content) 45%, var(--color-base-100)); }
+.skeleton .logo, .skeleton .line, .skeleton .title:empty { background: var(--color-base-300); animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.skeleton .title:empty { display: block; width: 8rem; height: 14px; border-radius: var(--radius-field); }
+.skeleton .line { display: block; height: 12px; margin-top: var(--spacing-s2); border-radius: var(--radius-field); }
+.skeleton .line:nth-of-type(even) { width: 60%; }
+.skeleton:not(.card) { max-width: 32rem; margin: var(--spacing-s2) 0; }
+@keyframes skeleton-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .skeleton .logo, .skeleton .line, .skeleton .title:empty { animation: none; } }
+/* a favicon drawn for a light page gets the text colour behind it on dark: a token on the dark root, never `.dark .x` (design.css) */
+.app.dark { --logo-back: var(--color-base-content); }
+.logo img { width: 18px; height: 18px; border-radius: 4px; background: var(--logo-back, transparent); }
+.skeleton .logo img { filter: grayscale(1); opacity: 0.5; }
+.fold { border-top: 1px solid var(--color-base-300); padding: var(--spacing-s2) 0; }
+.fold > summary { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold[open] > summary { white-space: normal; }
+.fold > pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: Inter, system-ui, sans-serif; }
+/* A mail with no colours of its own follows the theme (framed() lets its document take either scheme, and a frame's document
+   prefers its iframe's scheme): the theme ground shows through, its text light on dark. One with colours of its own keeps
+   them, its document light whatever the theme (task frame-dark-mode; @nha, 2026-11-09: « content with white backrground on
+   dark mode renders weird. »). The scheme is a token on each theme's own root, so a Light cell in a dark page stays light;
+   a frame drawn as sent stays light too, or a mail's own dark-mode rules would match on its white ground (/code-review). */
+.app.light { --frame-scheme: light; }
+.app.dark { --frame-scheme: dark; }
+.frame { display: block; box-sizing: border-box; width: 100%; height: 60vh; resize: vertical; overflow: auto; margin-top: var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); color-scheme: light; }
+.frame.themed { color-scheme: var(--frame-scheme, light); }
+/* drawn light on every page: the SVG bakes its colours, so it sits on a light ground of its own, as an image would */
+.diagram { display: block; background: #fff; border-radius: 8px; padding: 8px; }
+.diagram svg { display: block; width: 100%; height: auto; }
+/* DropdownMenu, after DioxusLabs/dioxus-components' (NOTICE-dioxus-components): the content under its trigger, its items rows. */
+.dropdown-menu { position: relative; display: inline-block; }
+.dropdown-menu-content { z-index: 3; position: absolute; top: 100%; right: 0; min-width: 200px; margin-top: 4px; padding: var(--spacing-s1); background: var(--color-base-100); border-radius: var(--radius-field); box-shadow: 0 8px 28px var(--veil), 0 0 0 1px var(--hair); font-weight: 400; }
+.dropdown-menu-content[hidden] { display: none; }
+.dropdown-menu-item { box-sizing: border-box; width: 100%; border: 0; background: none; font: inherit; text-align: left; display: flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s1) var(--spacing-s2); border-radius: var(--radius-selector); color: inherit; text-decoration: none; cursor: pointer; user-select: none; white-space: nowrap; }
+.dropdown-menu-item:hover, .dropdown-menu-item:focus-visible { background: var(--color-base-300); outline: none; }
+/* Print: a page holding a [data-print] part prints that part alone, the boxes around it kept (the Notion document's Export PDF). */
+@media print { body:has([data-print]) *:not([data-print], [data-print] *, :has([data-print])) { display: none !important; } }
+/* Treemap (task rust-deps-files-hover): nested boxes on a fixed canvas, a box's area its lines; each depth a shade, a box's
+   name on its top line; a hover's outlines come from the component's own rules, a box's links only. */
+.treemap { position: relative; aspect-ratio: 12 / 7; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); overflow: hidden; font-size: 11px; }
+.treemap-box { position: absolute; box-sizing: border-box; overflow: hidden; padding: 1px 3px; white-space: nowrap; text-overflow: ellipsis; line-height: 14px; border: 1px solid var(--color-base-300); color: var(--color-base-content); }
+.treemap-box[data-depth="0"] { background: var(--color-base-200); font-weight: 600; }
+.treemap-box[data-depth="1"] { background: var(--color-base-100); }
+.treemap-box[data-depth="2"] { background: var(--color-base-200); }
+.treemap-box[data-depth="3"] { background: var(--color-base-100); }
+.treemap-box:hover { outline: 2px solid var(--color-base-content); outline-offset: -2px; }
+.treemap-key { font-size: 12px; opacity: 0.8; }
+/* A day: « 3 days ago », its full date on a tap (When). A details toggles with no script; its marker is dropped. */
+.when { display: inline-block; font-size: var(--text-caption); line-height: var(--text-caption--line-height); opacity: 0.7; }
+.when > summary { cursor: pointer; list-style: none; }
+.when > summary::-webkit-details-marker { display: none; }
+.when:not([open]) time, .when[open] span { display: none; }
+/* Events in time (Timeline): a dot a row, on the line that joins them. */
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline > li { position: relative; padding: 0 0 var(--spacing-s3) var(--spacing-s4); }
+/* the date on a line of its own, the event under it; the dot centred on the date's caption line */
+.timeline .when { display: block; width: fit-content; }
+.timeline > li::before { content: ""; position: absolute; left: 0; top: calc(var(--text-caption--line-height) / 2 - 4.5px); width: 9px; height: 9px; border-radius: 50%; background: var(--color-primary); }
+.timeline > li:not(:last-child)::after { content: ""; position: absolute; left: 4px; top: calc(var(--text-caption--line-height) / 2 + 8px); bottom: 2px; width: 1px; background: var(--color-base-300); }
+/* Switch, Toolbar and HoverCard: dioxus-components' looks on this system's tokens (NOTICE-dioxus-components). */
+.switch { position: relative; display: inline-flex; align-items: center; gap: var(--spacing-s2); cursor: pointer; }
+.switch-input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.switch-track { position: relative; flex: none; width: 2rem; height: 1.15rem; border-radius: 9999px; background: var(--color-base-300); transition: background-color 150ms, box-shadow 150ms; }
+.switch-thumb { position: absolute; top: 1px; left: 1px; width: calc(1.15rem - 2px); height: calc(1.15rem - 2px); border-radius: 9999px; background: var(--color-base-100); box-shadow: 0 1px 2px var(--veil, rgb(0 0 0 / 0.2)); transition: transform 150ms; }
+.switch-input:checked + .switch-track { background: var(--color-primary); }
+.switch-input:checked + .switch-track .switch-thumb { transform: translateX(calc(2rem - 1.15rem)); }
+.switch-input:focus-visible + .switch-track { box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 50%, transparent); }
+.switch:has(.switch-input:disabled) { cursor: not-allowed; opacity: 0.5; }
+.toolbar { display: flex; flex-flow: row wrap; align-items: center; gap: var(--spacing-s1); padding: var(--spacing-s1); border-radius: var(--radius-box); box-shadow: inset 0 0 0 1px var(--color-base-300); }
+.toolbar[data-orientation="vertical"] { flex-flow: column; align-items: stretch; }
+.toolbar-group { display: flex; align-items: center; gap: var(--spacing-s1); }
+.toolbar[data-orientation="vertical"] .toolbar-group:has(.toolbar-title) { flex-direction: column; align-items: stretch; }
+.toolbar-title { padding: var(--spacing-s1) var(--spacing-s2); font-size: var(--text-caption); opacity: 0.7; }
+.toolbar-button { display: inline-flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s1) var(--spacing-s2); border: 0; border-radius: var(--radius-selector); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.toolbar-button:hover, .toolbar-button:focus-visible { background: var(--color-base-300); outline: none; }
+.toolbar-separator { align-self: stretch; width: 1px; background: var(--color-base-300); }
+.toolbar-separator[aria-orientation="horizontal"] { width: auto; height: 1px; }
+.hover-card { position: relative; }
+.hover-card-content { z-index: 3; position: absolute; top: 100%; left: 0; right: 0; min-width: 200px; margin-top: 4px; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border-radius: var(--radius-box); box-shadow: 0 8px 28px var(--veil, rgb(0 0 0 / 0.15)), 0 0 0 1px var(--color-base-300); font-weight: 400; pointer-events: none; }
+.hover-card-content .description { white-space: normal; }
+/* Shown on a hover, after a short wait so a pointer passing over draws nothing, and on a key's focus, of the card or of what
+   holds it (a board card's link). Hidden, it takes no room; it takes no pointer either, so a click on what it covers lands
+   there and the pointer leaving its trigger closes it (/code-review). ponytail: a column's last card's opens inside its scroll
+   box, so the column scrolls to it; anchor positioning when every browser has it. */
+@keyframes hover-card-in { from { opacity: 0; } to { opacity: 1; } }
+.hover-card:hover > .hover-card-content, .hover-card:focus-within > .hover-card-content, :focus-visible > .hover-card > .hover-card-content { display: block; animation: hover-card-in 100ms 500ms both; }
+/* Kbd: rust-ui's ideas (NOTICE-rust-ui): a small keycap, never picked by a pointer, an icon in it at the text's size. */
+.kbd, .kbd-group { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-weight: 500; pointer-events: none; user-select: none; }
+.kbd { justify-content: center; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 var(--spacing-s1); font-size: var(--text-caption); border: 1px solid var(--color-base-300); border-bottom-width: 2px; border-radius: var(--radius-selector); background: var(--color-base-200); }
+.kbd svg { width: 12px; height: 12px; }
+.terminal-screen { box-sizing: border-box; margin: 0; padding: var(--spacing-s3); overflow-x: auto; white-space: pre; border-radius: var(--radius-box); background: var(--color-neutral); color: var(--color-neutral-content); font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.4; }
+.terminal > .form { flex-wrap: nowrap; }
+.terminal > .form > .input { font-family: ui-monospace, Menlo, monospace; }
+
+/* AspectRatio (dioxus-components'), Image and Attachment (rust-ui's ideas): task rust-ui-media */
+.aspect-ratio { position: relative; width: 100%; height: 0; }
+.aspect-ratio-content { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.attachment-group { display: flex; gap: var(--spacing-s3); min-width: 0; padding: var(--spacing-s1) 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; }
+.attachment { position: relative; display: flex; align-items: center; gap: var(--spacing-s2); flex: none; min-width: 160px; max-width: 100%; box-sizing: border-box; padding: var(--spacing-s2); scroll-snap-align: start; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); color: inherit; text-decoration: none; font-size: var(--text-ui); }
+a.attachment:hover { background: var(--color-base-200); }
+a.attachment:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.attachment[data-orientation="vertical"] { flex-direction: column; align-items: stretch; width: 160px; min-width: 0; }
+.attachment-media { display: block; flex: none; width: 40px; overflow: hidden; border-radius: var(--radius-field); background: var(--color-base-200); }
+.attachment[data-orientation="vertical"] .attachment-media { width: 100%; }
+.attachment-content { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.attachment[data-orientation="vertical"] .attachment-content { padding: 0 var(--spacing-s1); }
+.attachment-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-description { margin-top: var(--spacing-s0); font-size: var(--text-caption); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
