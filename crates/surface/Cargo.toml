@@ -1,0 +1,20 @@
+[package]
+name = "dash-surface"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# /design's Linear cards and Notion comments read the window's document (rust-design-page).
+blitz-dom = { version = "=0.3.0-beta.4", default-features = false }
+canvist_model = "=0.2.1"
+dash-core.workspace = true
+dioxus = { workspace = true }
+dioxus-ssr = "=0.8.0-alpha.3"
+# Diagrams drawn to SVG on the server, no script or CDN in the page (@nha, 2026-11-09: « The tool is local first. »).
+mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
