@@ -1,0 +1,91 @@
+// slintcn's Checkbox and radio dot, with `force` and design.json's parts. A real focus, a real toggle and the keyboard are its own.
+import { Tokens, Ds } from "../theme/tokens.slint";
+
+export component Checkbox {
+    in-out property <bool> checked: false;
+    in property <string> label;
+    in property <bool> disabled: false;
+    in property <bool> round: false;
+    // « hover » or « focus »: the state drawn still.
+    in property <string> force;
+    callback toggled(bool);
+
+    property <bool> focused: force == "focus" || focus-scope.has-focus;
+    opacity: disabled ? 0.45 : 1;
+    accessible-role: checkbox;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    accessible-label: root.label;
+
+    HorizontalLayout {
+        spacing: Ds.spacing-s1;
+        alignment: start;
+        Rectangle {
+            width: 16px;
+            height: 20px;
+            box := Rectangle {
+                y: 2px;
+                width: 16px;
+                height: 16px;
+                background: root.checked && !root.round ? Ds.color-primary : Ds.color-base-100;
+                border-width: root.checked && root.round ? 5px : 1px;
+                border-color: root.checked || root.force != "" ? Ds.color-primary : Ds.muted;
+                border-radius: root.round ? 8px : Tokens.radius-sm;
+                animate background, border-color, border-width { duration: Tokens.motion-fast; }
+                if root.checked && !root.round: Path {
+                    width: 16px;
+                    height: 16px;
+                    viewbox-width: 16;
+                    viewbox-height: 16;
+                    stroke: Ds.color-primary-content;
+                    stroke-width: 2px;
+                    fill: transparent;
+                    commands: "M 4 8 L 7 12 L 13 4";
+                }
+                if root.focused: Rectangle {
+                    x: -3px;
+                    y: -3px;
+                    width: parent.width + 6px;
+                    height: parent.height + 6px;
+                    border-width: 3px;
+                    border-color: Ds.tint;
+                    border-radius: parent.border-radius + 3px;
+                }
+            }
+        }
+        if root.label != "": Text {
+            text: root.label;
+            color: Ds.color-base-content;
+            font-size: Tokens.typography-body-size;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: root.disabled ? default : pointer;
+        clicked => {
+            if (!root.disabled) {
+                root.checked = !root.checked;
+                root.toggled(root.checked);
+                focus-scope.focus();
+            }
+        }
+    }
+
+    forward-focus: focus-scope;
+    focus-scope := FocusScope {
+        enabled: !root.disabled;
+        // Slint 1.18: true by default, the first press takes the focus and never reaches the TouchArea, so a first click did nothing.
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                if (!root.disabled) {
+                    root.checked = !root.checked;
+                    root.toggled(root.checked);
+                }
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
