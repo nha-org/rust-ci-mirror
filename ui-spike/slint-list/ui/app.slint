@@ -1,0 +1,105 @@
+// The list of rfc-rust-unified section 9, on slintcn's components. ListView instantiates only the rows in view.
+import { ListView } from "std-widgets.slint";
+import { Tokens, Theme, ThemeMode } from "slintcn/theme/tokens.slint";
+import { Avatar } from "slintcn/components/avatar.slint";
+import { Badge, BadgeVariant } from "slintcn/components/badge.slint";
+import { Separator } from "slintcn/components/separator.slint";
+import "../../fonts/Inter-VariableFont.ttf";
+
+export { Theme, ThemeMode }
+
+export struct RowData {
+    title: string,
+    subtitle: string,
+    initials: string,
+    badge: string,
+    tone: int,
+}
+
+component ListRow inherits Rectangle {
+    in property <RowData> data;
+    height: 52px;
+    Avatar {
+        x: 16px;
+        y: 10px;
+        size: 32px;
+        fallback: root.data.initials;
+    }
+    Text {
+        x: 60px;
+        y: 8px;
+        text: root.data.title;
+        font-size: 14px;
+        font-weight: Tokens.typography-weight-medium;
+        color: Tokens.color-foreground;
+    }
+    Text {
+        x: 60px;
+        y: 28px;
+        text: root.data.subtitle;
+        font-size: 12px;
+        color: Tokens.color-muted-foreground;
+    }
+    Badge {
+        x: root.width - self.width - 16px;
+        y: 15px;
+        text: root.data.badge;
+        variant: root.data.tone == 0 ? BadgeVariant.default
+            : root.data.tone == 1 ? BadgeVariant.secondary
+            : root.data.tone == 2 ? BadgeVariant.outline
+            : BadgeVariant.destructive;
+    }
+    Separator {
+        x: 0px;
+        y: 51px;
+        width: root.width;
+        height: 1px;
+    }
+}
+
+export component AppWindow inherits Window {
+    in property <[RowData]> rows;
+    in property <string> count;
+    in-out property <length> scroll-y <=> list.content-y;
+    out property <length> scroll-height: list.content-height - list.visible-height;
+    default-font-family: "Inter";
+    background: Tokens.color-background;
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: 56px;
+        Text {
+            x: 16px;
+            y: 16px;
+            text: "Needs you";
+            font-size: Tokens.typography-title-size;
+            font-weight: Tokens.typography-weight-semibold;
+            color: Tokens.color-foreground;
+        }
+        Badge {
+            x: root.width - self.width - 16px;
+            y: 17px;
+            text: root.count;
+            variant: BadgeVariant.secondary;
+        }
+        Separator {
+            x: 0px;
+            y: 55px;
+            width: root.width;
+            height: 1px;
+        }
+    }
+    list := ListView {
+        x: 0px;
+        y: 56px;
+        width: root.width;
+        height: root.height - 56px;
+        vertical-scrollbar-policy: always-off;
+        horizontal-scrollbar-policy: always-off;
+        for row in root.rows: ListRow {
+            data: row;
+        }
+    }
+}
