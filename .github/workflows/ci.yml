@@ -1,0 +1,79 @@
+# The mirror's CI (nha-org/rust-ci-mirror), Linux only (@nha, 2026-11-04: « linux. locally we can test macos when
+# running it so that covers enough »). Tests built once, then a 2-minute test phase (rfc-rust-unified section 17).
+name: rust
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+# Section 18: no debuginfo and no incremental in CI, each worth 30 to 40 % of a build.
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # main's run alone saves: a branch restores its own caches and the default branch's only, so main's is the one
+      # every task branch's first run reads, and 30 branch copies (10.8 GB, the repo's cap) no longer evict it
+      # (task rust-sccache-on; Dashboard.CiMirror.push_main pushes main). Saved on a red too: a failed test on main left
+      # every branch cold (its run of 2026-11-09, past the line limit)
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      # each step one line, its logic a script in ci/ (@nha, 2026-11-08: « make the CI stuff logic mostly in bash scripts
+      # please, avoid inline yaml scripts »; dash-gate's ci_steps_are_one_line)
+      - run: ci/deno.sh
+      # Section 4's allocators stay buildable for the next measure; the memory test runs on the system's.
+      - run: cargo check --locked -p dash --features mimalloc
+      - run: cargo check --locked -p dash --features jemalloc
+      # fontconfig: fontique, under dash-ui's Blitz document, links it on Linux (rust-dioxus-only-app).
+      # rust-dash-claude's Bubblewrap tests (done-when 2): bwrap itself, and the unprivileged user namespaces Ubuntu 24.04's
+      # AppArmor refuses it by default.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap libfontconfig1-dev && sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # The linter: clippy's warnings fail the run, style is rustfmt's (dash-gate's rustfmt_check), and the size is /deps'
+      # token target, never a gate (@nha, 2026-11-09: « setup a linter please », « newlines vs no newlines does not matter at all »)
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo nextest run --locked --workspace --no-run
+      - run: timeout 130 cargo nextest run --locked --workspace # nextest's global-timeout fails it at 120 s and names the slow tests; this clock is its backstop
+  # nicolas-ha.com's static linux-musl binary through every route test (ci/site-musl.sh; task rust-site-no-container)
+  site-musl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - run: ci/site-musl.sh
+  # The UI spike's picture test, on the software renderers: its own workspace, no windowing stack (rfc-rust-unified section 9).
+  ui-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # by hand: a spike with a thin picture margin (0.983 against 0.98), whose pick is made. On every push it held each Rust
+    # PR's verdict a minute more and a red could decide it; CiMirror reads a skipped job as green (/simplify of PR 1080)
+    if: github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: ui-spike
+    steps:
+      - uses: actions/checkout@v4
+      # fontique, under Slint and Blitz alike, links fontconfig on Linux
+      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      # Section 18: both UI stacks are the slowest build here, so they keep their dependencies between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ui-spike
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - run: cargo nextest run --locked --no-default-features --workspace --no-run
+      - run: timeout 130 cargo nextest run --locked --no-default-features --workspace # its nextest.toml names a slow test

@@ -1,0 +1,38 @@
+[package]
+name = "dash-ui"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# The real window. The document test needs none of it, so Linux CI builds no windowing stack (as rust/ui-spike).
+window = [
+    "dep:dioxus-native",
+    "dep:blitz-shell",
+    "dep:blitz-traits",
+    "dep:anyrender",
+    "dep:anyrender_vello_cpu",
+    "dep:blitz-paint",
+    "dep:png",
+]
+
+[dependencies]
+# `shot`: the window's document painted on the CPU, as rust/ui-spike pictured its screens
+anyrender = { version = "0.14", optional = true }
+anyrender_vello_cpu = { version = "0.18", optional = true }
+blitz-dom = "=0.3.0-beta.4"
+blitz-html = "=0.3.0-beta.4"
+blitz-paint = { version = "=0.3.0-beta.4", default-features = false, features = ["svg"], optional = true }
+blitz-shell = { version = "=0.3.0-beta.4", default-features = false, optional = true }
+blitz-traits = { version = "=0.3.0-beta.4", optional = true }
+dash-core.workspace = true
+dioxus.workspace = true
+dioxus-native = { version = "=0.8.0-alpha.3", default-features = false, optional = true, features = ["html", "svg", "system-fonts", "vello-hybrid"] }
+dioxus-native-dom = "=0.8.0-alpha.3"
+# `Pages`, the window's one component, takes its renders over an async channel; dioxus-core brings both already
+futures-channel.workspace = true
+futures-util = { version = "0.3", default-features = false }
+png = { version = "0.18", optional = true }
+
+[dev-dependencies]
+dash-meter.workspace = true
