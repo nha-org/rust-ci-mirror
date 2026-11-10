@@ -1,0 +1,37 @@
+// slintcn's Badge, with design.json's tones for its variants.
+import { Tokens, Ds } from "../theme/tokens.slint";
+
+export enum Tone { primary, secondary, info, warn, destructive, outline }
+
+export component Badge inherits Rectangle {
+    in property <Tone> tone: Tone.primary;
+    in property <string> text;
+
+    height: 20px;
+    min-width: label.preferred-width + 2 * Ds.spacing-s2;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: 10px;
+    background:
+        tone == Tone.secondary ? Ds.color-base-300 :
+        tone == Tone.info ? Ds.soft-info :
+        tone == Tone.warn ? Ds.soft-warning :
+        tone == Tone.destructive ? Ds.soft-danger :
+        tone == Tone.outline ? transparent : Ds.color-primary;
+    border-width: tone == Tone.outline ? 1px : 0px;
+    border-color: Ds.hair;
+
+    label := Text {
+        x: (parent.width - self.preferred-width) / 2;
+        y: (parent.height - self.preferred-height) / 2;
+        text: root.text;
+        font-size: Tokens.typography-label-size;
+        font-weight: Tokens.typography-weight-medium;
+        color:
+            tone == Tone.secondary || tone == Tone.outline ? Ds.color-base-content :
+            tone == Tone.info ? Ds.on-info :
+            tone == Tone.warn ? Ds.on-warning :
+            tone == Tone.destructive ? Ds.on-danger : Ds.color-primary-content;
+    }
+}
