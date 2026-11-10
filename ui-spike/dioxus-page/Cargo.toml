@@ -1,0 +1,47 @@
+[package]
+name = "dioxus-page"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+default-run = "dioxus-page"
+
+[[bin]]
+name = "dioxus-page"
+required-features = ["window"]
+
+[[bin]]
+name = "page-web"
+required-features = ["web"]
+
+[features]
+default = ["window"]
+# The real window. The behaviour test needs none of it, so Linux CI builds no windowing stack.
+window = ["dep:dioxus-native", "dep:blitz-shell", "dep:winit", "dep:raw-window-handle"]
+# The same components in a browser: section 10's try. A server-held vdom, its patches over a websocket.
+web = ["dep:dioxus-liveview", "dep:dioxus-ssr", "dep:axum", "dep:tokio"]
+
+[dependencies]
+anyrender = "0.14"
+anyrender_vello_cpu = { version = "0.18", features = ["filters"] }
+axum = { version = "0.8", optional = true, features = ["ws"] }
+blitz-dom = "=0.3.0-beta.4"
+blitz-paint = "=0.3.0-beta.4"
+blitz-shell = { version = "=0.3.0-beta.4", optional = true }
+blitz-traits = "=0.3.0-beta.4"
+# /design's page, the app's own since rust-design-page: this spike drives it in its window.
+dash-surface = { path = "../../crates/surface" }
+dioxus = { version = "=0.8.0-alpha.3", default-features = false, features = ["html", "macro", "hooks", "signals"] }
+dioxus-liveview = { version = "=0.8.0-alpha.3", optional = true, default-features = false, features = ["axum", "multi-thread"] }
+dioxus-native = { version = "=0.8.0-alpha.3", default-features = false, optional = true, features = ["html", "woff", "svg", "vello-hybrid"] }
+dioxus-native-dom = "=0.8.0-alpha.3"
+dioxus-ssr = { version = "=0.8.0-alpha.3", optional = true }
+parley = "=0.12"
+serde_json = "1"
+raw-window-handle = { version = "0.6", optional = true }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "net"] }
+ui-spike-common = { path = "../common" }
+winit = { version = "=0.31.0-beta.3", optional = true }
+
+[dev-dependencies]
+dioxus-ssr = "=0.8.0-alpha.3"
+stylo_static_prefs = "0.22"
