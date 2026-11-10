@@ -1,0 +1,498 @@
+//! `dash parity <rust-path> [<elixir-path>]`: what the frozen Elixir app on :7799 shows that the Rust page on :7788 lacks,
+//! each control, link, section and field, and both screens; `dash land` refuses a PR deleting an Elixir route while that
+//! list holds a gap he has not dropped (task rust-port-parity; rust/CLAUDE.md rule 9; @nha, 2026-11-10: « they were NOT
+//! ported properly. the visuals are incomplete, far inferior, and many features missing. »). The pages are read by
+//! dash_surface::parity, which owns HTML.
+use dash_surface::parity::{self as page, Item, Kind};
+use std::io::Write;
+use std::path::Path;
+use std::time::Duration;
+
+const RUST: &str = "http://localhost:7788";
+const ELIXIR: &str = "http://localhost:7799";
+/// The older app's router: no-elixir.sh refuses any edit to it, so a route leaves Elixir with the file its module is in.
+pub const ROUTER: &str = "private/dashboard/lib/dashboard_web/router.ex";
+/// His marks: a sample page for a route with a parameter, and each gap he let go, in his words.
+pub const MARKS: &str = "rust/parity.tsv";
+
+/// A page route of the older app: its whole path and its whole module name.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Route {
+    pub path: String,
+    pub module: String,
+}
+
+/// The router's `live` and `get` routes, each under its scopes' paths and module alias.
+pub fn routes(router: &str) -> Vec<Route> {
+    let quoted = |t: &str| t.split('"').nth(1).map(str::to_string);
+    let (mut scopes, mut found) = (vec![], vec![]);
+    for line in router.lines() {
+        let t = line.trim();
+        if t == "end" {
+            scopes.pop();
+        } else if t.ends_with(" do") {
+            // a scope's path and alias; any other block (pipeline, live_session, defmodule) adds neither
+            let (path, alias) = if t.starts_with("scope ") {
+                // `scope "/x", DashboardWeb, as: :x do`: the alias is the first word after the path, when a module
+                let alias = t.split_once("\",").and_then(|(_, rest)| {
+                    let word = rest.trim_end_matches(" do").split(',').next()?.trim();
+                    word.starts_with(char::is_uppercase)
+                        .then(|| word.to_string())
+                });
+                (quoted(t).unwrap_or_default(), alias.unwrap_or_default())
+            } else {
+                Default::default()
+            };
+            scopes.push((path, alias));
+        } else if let Some(path) =
+            quoted(t).filter(|_| t.starts_with("live \"") || t.starts_with("get \""))
+        {
+            let module = t
+                .splitn(3, '"')
+                .nth(2)
+                .and_then(|rest| rest.split(',').nth(1))
+                .unwrap_or("")
+                .trim();
+            let whole: String = scopes
+                .iter()
+                .map(|(p, _)| p.as_str())
+                .chain([path.as_str()])
+                .collect();
+            let mut path = String::new();
+            for c in whole.chars() {
+                if !(c == '/' && path.ends_with('/')) {
+                    path.push(c);
+                }
+            }
+            if path.len() > 1 {
+                path = path.trim_end_matches('/').to_string();
+            }
+            // nested scopes' aliases join, as Phoenix's do
+            let module = scopes
+                .iter()
+                .map(|(_, a)| a.as_str())
+                .filter(|a| !a.is_empty())
+                .chain([module])
+                .collect::<Vec<_>>()
+                .join(".");
+            found.push(Route { path, module });
+        }
+    }
+    found
+}
+
+/// The routes a PR takes out of Elixir: every one when it deletes the router, else those whose module a deleted file defined.
+/// `deleted`: each deleted file's path and its content on main.
+pub fn removed(deleted: &[(String, String)], router: &str) -> Vec<Route> {
+    if deleted.iter().any(|(path, _)| path == ROUTER) {
+        return routes(router);
+    }
+    let modules: Vec<&str> = deleted
+        .iter()
+        .flat_map(|(_, content)| content.lines())
+        .filter_map(|l| l.trim().strip_prefix("defmodule ")?.strip_suffix(" do"))
+        .collect();
+    routes(router)
+        .into_iter()
+        .filter(|r| modules.contains(&r.module.as_str()))
+        .collect()
+}
+
+/// Whether `path` is a page of route `pattern`: a `:name` segment takes any one, `*name` the rest.
+pub fn of_route(pattern: &str, path: &str) -> bool {
+    let (mut want, mut have) = (pattern.split('/'), path.split('/'));
+    loop {
+        match (want.next(), have.next()) {
+            (None, None) => return true,
+            (Some(w), _) if w.starts_with('*') => return true,
+            (Some(w), Some(h)) if w.starts_with(':') && !h.is_empty() || w == h => {}
+            _ => return false,
+        }
+    }
+}
+
+/// His marks file read: samples by route, and the gaps he dropped by route, each with his words.
+#[derive(Default)]
+pub struct Marks {
+    /// A route's Elixir page, and its Rust page when the port moved it.
+    samples: Vec<(String, String, Option<String>)>,
+    dropped: Vec<(String, Kind, String)>,
+    /// A dropped line with no words of his: it drops nothing, and is said.
+    pub unsigned: Vec<String>,
+}
+
+impl Marks {
+    pub fn read(text: &str) -> Marks {
+        let mut marks = Marks::default();
+        for line in text
+            .lines()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+        {
+            match line.split('\t').collect::<Vec<_>>()[..] {
+                [route, "sample", path] => marks.samples.push((route.into(), path.into(), None)),
+                [route, "sample", path, rust] => {
+                    marks
+                        .samples
+                        .push((route.into(), path.into(), Some(rust.into())))
+                }
+                [route, "dropped", kind, label, words]
+                    if words.contains("(@nha, ")
+                        && words.contains('«')
+                        && Kind::named(kind).is_some() =>
+                {
+                    let kind = Kind::named(kind).expect("checked");
+                    marks.dropped.push((route.into(), kind, page::key(label)));
+                }
+                _ => marks.unsigned.push(line.to_string()),
+            }
+        }
+        marks
+    }
+
+    /// The Rust and Elixir pages to compare for `route`: its sample's, else the route itself when it has no parameter.
+    fn pages(&self, route: &str) -> Option<(String, String)> {
+        match self.samples.iter().find(|(r, _, _)| r == route) {
+            Some((_, elixir, rust)) => {
+                Some((rust.clone().unwrap_or(elixir.clone()), elixir.clone()))
+            }
+            None if route.contains([':', '*']) => None,
+            None => Some((route.to_string(), route.to_string())),
+        }
+    }
+
+    /// Whether he dropped this gap of `route`.
+    pub fn drops(&self, route: &str, gap: &Item) -> bool {
+        self.dropped
+            .iter()
+            .any(|(r, k, key)| r == route && *k == gap.kind && *key == gap.key())
+    }
+}
+
+/// `dash land`'s check: Ok when no deleted route's Elixir page shows what its Rust page lacks, his drops aside.
+/// `gaps(rust, elixir)` reads the two pages at concrete paths.
+pub fn hold(
+    deleted: &[(String, String)],
+    router: &str,
+    marks: &Marks,
+    mut gaps: impl FnMut(&str, &str) -> Result<Vec<Item>, String>,
+) -> Result<(), String> {
+    let mut open = vec![];
+    for route in removed(deleted, router) {
+        let Some((rust, path)) = marks.pages(&route.path) else {
+            open.push(format!(
+                "{}: no page to compare: add « {}\tsample\tPATH, one page of it[\tITS RUST PATH] » to {MARKS}",
+                route.path, route.path
+            ));
+            continue;
+        };
+        match gaps(&rust, &path) {
+            Ok(lacks) => open.extend(
+                lacks
+                    .iter()
+                    .filter(|gap| !marks.drops(&route.path, gap))
+                    .map(|gap| format!("{}: {}\t{}", route.path, gap.kind.name(), gap.label)),
+            ),
+            Err(e) => open.push(format!("{path}: {e}")),
+        }
+    }
+    if open.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "this PR deletes Elixir routes whose Rust page lacks what the Elixir page shows (dash parity, rust/CLAUDE.md rule 9):\n{}\n\
+         Port each first, or he drops it: « ROUTE\tdropped\tKIND\tLABEL\t(@nha, DATE: « his words ») » in {MARKS}",
+        open.join("\n")
+    ))
+}
+
+/// A page's HTML, and whether Phoenix answered it: its Plug.RequestId sets `x-request-id`, which no Rust page sends.
+fn fetch(base: &str, path: &str) -> Result<(String, bool), String> {
+    let url = format!("{base}{path}").replace("localhost", "127.0.0.1");
+    // :7799's first request builds and boots the frozen app: minutes, once
+    let args = [
+        "-sSfL",
+        "--max-time",
+        "600",
+        "-H",
+        "Accept: text/html",
+        "-w",
+        "\n%header{x-request-id}",
+        url.as_str(),
+    ];
+    let answer = dash_process::run("curl", &args, None, Duration::from_secs(620))?;
+    let (html, id) = answer.rsplit_once('\n').unwrap_or((&answer, ""));
+    Ok((html.to_string(), !id.trim().is_empty()))
+}
+
+/// The gaps at concrete paths, each page read live. A Rust path the front door passes on to Elixir (a LiveView or a
+/// controller's page) is refused: compared with itself it would lack nothing.
+pub fn gaps(rust_path: &str, elixir_path: &str) -> Result<Vec<Item>, String> {
+    let (elixir, _) = fetch(ELIXIR, elixir_path)?;
+    let (rust, phoenix) = fetch(RUST, rust_path)?;
+    if phoenix {
+        return Err(format!(
+            "Rust does not serve {rust_path} yet: its front door answers with the Elixir app's page"
+        ));
+    }
+    page::gaps(&elixir, &rust)
+}
+
+/// `dash land <pr>`'s parity check, before any hold or wait: the PR's deleted files (GitHub's list, paged, so none past
+/// the first hundred is missed), each read as main holds it, with the router and his marks, never a checkout that may lag.
+pub fn land_check(repo: &Path, n: u64) -> Result<(), String> {
+    let git = |args: &[&str]| dash_process::run("git", args, Some(repo), Duration::from_secs(120));
+    git(&["fetch", "-q", "origin", "main"])?;
+    // a path main does not hold (added and deleted on the branch) held no route
+    let on_main = |path: &str| match git(&["show", &format!("origin/main:{path}")]) {
+        Ok(text) => Ok(text),
+        Err(e) if e.contains("does not exist") || e.contains("exists on disk") => Ok(String::new()),
+        Err(e) => Err(e),
+    };
+    let files = format!("repos/{{owner}}/{{repo}}/pulls/{n}/files");
+    let query = r#".[] | select(.status == "removed") | .filename"#;
+    let args = ["api", files.as_str(), "--paginate", "-q", query];
+    let listed = dash_process::run("gh", &args, Some(repo), Duration::from_secs(120))?;
+    let mut deleted = vec![];
+    for path in listed.lines().filter(|l| !l.is_empty()) {
+        deleted.push((path.to_string(), on_main(path)?));
+    }
+    let marks = Marks::read(&on_main(MARKS)?);
+    hold(&deleted, &on_main(ROUTER)?, &marks, gaps)
+}
+
+/// The route a page belongs to in the older app's router, else the path itself.
+fn route_of(router: &str, path: &str) -> String {
+    let path = path.split(['?', '#']).next().unwrap_or(path);
+    routes(router)
+        .into_iter()
+        .map(|r| r.path)
+        .find(|r| of_route(r, path))
+        .unwrap_or_else(|| path.to_string())
+}
+
+/// `dash parity <rust-path> [<elixir-path>]`: both screens, then each gap, his drops apart. Exit 1 while one is open.
+pub fn run(repo: &Path, rust_path: &str, elixir_path: &str, mut out: std::fs::File) {
+    let router = std::fs::read_to_string(repo.join(ROUTER)).unwrap_or_default();
+    let marks = Marks::read(&std::fs::read_to_string(repo.join(MARKS)).unwrap_or_default());
+    let route = route_of(&router, elixir_path);
+    let dir = repo.join("private/live/parity");
+    let shot = repo.join("private/dashboard/test/scripts/shot");
+    let slug: String = elixir_path
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect();
+    let mut say = |line: String| writeln!(out, "{line}").expect("stdout");
+    for (name, base, path) in [("Rust", RUST, rust_path), ("Elixir", ELIXIR, elixir_path)] {
+        let png = dir.join(format!("parity{slug}-{}.png", name.to_lowercase()));
+        let url = format!("{base}{path}");
+        let took = std::fs::create_dir_all(&dir)
+            .map_err(|e| e.to_string())
+            .and_then(|()| {
+                let args = [url.as_str(), png.to_str().unwrap_or(""), "1280"];
+                dash_process::run(
+                    &shot.to_string_lossy(),
+                    &args,
+                    None,
+                    Duration::from_secs(120),
+                )
+            });
+        match took {
+            Ok(_) => say(format!("{name}:\t{url}\tscreen {}", png.display())),
+            Err(e) => say(format!("{name}:\t{url}\tno screen: {}", e.trim())),
+        }
+    }
+    for line in &marks.unsigned {
+        say(format!("ignored, not his drop: {line}"));
+    }
+    let lacks = match gaps(rust_path, elixir_path) {
+        Ok(lacks) => lacks,
+        Err(e) => {
+            eprintln!("dash parity: {e}");
+            std::process::exit(1);
+        }
+    };
+    let (dropped, open): (Vec<_>, Vec<_>) = lacks.iter().partition(|gap| marks.drops(&route, gap));
+    for gap in &open {
+        say(format!("{}\t{}", gap.kind.name(), gap.label));
+    }
+    for gap in &dropped {
+        say(format!(
+            "dropped by him\t{}\t{}",
+            gap.kind.name(),
+            gap.label
+        ));
+    }
+    say(format!(
+        "{} missing on {route}, {} dropped by him",
+        open.len(),
+        dropped.len()
+    ));
+    if !open.is_empty() {
+        std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dash_meter::memory::TestBudget;
+
+    const ROUTES: &str = r#"defmodule DashboardWeb.Router do
+  scope "/dashboard", DashboardWeb do
+    pipe_through :browser
+    live "/", HomeLive
+  end
+  scope "/", DashboardWeb do
+    live_session :pages do
+      live "/mail", MailLive
+      live "/mail/t/:thread", MailLive
+      live "/drafts", DraftsLive
+    end
+    post "/mail/account", MailController, :account
+    get "/tasks/:id", TaskController, :show
+    scope "/admin", Admin, as: :admin do
+      live "/keys", KeysLive
+    end
+  end
+  scope "/api" do
+    live "/x", Api.XLive
+  end
+end
+"#;
+
+    fn deleted(module: &str) -> Vec<(String, String)> {
+        let content = format!("defmodule DashboardWeb.{module} do\n  use Phoenix.LiveView\nend\n");
+        vec![(
+            format!("private/dashboard/lib/dashboard_web/live/{module}.ex"),
+            content,
+        )]
+    }
+
+    fn gap(kind: Kind, label: &str) -> Item {
+        Item {
+            kind,
+            label: label.into(),
+            href: None,
+        }
+    }
+
+    #[test]
+    fn the_router_s_pages_take_their_scope_s_path_and_alias() {
+        let _budget = TestBudget::new();
+        let got: Vec<_> = routes(ROUTES)
+            .into_iter()
+            .map(|r| (r.path, r.module))
+            .collect();
+        let want = [
+            ("/dashboard", "DashboardWeb.HomeLive"),
+            ("/mail", "DashboardWeb.MailLive"),
+            ("/mail/t/:thread", "DashboardWeb.MailLive"),
+            ("/drafts", "DashboardWeb.DraftsLive"),
+            ("/tasks/:id", "DashboardWeb.TaskController"),
+            // nested aliases join, a scope's options are not its alias, and a scope with none adds nothing
+            ("/admin/keys", "DashboardWeb.Admin.KeysLive"),
+            ("/api/x", "Api.XLive"),
+        ];
+        assert_eq!(got, want.map(|(p, m)| (p.to_string(), m.to_string())));
+        assert!(
+            of_route("/mail/t/:thread", "/mail/t/abc") && !of_route("/mail/t/:thread", "/mail/t")
+        );
+        assert!(of_route("/v/*path", "/v/a/b") && !of_route("/mail", "/drafts"));
+        assert_eq!(route_of(ROUTES, "/mail/t/x?y=1"), "/mail/t/:thread");
+    }
+
+    /// Done-when 2, a PR deleting no route: nothing is read, it lands.
+    #[test]
+    fn a_pr_deleting_no_elixir_route_lands_unread() {
+        let _budget = TestBudget::new();
+        let other = vec![("rust/x.rs".to_string(), "fn x() {}".to_string())];
+        assert_eq!(
+            hold(&other, ROUTES, &Marks::default(), |_, _| panic!("read")),
+            Ok(())
+        );
+        assert_eq!(
+            hold(
+                &deleted("Unrouted"),
+                ROUTES,
+                &Marks::default(),
+                |_, _| panic!("read")
+            ),
+            Ok(())
+        );
+    }
+
+    /// Done-when 2, a gap open: the route deleted with its module is refused, each gap named.
+    #[test]
+    fn a_pr_deleting_a_route_whose_rust_page_lacks_a_part_is_refused() {
+        let _budget = TestBudget::new();
+        // the thread page moved in Rust: its sample names both pages
+        let marks = Marks::read("/mail/t/:thread\tsample\t/mail/t/abc\t/m/abc\n");
+        let mut read = vec![];
+        let held = hold(&deleted("MailLive"), ROUTES, &marks, |rust, elixir| {
+            read.push(format!("{rust} {elixir}"));
+            Ok(vec![gap(Kind::Control, "Archive")])
+        });
+        let why = held.expect_err("refused");
+        assert!(
+            why.contains("/mail: control\tArchive\n/mail/t/:thread: control\tArchive"),
+            "{why}"
+        );
+        assert_eq!(read, ["/mail /mail", "/m/abc /mail/t/abc"]);
+    }
+
+    /// Done-when 2, every gap dropped by him: it lands. A drop with no words of his drops nothing.
+    #[test]
+    fn a_gap_he_dropped_lets_it_land_and_an_unsigned_drop_does_not() {
+        let _budget = TestBudget::new();
+        let his = "/drafts\tdropped\tlink\tOld CRM\t(@nha, 2026-11-10: « plus besoin »)\n";
+        let lacks = || Ok(vec![gap(Kind::Link, "Old  CRM 2")]);
+        assert_eq!(
+            hold(&deleted("DraftsLive"), ROUTES, &Marks::read(his), |_, _| {
+                lacks()
+            }),
+            Ok(())
+        );
+        let unsigned = Marks::read("/drafts\tdropped\tlink\tOld CRM\tno longer needed\n");
+        assert_eq!(unsigned.unsigned.len(), 1);
+        let held = hold(&deleted("DraftsLive"), ROUTES, &unsigned, |_, _| lacks());
+        assert!(
+            held.expect_err("refused")
+                .contains("/drafts: link\tOld  CRM 2")
+        );
+        // dropped on another route, or as another kind, it drops nothing here
+        let elsewhere = Marks::read(&his.replace("/drafts", "/mail"));
+        assert!(hold(&deleted("DraftsLive"), ROUTES, &elsewhere, |_, _| lacks()).is_err());
+    }
+
+    /// Done-when 2, no page to compare: a route with a parameter and no sample, a Rust page that is still Elixir's, or a page
+    /// that does not answer, is refused.
+    #[test]
+    fn a_route_that_cannot_be_compared_is_refused() {
+        let _budget = TestBudget::new();
+        let none = hold(
+            &deleted("TaskController"),
+            ROUTES,
+            &Marks::default(),
+            |_, _| panic!("read"),
+        );
+        assert!(
+            none.expect_err("refused")
+                .contains("/tasks/:id: no page to compare")
+        );
+        let down = hold(&deleted("DraftsLive"), ROUTES, &Marks::default(), |_, _| {
+            Err("curl: refused".into())
+        });
+        assert!(
+            down.expect_err("refused")
+                .contains("/drafts: curl: refused")
+        );
+    }
+
+    /// The router deleted whole takes every route with it.
+    #[test]
+    fn deleting_the_router_removes_every_route() {
+        let _budget = TestBudget::new();
+        let all = vec![(ROUTER.to_string(), ROUTES.to_string())];
+        assert_eq!(removed(&all, ROUTES).len(), 7);
+    }
+}
