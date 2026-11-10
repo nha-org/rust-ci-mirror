@@ -1,0 +1,27 @@
+# Section 17: a test past 5 s is named slow, a test past 30 s is ended, the whole run past 120 s fails. Section 20: the
+# memory test prints its footprints and the line gate its count.
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 6 }
+global-timeout = "120s"
+
+[[profile.default.overrides]]
+filter = "test(the_binary_stays_inside_its_budgets) | test(the_rust_stays_under_the_line_limit) | test(storm_2026_11_05)"
+success-output = "immediate"
+
+# Section 20c's scenario keeps its 2 s: nextest ends it there, so the simulation itself reads no clock. Retried, as a
+# scheduling stall is no bug: one start is no bar (section 20c). A broken seed fails each try, and one that breaks only
+# sometimes fails a_seed_gives_the_same_storm_on_every_machine, which reruns every seed with no retries.
+[[profile.default.overrides]]
+filter = "test(=storm_2026_11_05)"
+slow-timeout = { period = "2s", terminate-after = 1 }
+retries = 2
+
+# A long sweep of the simulation, never on a PR: SIM_SEEDS=20000 cargo nextest run --cargo-profile release --profile long -p dash --test sim two_replicas --success-output immediate
+[profile.long]
+slow-timeout = { period = "60s" }
+global-timeout = "1h"
+
+# The storm's 2 s holds for its 64 seeds alone: SIM_SEEDS=20000 cargo nextest run --cargo-profile release --profile long -p dash --test storm storm_2026_11_05
+[[profile.long.overrides]]
+filter = "test(=storm_2026_11_05)"
+slow-timeout = { period = "60s" }
