@@ -1,0 +1,67 @@
+# The Rust app of rfc-rust-unified: the hexagonal workspace of section 3, grown slice by slice (CLAUDE.md Coordination 6).
+# CI: dash ci mirror rust pushes the files rust/ci-mirror.txt lists to nha-org/rust-ci-mirror, Linux only.
+[workspace]
+members = ["crates/*"]
+# a crate patched below, kept as it was published plus its patch: built as a dependency, never linted or tested as ours
+exclude = ["vendor"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+dash-core = { path = "crates/core" }
+dash-drafts = { path = "crates/drafts" }
+dash-comments = { path = "crates/comments" }
+dash-mail = { path = "crates/mail" }
+dash-store = { path = "crates/store" }
+dash-meter = { path = "crates/meter" }
+dash-ext = { path = "crates/ext" }
+dash-ingest = { path = "crates/ingest" }
+dash-surface = { path = "crates/surface" }
+dash-ui = { path = "crates/ui" }
+dash-sync = { path = "crates/sync" }
+dash-orch = { path = "crates/orch" }
+dash-terminal = { path = "crates/terminal" }
+dash-launcher = { path = "crates/launcher" }
+dash-agent = { path = "crates/agent" }
+dash-bridge = { path = "crates/bridge" }
+dash-forge = { path = "crates/forge" }
+dash-gate = { path = "crates/gate" }
+dash-policy = { path = "crates/policy" }
+dash-process = { path = "crates/process" }
+dash-statsd = { path = "crates/statsd" }
+dash-views = { path = "crates/views" }
+# Section 6's pick: every derived list a differential dataflow view, one timely worker (rust-dataflow-spike measured it).
+differential-dataflow = "=0.25.1"
+timely = "=0.31.0"
+# The UI's one stack (rust-dioxus-only-app): surface renders its component for the web, ui draws it in the window.
+dioxus = { version = "=0.8.0-alpha.3", default-features = false, features = ["html", "macro", "hooks", "signals"] }
+# the window's renders, an async channel to its one component (dash's test sends them too)
+futures-channel = "0.3"
+inventory = "0.3.25"
+serde_json = "1"
+regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
+sha2 = "0.11"
+# every HTML5 named entity: a page writes &eacute; 9,926 times (comments-anchored)
+html-escape = "0.2"
+
+# blitz-dom 0.3.0-beta.4 as published (its first commit here), plus upstream's #1244 (f102663b81, 2026-10-23, after the
+# release): a hit test between a DOM mutation and the next resolve skips a node the mutation dropped, where it unwrapped it.
+# The window swaps a page in its poll and the shell resolves at its redraw, so a pointer move in between hit the page gone's
+# `#dash-nav` and killed the window (task rust-ui-hit-panic). Drop this once a blitz-dom release holds #1244.
+[patch.crates-io]
+blitz-dom = { path = "vendor/blitz-dom" }
+
+# Each worktree's target small (task rust-sccache-on: eight worktrees building at once under 20 GB), no debuginfo, as
+# CI builds: line tables for our crates still left 350 MB of object files beside each target's test binaries on macOS,
+# and eight such targets held 19 GB before their check. A panic still names its file and line; a backtrace names the
+# functions only.
+# The diagram renderer optimised in every build: unoptimised, the crate graph's routing ran past a test's 30 s limit.
+[profile.dev.package.mermaid-rs-renderer]
+opt-level = 3
+
+[profile.dev]
+debug = false
