@@ -1,0 +1,66 @@
+experimental = ["setup-scripts"]
+
+# Section 17: a test past 5 s is named slow, a test past 30 s is ended, the whole run past 120 s fails. Section 20: the
+# memory test prints its footprints and the line gate its count.
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 6 }
+global-timeout = "120s"
+
+# A Mac scans a binary at its first launch under each nextest run: 2.4 s for the 131 MB debug dash, 0.006 s after (a
+# fresh copy: 2.8 s, then 0.008 s). It fell inside the first test of each run to start dash, and 20 runs in parallel under
+# a cargo build took dash::compass's tests to nextest's 30 s, 0 runs of 20 passing (task rust-notion-browser-flake). Paid
+# here, once, before any test's clock; on Linux it costs one start. A test that starts a binary of its own, as
+# dash-site's `site`, gets a line like this one if its first start ever shows slow.
+# Each dash built (debug, release) is launched once; one not built is skipped, so `--lib` or a release run starts no stale
+# or missing binary (/code-review). Run from the workspace root; a `--target <triple>` build is not warmed.
+[scripts.setup.dash-first-launch]
+command = ["/bin/sh", "-c", 'for p in debug release; do d="${CARGO_TARGET_DIR:-target}/$p/dash"; [ ! -x "$d" ] || "$d" menu > /dev/null || exit 1; done']
+
+[[profile.default.scripts]]
+filter = "package(dash)"
+setup = "dash-first-launch"
+
+# A test that starts Chrome takes one of the Mac's 5 browser slots (bin/browser-slot, REPLICATOR_MAX_BROWSERS) inside its
+# clock: at nextest's 10 threads, the tests past the fifth waited up to 8.5 s for one, and at -j 20 they reached 15 s. Five at
+# a time, the wait for a slot is nextest's queue, outside any test's 30 s; a slot another process holds is still waited
+# for, at most 15 s, then the test names the holders (task rust-notion-browser-flake).
+[test-groups]
+browser = { max-threads = 5 }
+
+[[profile.default.overrides]]
+filter = "(binary_id(dash-surface::notion_browser) & not test(=a_slot_held_elsewhere_fails_the_wait_naming_its_holder)) | test(=the_notion_document_downloads_as_its_printed_pdf)"
+test-group = "browser"
+
+[[profile.default.overrides]]
+filter = "test(the_binary_stays_inside_its_budgets) | test(the_rust_stays_under_the_line_limit) | test(storm_2026_11_05)"
+success-output = "immediate"
+
+# Section 20c's scenario keeps its 2 s: nextest ends it there, so the simulation itself reads no clock. Retried, as a
+# scheduling stall is no bug: one start is no bar (section 20c). A broken seed fails each try, and one that breaks only
+# sometimes fails a_seed_gives_the_same_storm_on_every_machine, which reruns every seed with no retries.
+[[profile.default.overrides]]
+filter = "test(=storm_2026_11_05)"
+slow-timeout = { period = "2s", terminate-after = 1 }
+retries = 2
+
+# A long sweep of the simulation, never on a PR: SIM_SEEDS=20000 cargo nextest run --cargo-profile release --profile long -p dash --test sim two_replicas --success-output immediate
+[profile.long]
+slow-timeout = { period = "60s" }
+global-timeout = "1h"
+
+# The storm's 2 s holds for its 64 seeds alone: SIM_SEEDS=20000 cargo nextest run --cargo-profile release --profile long -p dash --test storm storm_2026_11_05
+[[profile.long.overrides]]
+filter = "test(=storm_2026_11_05)"
+slow-timeout = { period = "60s" }
+
+# Each hook test commits in a scratch repo through the real pre-commit: 20 to 27 s apiece on the hosted gate runner, 11 at
+# once, so 30 s ended 2 of them on PR 1425 and 7 on rust-test-markup-only's run 42976610514 (2026-11-11). 60 s here; the
+# run's 120 s still bounds the step. In dash since the hooks are dash commands (task rust-git-hooks-port).
+[[profile.default.overrides]]
+filter = "binary_id(dash::hooks)"
+slow-timeout = { period = "10s", terminate-after = 6 }
+
+# rust-hc-terminal's live round trip says « skipped: » or « live: » on a pass too.
+[[profile.default.overrides]]
+filter = "test(=hc_round_trip_live)"
+success-output = "immediate"
