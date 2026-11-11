@@ -1,0 +1,4 @@
+/* Kbd: rust-ui's ideas (NOTICE-rust-ui): a small keycap, never picked by a pointer, an icon in it at the text's size. */
+.kbd, .kbd-group { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-weight: 500; pointer-events: none; user-select: none; }
+.kbd { justify-content: center; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 var(--spacing-s1); font-size: var(--text-caption); border: 1px solid var(--color-base-300); border-bottom-width: 2px; border-radius: var(--radius-selector); background: var(--color-base-200); }
+.kbd svg { width: 12px; height: 12px; }
