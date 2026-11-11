@@ -1,0 +1,132 @@
+# The mirror's CI (nha-org/rust-ci-mirror), Linux only (@nha, 2026-11-04: « linux. locally we can test macos when
+# running it so that covers enough »). Tests built once, then a 2-minute test phase (rfc-rust-unified section 17).
+name: rust
+on:
+  push:
+  # publish: put this ref's binaries on main-bins, once, before main holds the publish job (task rust-ci-off-mac)
+  workflow_dispatch:
+    inputs:
+      publish: {type: boolean, default: false}
+permissions:
+  contents: read
+# Section 18: no debuginfo and no incremental in CI, each worth 30 to 40 % of a build.
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+jobs:
+  test:
+    # 24.04, the VPS container's own (bin/ci-runner vps): the dash published below links its glibc
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # main's run alone saves: a branch restores its own caches and the default branch's only, so main's is the one
+      # every task branch's first run reads, and 30 branch copies (10.8 GB, the repo's cap) no longer evict it
+      # (task rust-sccache-on; Dashboard.CiMirror.push_main pushes main). Saved on a red too: a failed test on main left
+      # every branch cold (its run of 2026-11-09, past the line limit)
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      # each step one line, its logic a script in ci/ (@nha, 2026-11-08: « make the CI stuff logic mostly in bash scripts
+      # please, avoid inline yaml scripts »; dash-gate's ci_steps_are_one_line)
+      - run: ci/deno.sh
+      # Section 4's allocators stay buildable for the next measure; the memory test runs on the system's.
+      - run: cargo check --locked -p dash --features mimalloc
+      - run: cargo check --locked -p dash --features jemalloc
+      # fontconfig: fontique, under dash-ui's Blitz document, links it on Linux (rust-dioxus-only-app).
+      # rust-dash-claude's Bubblewrap tests (done-when 2): bwrap itself, and the unprivileged user namespaces Ubuntu 24.04's
+      # AppArmor refuses it by default. poppler-utils: pdftotext reads the Notion document's printed PDF (notion-page-menu-export).
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap libfontconfig1-dev poppler-utils && sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # The linter: clippy's warnings fail the run, style is rustfmt's (dash-gate's rustfmt_check), and the size is /deps'
+      # token target, never a gate (@nha, 2026-11-09: « setup a linter please », « newlines vs no newlines does not matter at all »)
+      # main lints and tests the whole workspace; a branch only the crates it changes and those depending on them, against
+      # the mirror's main tree (dash ci affected, task rust-affected-tests; @nha, 2026-11-11: « we can then skip CI if the
+      # crate doesn't change »). A file in no crate (Cargo.lock, .config, ci/) still runs every crate.
+      - if: github.ref == 'refs/heads/main'
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - if: github.ref == 'refs/heads/main'
+        run: cargo nextest run --locked --workspace --no-run
+      - if: github.ref == 'refs/heads/main'
+        run: timeout 130 cargo nextest run --locked --workspace # nextest's global-timeout fails it at 120 s and names the slow tests; this clock is its backstop
+      - if: github.ref != 'refs/heads/main'
+        run: git fetch -q --depth=1 origin main
+      - if: github.ref != 'refs/heads/main'
+        run: cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- clippy --locked --all-targets -- -D warnings
+      - if: github.ref != 'refs/heads/main'
+        run: cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked --no-run
+      - if: github.ref != 'refs/heads/main'
+        run: timeout 130 cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked
+      # main's dash for site_perso's gates on its VPS (explainer-gate.yml's script count): built here once a push of main,
+      # never once a gate run, gzipped (124 MB unpacked on the Mac) for the publish job below
+      - if: github.ref == 'refs/heads/main' || inputs.publish
+        run: cargo build --locked -p dash && gzip -9c target/debug/dash > dash.gz
+      - if: github.ref == 'refs/heads/main' || inputs.publish
+        uses: actions/upload-artifact@v4
+        with: {name: dash, path: dash.gz, retention-days: 1}
+  # nicolas-ha.com's static linux-musl binary through every route test (ci/site-musl.sh; task rust-site-no-container)
+  site-musl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - run: ci/site-musl.sh
+      # the binary its route tests passed, which site_perso's site.yml serves site/ with on main
+      - if: github.ref == 'refs/heads/main' || inputs.publish
+        run: gzip -9c target-musl/x86_64-unknown-linux-musl/release/site > site.gz
+      - if: github.ref == 'refs/heads/main' || inputs.publish
+        uses: actions/upload-artifact@v4
+        with: {name: site, path: site.gz, retention-days: 1}
+  # The release main-bins holds main's dash.gz and site.gz, replaced on each push of main once both jobs passed: a red main
+  # keeps the last green ones. The one job here that writes, and it runs none of the pushed code.
+  publish:
+    needs: [test, site-musl]
+    if: github.ref == 'refs/heads/main' || inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # one at a time; a newer push's publish waiting replaces an older one waiting
+    concurrency: {group: main-bins, cancel-in-progress: false}
+    permissions: {contents: write}
+    env: {GH_TOKEN: "${{ github.token }}", PUBLISH: "${{ inputs.publish }}"}
+    steps:
+      # an older push of main whose tests ended last never replaces a newer one's binaries
+      - id: newest
+        run: echo "go=$([ "$PUBLISH" = true ] || [ "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" = "$GITHUB_SHA" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - if: steps.newest.outputs.go == 'yes'
+        uses: actions/download-artifact@v4
+        with: {merge-multiple: true}
+      - if: steps.newest.outputs.go == 'yes'
+        run: gh release upload main-bins dash.gz site.gz --clobber -R "$GITHUB_REPOSITORY" || gh release create main-bins dash.gz site.gz --prerelease --title "main's binaries" --notes "dash and site, linux, replaced on each green push of main (site_perso task rust-ci-off-mac)" -R "$GITHUB_REPOSITORY"
+  # The UI spike's picture test, on the software renderers: its own workspace, no windowing stack (rfc-rust-unified section 9).
+  ui-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # by hand: a spike with a thin picture margin (0.983 against 0.98), whose pick is made. On every push it held each Rust
+    # PR's verdict a minute more and a red could decide it; CiMirror reads a skipped job as green (/simplify of PR 1080)
+    if: github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: ui-spike
+    steps:
+      - uses: actions/checkout@v4
+      # fontique, under Slint and Blitz alike, links fontconfig on Linux
+      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      # Section 18: both UI stacks are the slowest build here, so they keep their dependencies between runs.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ui-spike
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+      - run: cargo nextest run --locked --no-default-features --workspace --no-run
+      - run: timeout 130 cargo nextest run --locked --no-default-features --workspace # its nextest.toml names a slow test
