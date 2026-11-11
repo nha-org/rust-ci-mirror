@@ -1,0 +1,617 @@
+// /design's six families. This one source is compiled once for Light and once for Dark: a Slint global cannot be overridden in
+// a subtree, so the two cells beside each other are two copies of it (build.rs). A forced state is `force` on the part.
+import { T, B, Meta, Wrapped, Flow, Row, Section, Rule, Say, Empty, Surface, DsCard, Spinner, Status, Ic, Paths, Ds, Button, ButtonKind } from "parts.slint";
+import { Avatar } from "slintcn/components/avatar.slint";
+import { Badge, Tone } from "slintcn/components/badge.slint";
+import { Input, Textarea } from "slintcn/components/input.slint";
+import { Checkbox } from "slintcn/components/checkbox.slint";
+import { Switch } from "slintcn/components/switch.slint";
+import { ToggleGroup, SegmentGroup, Segment } from "slintcn/components/toggle-group.slint";
+import { Progress } from "slintcn/components/progress.slint";
+
+component Buttons inherits Flow {
+    in property <string> force;
+    in property <bool> disabled;
+    Button { kind: primary; text: "Primary"; force: root.force; disabled: root.disabled; accessible-id: root.force == "" ? "" : "forced-" + root.force; }
+    Button { kind: accept; text: "Approve"; force: root.force; disabled: root.disabled; }
+    Button { kind: reject; text: "Reject"; force: root.force; disabled: root.disabled; }
+    Button { kind: warn; text: "Lock"; force: root.force; disabled: root.disabled; }
+    Button { kind: quiet; text: "Cancel"; force: root.force; disabled: root.disabled; }
+}
+
+component Field inherits VerticalLayout {
+    in property <string> value: "650";
+    in property <string> force;
+    in property <bool> error;
+    in property <bool> disabled;
+    in property <bool> read-only;
+    spacing: Ds.spacing-s1;
+    T { text: "Daily rate, EUR"; font-weight: 500; }
+    Input { text: root.value; force: root.force; error: root.error; enabled: !root.disabled; read-only: root.read-only; }
+    @children
+}
+
+component Pill inherits Rectangle {
+    in property <string> text;
+    in property <bool> on;
+    in property <bool> hover;
+    in property <bool> link;
+    height: 22px;
+    min-width: t.preferred-width + 2 * Ds.spacing-s2;
+    preferred-width: self.min-width;
+    horizontal-stretch: 0;
+    border-radius: 11px;
+    border-width: 1px;
+    border-color: on ? Ds.color-primary : Ds.hair;
+    background: on ? Ds.tint : hover || touch.has-hover ? Ds.color-base-200 : transparent;
+    t := Meta { text: root.text; color: root.on ? Ds.color-primary : root.link ? Ds.color-info : Ds.color-base-content; }
+    touch := TouchArea { }
+}
+
+component Swatch inherits VerticalLayout {
+    in property <color> tint;
+    in property <string> name;
+    width: 68px;
+    Rectangle { height: 32px; background: root.tint; border-radius: Ds.radius-field; border-width: 1px; border-color: Ds.hair; }
+    Meta { text: root.name; }
+}
+
+component Ramp inherits HorizontalLayout {
+    in property <[color]> steps;
+    height: 14px;
+    for step in root.steps: Rectangle { background: step; }
+}
+
+component Tr inherits Rectangle {
+    in property <string> a;
+    in property <string> b;
+    in property <string> c;
+    in property <bool> head;
+    in property <bool> hover;
+    in property <bool> odd;
+    in property <bool> sorted;
+    background: hover || touch.has-hover ? Ds.tint : head || odd ? Ds.color-base-200 : transparent;
+    HorizontalLayout {
+        padding: Ds.spacing-s1;
+        padding-left: Ds.spacing-s2;
+        padding-right: Ds.spacing-s2;
+        T { text: root.a; horizontal-stretch: 2; font-weight: root.head ? 600 : 400; }
+        T { text: root.b; horizontal-stretch: 2; font-weight: root.head ? 600 : 400; color: root.sorted ? Ds.color-primary : Ds.color-base-content; }
+        T { text: root.c; horizontal-stretch: 1; horizontal-alignment: right; font-weight: root.head ? 600 : 400; }
+    }
+    Rectangle { y: parent.height - 1px; height: 1px; background: Ds.hair; }
+    touch := TouchArea { }
+}
+
+component Leads inherits VerticalLayout {
+    Tr { head: true; a: "Company"; b: "Stage"; c: "Rate"; }
+    Tr { odd: true; a: "Northwind"; b: "Applied"; c: "600"; }
+    Tr { a: "Globex"; b: "Screening"; c: "700"; }
+    Tr { odd: true; a: "Umbrella Labs"; b: "Interviewing"; c: "650"; }
+}
+
+component Share inherits Rectangle {
+    in property <float> value;
+    height: 8px;
+    border-radius: 4px;
+    background: Ds.color-base-300;
+    clip: true;
+    Rectangle { x: 0; width: parent.width * root.value / 100; background: Ds.color-primary; }
+}
+
+component Funnel inherits HorizontalLayout {
+    in property <string> name;
+    in property <float> value;
+    spacing: Ds.spacing-s2;
+    Meta { text: root.name; width: 60px; }
+    Rectangle {
+        height: 16px;
+        background: Ds.color-base-200;
+        border-radius: Ds.radius-selector;
+        Rectangle { x: 0; width: parent.width * root.value / 100; background: Ds.color-primary; border-radius: Ds.radius-selector; }
+    }
+}
+
+component Spark inherits Path {
+    width: 160px;
+    height: 44px;
+    viewbox-width: 160;
+    viewbox-height: 44;
+    fill: transparent;
+    stroke: Ds.color-primary;
+    stroke-width: 2px;
+    commands: "M0,28 L20,20 L40,32 L60,12 L80,24 L100,16 L120,8";
+}
+
+component WeekBars inherits HorizontalLayout {
+    height: 72px;
+    spacing: Ds.spacing-s1;
+    alignment: start;
+    for n in [6, 8, 4, 11, 7, 9, 9, 5]: Rectangle {
+        width: 24px;
+        Rectangle {
+            y: parent.height - self.height;
+            height: n * 6px;
+            border-top-left-radius: Ds.radius-selector;
+            border-top-right-radius: Ds.radius-selector;
+            background: touch.has-hover ? Ds.color-accent : @linear-gradient(180deg, Ds.color-primary 0%, Ds.color-primary-700 100%);
+            touch := TouchArea { }
+        }
+    }
+}
+
+component Event inherits VerticalLayout {
+    in property <string> title;
+    in property <string> line;
+    B { text: root.title; }
+    Meta { text: root.line; }
+}
+
+component Fold inherits HorizontalLayout {
+    in property <string> text;
+    in property <string> count;
+    in property <string> path: Paths.closed;
+    spacing: Ds.spacing-s1;
+    alignment: start;
+    Ic { commands: root.path; }
+    T { text: root.text; }
+    Meta { text: root.count; }
+}
+
+component Record inherits Rectangle {
+    in property <string> text;
+    in property <string> mark;
+    height: 28px;
+    min-width: row.min-width;
+    horizontal-stretch: 0;
+    border-radius: 14px;
+    background: Ds.color-base-200;
+    row := HorizontalLayout {
+        padding: 2px;
+        padding-right: Ds.spacing-s2;
+        spacing: Ds.spacing-s1;
+        Avatar { size: 24px; fallback: root.mark; }
+        T { text: root.text; }
+    }
+}
+
+component MailLine inherits Rectangle {
+    in property <bool> unread;
+    in property <bool> star;
+    in property <bool> hover;
+    in property <bool> ticked;
+    height: 40px;
+    property <bool> over: hover || touch.has-hover;
+    background: ticked ? Ds.tint : over ? Ds.color-base-200 : transparent;
+    touch := TouchArea { }
+    HorizontalLayout {
+        padding-left: Ds.spacing-s1;
+        padding-right: Ds.spacing-s1;
+        spacing: Ds.spacing-s2;
+        VerticalLayout { alignment: center; Checkbox { checked: root.ticked; width: 16px; height: 20px; } }
+        Ic { commands: Paths.star; size: 14px; tint: root.star ? Ds.color-warning : Ds.muted; }
+        T { text: "Ada"; width: 48px; font-weight: root.unread ? 600 : 400; }
+        T { text: "Contract"; font-weight: root.unread ? 600 : 400; horizontal-stretch: 0; }
+        Meta { text: "two clauses to check"; overflow: elide; horizontal-stretch: 1; }
+        if !root.over: Meta { text: "12:40"; }
+        if root.over: Meta { text: "Archive"; }
+        if root.over: Meta { text: "Delete"; }
+    }
+    Rectangle { y: parent.height - 1px; height: 1px; background: Ds.hair; }
+}
+
+component Issue inherits Rectangle {
+    in property <string> kind: "todo";
+    in property <string> title;
+    in property <bool> hover;
+    in property <bool> on;
+    in property <bool> off;
+    background: on ? Ds.tint : hover || touch.has-hover ? Ds.color-base-200 : transparent;
+    border-radius: Ds.radius-selector;
+    opacity: off ? 0.55 : 1;
+    touch := TouchArea { }
+    HorizontalLayout {
+        padding: Ds.spacing-s1;
+        padding-left: Ds.spacing-s2;
+        padding-right: Ds.spacing-s2;
+        spacing: Ds.spacing-s2;
+        Meta { text: "AAA-12"; }
+        Status { kind: root.kind; }
+        T { text: root.title; horizontal-stretch: 1; overflow: elide; }
+        Badge { tone: outline; text: "rust"; }
+        Avatar { size: 24px; fallback: "CL"; }
+    }
+}
+
+component Stage inherits HorizontalLayout {
+    in property <int> at;
+    spacing: 2px;
+    for name[i] in ["Draft", "Review", "Accepted", "Sent"]: Rectangle {
+        height: 20px;
+        background: i == root.at ? Ds.color-primary : i < root.at ? Ds.tint : Ds.color-base-200;
+        Meta {
+            text: name;
+            font-weight: i == root.at ? 600 : 400;
+            color: i == root.at ? Ds.color-primary-content : i < root.at ? Ds.color-primary : Ds.muted;
+        }
+    }
+}
+
+component Note inherits Rectangle {
+    in property <string> who: "NH";
+    in property <string> words;
+    in property <bool> failed;
+    border-width: 1px;
+    border-color: failed ? Ds.color-error : Ds.hair;
+    border-radius: Ds.radius-box;
+    VerticalLayout {
+        padding: Ds.spacing-s2;
+        spacing: Ds.spacing-s1;
+        HorizontalLayout { spacing: Ds.spacing-s2; alignment: start; Avatar { size: 24px; fallback: root.who; } Meta { text: "2 h"; } }
+        HorizontalLayout {
+            spacing: Ds.spacing-s2;
+            Rectangle { width: 2px; background: Ds.color-warning; }
+            Meta { text: "each component with its states"; }
+        }
+        T { text: root.words; }
+        @children
+    }
+}
+
+component WorkCard inherits Surface {
+    in property <string> title;
+    in property <string> state;
+    in property <Tone> tone;
+    VerticalLayout {
+        padding: Ds.spacing-s3;
+        spacing: Ds.spacing-s1;
+        B { text: root.title; }
+        Flow { Badge { tone: root.tone; text: root.state; } Meta { text: "since 20/10, due 30/10"; } }
+        HorizontalLayout {
+            alignment: end;
+            spacing: Ds.spacing-s2;
+            Button { kind: quiet; text: "Drop"; }
+            Button { kind: accept; text: "Done"; }
+        }
+    }
+}
+
+component Agent inherits HorizontalLayout {
+    in property <string> name;
+    in property <string> line;
+    in property <bool> down;
+    in property <bool> child;
+    padding: Ds.spacing-s1;
+    padding-left: root.child ? Ds.spacing-s4 : Ds.spacing-s1;
+    spacing: Ds.spacing-s2;
+    alignment: start;
+    Rectangle {
+        width: 14px;
+        height: 14px;
+        y: 3px;
+        border-radius: 7px;
+        background: root.down ? Ds.soft-danger : Ds.tint;
+        Rectangle { width: 8px; height: 8px; border-radius: 4px; background: root.down ? Ds.color-error : Ds.color-success; }
+    }
+    B { text: root.name; }
+    Meta { text: root.line; }
+}
+
+// Done-when part 4: three faces in one window, and a proof they differ.
+component Faces inherits VerticalLayout {
+    spacing: Ds.spacing-s1;
+    accessible-role: groupbox;
+    accessible-id: "faces";
+    // Mono draws two words of the same length at the same width, the others do not.
+    accessible-value: round(sans.preferred-width / 1px) + "|" + round(mono-i.preferred-width / 1px) + "|" + round(mono-m.preferred-width / 1px) + "|" + round(hand.preferred-width / 1px);
+    sans := T { text: "iiiiimmmmm sans"; font-family: "Instrument Sans"; }
+    mono-i := T { text: "iiiiiiiiii mono"; font-family: "Menlo"; }
+    mono-m := T { text: "mmmmmmmmmm mono"; font-family: "Menlo"; }
+    hand := T { text: "iiiiimmmmm hand"; font-family: "Kalam"; }
+}
+
+component LayoutFamily inherits VerticalLayout {
+    Section {
+        id: "guidelines"; name: "Guidelines";
+        Row { label: "Banned"; Rule { lead: "An eyebrow above a heading."; rest: "Say it in the heading."; } Rule { lead: "A card in a card."; rest: "One frame per thing."; } Rule { lead: "An emoji as an icon."; rest: "Icons are strokes."; } }
+        Row { label: "Directing"; Rule { lead: "One primary action per view."; rest: "The rest are neutral."; } Rule { lead: "Show, then count."; rest: "A quantity is a visual first."; } }
+        Row {
+            label: "Spacing";
+            for w in [Ds.spacing-s0, Ds.spacing-s1, Ds.spacing-s2, Ds.spacing-s3, Ds.spacing-s4, Ds.spacing-s5, Ds.spacing-s6, Ds.spacing-s7, Ds.spacing-s8, Ds.spacing-s9]: Rectangle { height: 8px; HorizontalLayout { alignment: start; Rectangle { width: w; background: Ds.color-primary; border-radius: 2px; } } }
+        }
+        Row {
+            label: "Type";
+            T { font-size: Ds.text-caption; text: "caption, 12 px"; }
+            T { font-size: Ds.text-ui; text: "ui, 14 px"; }
+            T { font-size: Ds.text-body; text: "body, 15 px"; }
+            T { font-size: Ds.text-title; text: "title, 18 px"; }
+            T { font-size: Ds.text-heading; text: "heading, 24 px"; }
+            T { font-size: Ds.text-display; text: "display, 32 px"; }
+        }
+        Row { label: "Faces"; Faces { } }
+        Row {
+            label: "Radius";
+            Flow {
+                for r[i] in [Ds.radius-selector, Ds.radius-field, Ds.radius-box]: Rectangle {
+                    width: 72px; height: 32px; border-radius: r; background: Ds.color-base-200; border-width: 1px; border-color: Ds.hair;
+                    Meta { text: ["selector", "field", "box"][i]; }
+                }
+            }
+        }
+    }
+    Section {
+        id: "heroui"; name: "From HeroUI";
+        Row { label: "Against ours"; Tr { head: true; a: "Company"; b: "Stage"; c: "Rate"; } Tr { odd: true; a: "button"; b: "restyled"; c: "Petal"; } Tr { a: "chip"; b: "restyled"; c: "badge"; } Tr { odd: true; a: "alert"; b: "ours"; c: "banner"; } }
+    }
+    Section {
+        id: "shell"; name: "Shell and menu";
+        Row {
+            label: "Menu, current";
+            for item[i] in [{ t: "Inbox", p: Paths.inbox }, { t: "Design", p: Paths.doc }, { t: "Job search, hovered", p: Paths.person }]: Rectangle {
+                height: 32px;
+                border-radius: Ds.radius-field;
+                background: i == 1 ? Ds.tint : i == 2 ? Ds.color-base-200 : transparent;
+                HorizontalLayout { padding-left: Ds.spacing-s2; spacing: Ds.spacing-s2; Ic { commands: item.p; } T { text: item.t; color: i == 1 ? Ds.color-primary : Ds.color-base-content; font-weight: i == 1 ? 600 : 400; } }
+            }
+        }
+        Row { label: "Inbox waits on him"; Flow { Ic { commands: Paths.inbox; } T { text: "Inbox"; } Badge { text: "3"; } } }
+        Row { label: "Search field"; Rectangle { height: 32px; background: Ds.color-base-200; border-radius: Ds.radius-field; HorizontalLayout { padding-left: Ds.spacing-s2; spacing: Ds.spacing-s2; Ic { commands: Paths.search; } Meta { text: "Pages, documents, leads"; } } } }
+        Row { label: "Logo, then none"; Flow { Avatar { size: 24px; fallback: "NH"; } Rectangle { width: 24px; height: 24px; border-radius: Ds.radius-selector; background: Ds.color-primary; B { text: "G"; color: Ds.color-primary-content; } } Rectangle { width: 24px; height: 24px; border-radius: Ds.radius-selector; background: Ds.color-base-300; B { text: "U"; color: Ds.muted; } } } }
+    }
+    Section {
+        id: "bell"; name: "Notification bell";
+        Row { label: "Closed, two unread"; Rectangle { width: 32px; height: 32px; border-radius: Ds.radius-field; background: Ds.color-base-200; Ic { commands: Paths.bell; } Rectangle { x: 20px; y: -4px; width: 16px; height: 16px; border-radius: 8px; background: Ds.color-error; T { text: "2"; font-size: 10px; color: Ds.color-error-content; } } } }
+        Row { label: "Open"; Surface { VerticalLayout { padding: Ds.spacing-s1; HorizontalLayout { padding: Ds.spacing-s1; B { text: "Claude answered your comment"; horizontal-stretch: 1; } Meta { text: "5 min"; } } HorizontalLayout { padding: Ds.spacing-s1; B { text: "Waiting on you: a reply"; horizontal-stretch: 1; } Meta { text: "3 h"; } } HorizontalLayout { padding: Ds.spacing-s1; T { text: "A task is flagged"; horizontal-stretch: 1; } Meta { text: "2 d"; } } } } }
+        Row { label: "Nothing pushed"; Empty { text: "Nothing pushed yet."; } }
+    }
+    Section {
+        id: "shared"; name: "One per thing";
+        Row { label: "Approve"; Flow { Button { kind: accept; text: "Approve"; Ic { commands: Paths.check; tint: Ds.color-success-content; } } Button { kind: accept; text: "Approve"; dim: true; Spinner { } } } }
+        Row { label: "Dates"; Flow { Meta { text: "20 s"; } Meta { text: "5 min"; } Meta { text: "2 h"; } Meta { text: "3 d"; } Meta { text: "in 2 d"; } } }
+        Row { label: "A task's status"; Flow { Badge { tone: warn; text: "Needs you"; } Badge { tone: info; text: "Working"; } Badge { tone: primary; text: "Ready"; } Badge { tone: secondary; text: "Todo"; } Badge { tone: outline; text: "Done"; } } }
+        Row { label: "Points"; Rule { lead: "1. An audit lists every page:"; rest: "proof, the table."; } Rule { lead: "2. Dates read as a moment:"; rest: "proof, a test."; } }
+    }
+    Section {
+        id: "cards"; name: "Cards";
+        Row { label: "With its actions"; DsCard { title: "One thing"; Button { kind: quiet; text: "Later"; } Button { text: "Do it"; } } }
+        Row { label: "Hovered"; Surface { raised: true; VerticalLayout { padding: Ds.spacing-s3; B { text: "A raised surface"; } Meta { text: "Its shadow rises on hover."; } } } }
+        Row { label: "Locked"; DsCard { title: "The same card, done"; Ic { commands: Paths.lock; } Meta { text: "Locked on 18/10"; } } }
+        Row { label: "Nothing to do"; Empty { text: "Nothing to do yet."; } }
+    }
+    Section {
+        id: "colors"; name: "Colours";
+        Row { label: "Surfaces"; Flow { Swatch { tint: Ds.color-base-100; name: "base-100"; } Swatch { tint: Ds.color-base-200; name: "base-200"; } Swatch { tint: Ds.color-base-300; name: "base-300"; } Swatch { tint: Ds.color-base-content; name: "content"; } } }
+        Row { label: "Roles"; Flow { Swatch { tint: Ds.color-primary; name: "primary"; } Swatch { tint: Ds.color-secondary; name: "secondary"; } Swatch { tint: Ds.color-accent; name: "accent"; } Swatch { tint: Ds.color-neutral; name: "neutral"; } } }
+        Row { label: "Signals"; Flow { Swatch { tint: Ds.color-info; name: "info"; } Swatch { tint: Ds.color-success; name: "success"; } Swatch { tint: Ds.color-warning; name: "warning"; } Swatch { tint: Ds.color-error; name: "error"; } } }
+        Row {
+            label: "Ramps";
+            Ramp { steps: [Ds.color-primary-50, Ds.color-primary-100, Ds.color-primary-200, Ds.color-primary-300, Ds.color-primary-400, Ds.color-primary-500, Ds.color-primary-600, Ds.color-primary-700, Ds.color-primary-800, Ds.color-primary-900, Ds.color-primary-950]; }
+            Ramp { steps: [Ds.color-secondary-50, Ds.color-secondary-100, Ds.color-secondary-200, Ds.color-secondary-300, Ds.color-secondary-400, Ds.color-secondary-500, Ds.color-secondary-600, Ds.color-secondary-700, Ds.color-secondary-800, Ds.color-secondary-900, Ds.color-secondary-950]; }
+            Ramp { steps: [Ds.color-info-50, Ds.color-info-100, Ds.color-info-200, Ds.color-info-300, Ds.color-info-400, Ds.color-info-500, Ds.color-info-600, Ds.color-info-700, Ds.color-info-800, Ds.color-info-900, Ds.color-info-950]; }
+            Ramp { steps: [Ds.color-success-50, Ds.color-success-100, Ds.color-success-200, Ds.color-success-300, Ds.color-success-400, Ds.color-success-500, Ds.color-success-600, Ds.color-success-700, Ds.color-success-800, Ds.color-success-900, Ds.color-success-950]; }
+            Ramp { steps: [Ds.color-warning-50, Ds.color-warning-100, Ds.color-warning-200, Ds.color-warning-300, Ds.color-warning-400, Ds.color-warning-500, Ds.color-warning-600, Ds.color-warning-700, Ds.color-warning-800, Ds.color-warning-900, Ds.color-warning-950]; }
+            Ramp { steps: [Ds.color-danger-50, Ds.color-danger-100, Ds.color-danger-200, Ds.color-danger-300, Ds.color-danger-400, Ds.color-danger-500, Ds.color-danger-600, Ds.color-danger-700, Ds.color-danger-800, Ds.color-danger-900, Ds.color-danger-950]; }
+        }
+    }
+}
+
+component DataFamily inherits VerticalLayout {
+    Section {
+        id: "data"; name: "Presenting data";
+        Row { label: "In this order"; Rule { lead: "A trend over time:"; rest: "columns per period."; } Rule { lead: "Stages that narrow:"; rest: "the funnel."; } Rule { lead: "A figure, last:"; rest: "with its change beside it."; } }
+        Row { label: "Never"; Rule { lead: "A number alone,"; rest: "above all on the home page."; } Rule { lead: "A pie"; rest: "for more than three parts."; } }
+    }
+    Section {
+        id: "table"; name: "Table and filter bar";
+        Row { label: "Leads"; Leads { } }
+        Row { label: "Filter bar"; Flow { Input { text: "Glob"; width: 120px; } Pill { text: "Stage: Applied"; on: true; } Pill { text: "Rate"; } } }
+        Row { label: "Hovered, sorted"; Tr { head: true; a: "Company"; b: "Stage, up"; c: "Rate"; sorted: true; } Tr { hover: true; a: "Northwind"; b: "Applied"; c: "600"; sorted: true; } }
+        Row { label: "Empty"; Tr { head: true; a: "Company"; b: "Stage"; c: "Rate"; } Empty { text: "No lead matches this filter."; } }
+    }
+    Section {
+        id: "charts"; name: "Charts";
+        Row { label: "Funnel"; Funnel { name: "Opened"; value: 100; } Funnel { name: "Applied"; value: 62; } Funnel { name: "Replied"; value: 30; } Funnel { name: "Signed"; value: 8; } }
+        Row { label: "Per week"; WeekBars { } }
+        Row { label: "A line"; Spark { } }
+        Row { label: "No value yet"; Empty { text: "No week has a value yet."; } }
+    }
+    Section {
+        id: "stats"; name: "Figures as visuals";
+        Row { label: "Share bar"; Progress { value: 67; } Meta { text: "8 of 12 done, 4 left"; } }
+        Row { label: "A figure"; T { text: "12"; font-size: Ds.text-display; font-weight: 700; } Meta { text: "up 3 on last week"; } }
+        Row { label: "Sparkline"; Flow { T { text: "Replies"; } Spark { } } }
+    }
+    Section {
+        id: "timeline"; name: "Lead timeline";
+        Row { label: "Three events"; HorizontalLayout { spacing: Ds.spacing-s3; Rectangle { width: 2px; background: Ds.hair; } VerticalLayout { spacing: Ds.spacing-s2; Event { title: "Contract draft received"; line: "16/10, two clauses to check"; } Event { title: "Call with the CTO"; line: "14/10, rate agreed"; } Event { opacity: 0.4; title: "Intro sent"; line: "21/09, greyed by the point of view"; } } } }
+        Row { label: "No event"; Empty { text: "No event yet."; } }
+    }
+    Section {
+        id: "lists"; name: "Lists of things";
+        Row { label: "A document"; DsCard { title: "Rendering plan"; Badge { tone: outline; text: "review"; } } }
+        Row { label: "A folded group"; Fold { text: "Closed leads"; count: "4"; } Fold { text: "Open leads"; count: "2"; path: Paths.open; } Issue { title: "Northwind"; } }
+    }
+    Section {
+        id: "records"; name: "Records, after Twenty";
+        Row { label: "Record chips"; Flow { Record { text: "Ada"; mark: "AL"; } Record { text: "Globex"; mark: "G"; } Record { text: "None"; mark: "?"; } } }
+        Row { label: "A record board"; HorizontalLayout { spacing: Ds.spacing-s2; VerticalLayout { spacing: Ds.spacing-s1; Meta { text: "Screening"; } Surface { VerticalLayout { padding: Ds.spacing-s3; B { text: "Backend lead"; } Meta { text: "Globex, remote"; } } } } VerticalLayout { spacing: Ds.spacing-s1; Meta { text: "Applied"; } Surface { VerticalLayout { padding: Ds.spacing-s3; B { text: "Staff engineer"; } Meta { text: "Umbrella Labs"; } } } } } }
+    }
+    Section {
+        id: "knowledge"; name: "Knowledge entry";
+        Row { label: "With its source"; Surface { VerticalLayout { padding: Ds.spacing-s3; B { text: "Payments"; } T { text: "They settle in T+2."; } T { text: "the call of 14/10"; color: Ds.color-info; } } } }
+        Row { label: "No source yet"; Surface { VerticalLayout { padding: Ds.spacing-s3; B { text: "Payments"; } Meta { text: "No source yet."; } } } }
+    }
+}
+
+component FormsFamily inherits VerticalLayout {
+    Section {
+        id: "buttons"; name: "Actions";
+        Row { label: "Rest"; Buttons { } }
+        Row { label: "Hover"; Buttons { force: "hover"; } }
+        Row { label: "Pressed"; Buttons { force: "active"; } }
+        Row { label: "Focus"; Buttons { force: "focus"; } }
+        Row { label: "Disabled"; Buttons { disabled: true; } }
+        Row { label: "Busy"; Flow { Button { text: "Sending"; dim: true; Spinner { } } } }
+        Row { label: "Done"; Flow { Button { kind: warn; text: "Locked on 18/10"; dim: true; Ic { commands: Paths.lock; tint: Ds.color-warning-content; } } } }
+        Row {
+            label: "Try it";
+            Flow {
+                Button { kind: primary; text: "Primary"; accessible-id: "try"; }
+                Button { kind: accept; text: "Approve"; }
+                Button { kind: reject; text: "Reject"; }
+                Button { kind: warn; text: "Lock"; }
+                Button { kind: quiet; text: "Cancel"; }
+            }
+        }
+    }
+    Section {
+        id: "group"; name: "Toggle group";
+        Row { label: "One of several"; ToggleGroup { } }
+        Row { label: "Each on or off"; ToggleGroup { multi: true; } }
+        Row { label: "Forced states"; HorizontalLayout { alignment: start; SegmentGroup { Segment { text: "Rest"; } Segment { text: "Hover"; force-hover: true; } Segment { text: "On"; on: true; } Segment { text: "Disabled"; off: true; } } } }
+        Row { label: "Chip bar"; Flow { Pill { text: "Project"; on: true; } Pill { text: "Lane"; } Pill { text: "Team, hovered"; hover: true; } } }
+    }
+    Section {
+        id: "field"; name: "Form field";
+        Row { label: "Rest, its placeholder"; Input { placeholder: "650"; } }
+        Row { label: "Hover"; Field { force: "hover"; } }
+        Row { label: "Focus"; Field { force: "focus"; } }
+        Row { label: "Saving"; Field { Say { text: "Saving..."; } } }
+        Row { label: "Saved"; Field { Say { text: "Saved."; tone: 1; } } }
+        Row { label: "Error"; Field { value: "six fifty"; error: true; Say { text: "A rate is a whole number of euros."; tone: 2; } } }
+        Row { label: "Disabled"; Field { disabled: true; } }
+        Row { label: "Read only"; Field { read-only: true; } }
+        Row { label: "Try it"; Input { text: "650"; accessible-id: "try-field"; } }
+        Row { label: "Checkbox"; Flow { Checkbox { label: "Off"; } Checkbox { label: "On"; checked: true; } Checkbox { label: "Hover"; force: "hover"; } Checkbox { label: "Focus"; force: "focus"; } Checkbox { label: "Disabled"; disabled: true; } } }
+        Row { label: "Radio and switch"; Flow { Checkbox { round: true; label: "Off"; } Checkbox { round: true; label: "On"; checked: true; } Switch { } Switch { checked: true; } } }
+        Row {
+            label: "Select, open";
+            Input { text: "Applied"; read-only: false; Ic { x: parent.width - 24px; commands: Paths.open; } }
+            Surface { VerticalLayout { padding: Ds.spacing-s1; Rectangle { height: 28px; background: Ds.color-base-200; border-radius: Ds.radius-selector; T { x: Ds.spacing-s2; text: "Applied"; } } Rectangle { height: 28px; T { x: Ds.spacing-s2; text: "Screening"; } } } }
+        }
+    }
+    Section {
+        id: "text"; name: "Text editor";
+        Row { label: "Read, with Edit"; Wrapped { font-size: Ds.text-body; text: "Dear Ada, the payment comes once the contract is signed."; } HorizontalLayout { alignment: start; Button { kind: quiet; text: "Edit"; } } }
+        Row { label: "Open"; Textarea { text: "Dear Ada, the payment comes once the contract is signed."; } HorizontalLayout { alignment: start; Button { text: "Save"; } } }
+        Row { label: "Saved"; Wrapped { font-size: Ds.text-body; text: "Dear Ada, the payment comes."; } Say { text: "Saved."; tone: 1; } }
+        Row { label: "Error, kept open"; Textarea { text: "Dear Ada,"; error: true; } Say { text: "This edit drops the passage comment k1 is on."; tone: 2; } }
+        Row { label: "Decided, read only"; Wrapped { font-size: Ds.text-body; text: "Dear Ada, the payment comes."; } }
+    }
+}
+
+component FeedbackFamily inherits VerticalLayout {
+    Section {
+        id: "stage"; name: "Stage";
+        Row { label: "Draft"; Stage { at: 0; } }
+        Row { label: "Review"; Stage { at: 1; } }
+        Row { label: "Accepted"; Stage { at: 2; } }
+        Row { label: "Sent"; Stage { at: 3; } }
+    }
+    Section {
+        id: "wait"; name: "Wait badge";
+        Row { label: "Actionable"; Flow { Badge { text: "Ready"; } } }
+        Row { label: "Waits on one"; Flow { Badge { tone: warn; text: "Waits on: contract signed"; } } }
+        Row { label: "Waits on two"; Flow { Badge { tone: warn; text: "contract signed"; } Badge { tone: warn; text: "payment provider"; } } }
+    }
+    Section {
+        id: "chips"; name: "Badges and chips";
+        Row { label: "Badges, each colour"; Flow { Badge { text: "primary"; } Badge { tone: secondary; text: "secondary"; } Badge { tone: info; text: "info"; } Badge { tone: warn; text: "warning"; } Badge { tone: destructive; text: "danger"; } Badge { tone: outline; text: "outline"; } } }
+        Row { label: "Chips"; Flow { Pill { text: "a label"; } Pill { text: "a link"; link: true; } Pill { text: "hovered"; hover: true; } } }
+    }
+    Section {
+        id: "reading"; name: "Chances and reasons";
+        Row { label: "Chances"; Share { value: 72; } Meta { text: "72, good: remote, rate in range"; } }
+        Row { label: "What the ad asks"; Rule { lead: "Clojure:"; rest: "seven years."; } Rule { lead: "Payments:"; rest: "the Griffin work."; } }
+        Row { label: "Not judged yet"; Empty { text: "Not judged yet."; } }
+    }
+    Section {
+        id: "comments"; name: "Comments";
+        Row { label: "Open, on a passage"; Note { words: "Can the table keep its filter?"; HorizontalLayout { alignment: start; spacing: Ds.spacing-s2; Button { kind: quiet; text: "Reply"; } Button { kind: quiet; text: "Resolve"; } } } }
+        Row { label: "Answered"; Note { who: "CL"; words: "Done, the URL holds it."; T { text: "task table-filter"; color: Ds.color-info; } } }
+        Row { label: "Replying"; Note { words: "Keep the sort too?"; Input { text: "Yes"; force: "focus"; } } }
+        Row { label: "Posting"; Note { words: "Keep the sort too?"; Say { text: "Posting..."; } } }
+        Row { label: "Not sent"; Note { words: "Keep the sort too?"; failed: true; Say { text: "Not sent. Retry."; tone: 2; } } }
+        Row { label: "Its passage gone"; Meta { text: "passage no longer in the page"; } T { text: "It is kept here."; } }
+        Row { label: "Resolved"; HorizontalLayout { opacity: 0.55; spacing: Ds.spacing-s1; alignment: start; Ic { commands: Paths.check; } T { text: "Resolved"; } } }
+    }
+    Section {
+        id: "comments-principles"; name: "Comments on HeroUI's principles";
+        Row { label: "Three of ten"; Rule { lead: "Intent over look."; rest: "A button names its intent."; } Rule { lead: "Shown when needed."; rest: "Actions only on an open card."; } Rule { lead: "Themed by tokens."; rest: "A theme change reaches each part."; } }
+    }
+    Section {
+        id: "handoff"; name: "Handoff and approval";
+        Row { label: "A step"; HorizontalLayout { spacing: Ds.spacing-s2; VerticalLayout { alignment: center; Checkbox { width: 16px; height: 20px; } } VerticalLayout { horizontal-stretch: 1; B { text: "Call Northwind on 22/10"; } Meta { text: "The question list, then the answers."; overflow: elide; } } Button { kind: accept; text: "Approve"; } } }
+        Row { label: "His words, the answer"; Rule { lead: "@nha:"; rest: "already done?"; } Rule { lead: "Done:"; rest: "sent again."; } }
+        Row { label: "A diff"; Rectangle { height: 22px; background: Ds.soft-danger; T { x: Ds.spacing-s2; text: "- the old line"; color: Ds.on-danger-2; font-family: "Menlo"; } } Rectangle { height: 22px; background: Ds.soft-success; T { x: Ds.spacing-s2; text: "+ the new line"; color: Ds.on-success; font-family: "Menlo"; } } }
+    }
+}
+
+component MailFamily inherits VerticalLayout {
+    Section {
+        id: "mail"; name: "Mail";
+        Row { label: "Read"; MailLine { } }
+        Row { label: "Unread, starred"; MailLine { unread: true; star: true; } }
+        Row { label: "Hover"; MailLine { hover: true; } }
+        Row { label: "Ticked"; MailLine { ticked: true; } }
+        Row { label: "Compose"; Input { text: "ada@example.com"; } Textarea { text: "Dear Ada,"; } HorizontalLayout { alignment: end; spacing: Ds.spacing-s2; Button { kind: quiet; text: "Discard"; } Button { text: "Send"; } } }
+        Row { label: "Folded"; Fold { text: "Ada, 12:40"; count: "two clauses to check"; } }
+        Row { label: "Nothing listed"; Empty { text: "Nothing listed yet."; } }
+    }
+}
+
+component BoardFamily inherits VerticalLayout {
+    Section {
+        id: "board"; name: "Board";
+        Row { label: "Lanes"; Flow { Badge { tone: warn; text: "Needs you 2"; } Badge { tone: info; text: "Working 3"; } Badge { text: "Ready 1"; } } }
+        Row { label: "Rows"; Issue { kind: "started"; title: "Phone pages"; } Issue { kind: "review"; on: true; title: "The CLI, selected"; } }
+    }
+    Section {
+        id: "issues"; name: "A project's issues";
+        Row { label: "Status icons"; Flow { Status { kind: "backlog"; } Status { kind: "todo"; } Status { kind: "started"; } Status { kind: "review"; } Status { kind: "done"; } } }
+        Row { label: "The list"; Issue { title: "Sign the app"; } Issue { hover: true; title: "A host change waits, hovered"; } Issue { kind: "done"; off: true; title: "The old CRM retired"; } }
+        Row {
+            label: "Keys";
+            Flow {
+                for key in ["Cmd", "K", "?"]: Rectangle {
+                    height: 20px;
+                    min-width: max(20px, k.preferred-width + 2 * Ds.spacing-s1);
+                    preferred-width: self.min-width;
+                    horizontal-stretch: 0;
+                    border-radius: Ds.radius-selector;
+                    border-width: 1px;
+                    border-color: Ds.hair;
+                    background: Ds.color-base-200;
+                    k := Meta { text: key; color: Ds.color-base-content; }
+                }
+            }
+        }
+    }
+    Section {
+        id: "tasks"; name: "Task page";
+        Row { label: "Verdicts"; Flow { Badge { tone: destructive; text: "not met"; } Badge { text: "met"; } Meta { text: "nudged once, 52 turns"; } } }
+        Row { label: "A PR"; Flow { T { text: "#96"; color: Ds.color-info; } Badge { tone: warn; text: "changes requested"; } } }
+        Row { label: "No question"; Empty { text: "No question open."; } }
+    }
+    Section {
+        id: "work-card"; name: "Step or task card";
+        Row { label: "A step open"; WorkCard { title: "A step only you can take"; state: "needs you"; tone: warn; } }
+        Row { label: "Closed by its check"; WorkCard { title: "Sign in again"; state: "done"; tone: primary; } }
+    }
+    Section {
+        id: "agents"; name: "Agent lanes";
+        Row { label: "The orchestrator"; Agent { name: "Orchestrator"; line: "login runs out in 2 h"; } }
+        Row { label: "Down"; Agent { name: "Orchestrator"; line: "no reading"; down: true; } }
+        Row { label: "Its reviewer under it"; Agent { name: "rust-ui"; line: "working"; } Agent { name: "review-rust-ui"; line: "reading"; child: true; } }
+    }
+}
+
+export component Family inherits VerticalLayout {
+    in property <int> family;
+    if root.family == 0: LayoutFamily { }
+    if root.family == 1: DataFamily { }
+    if root.family == 2: FormsFamily { }
+    if root.family == 3: FeedbackFamily { }
+    if root.family == 4: MailFamily { }
+    if root.family == 5: BoardFamily { }
+}
