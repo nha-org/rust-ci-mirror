@@ -1,0 +1,105 @@
+// slintcn's Input and Textarea, with `force`, `error` and design.json's fields.
+import { Tokens, Ds } from "../theme/tokens.slint";
+
+export component Input inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> enabled: true;
+    in property <bool> read-only: false;
+    in property <bool> error: false;
+    // « hover » or « focus »: the state drawn still.
+    in property <string> force;
+    callback edited(string);
+
+    out property <bool> focused: force == "focus" || input.has-focus;
+    property <bool> hovered: force == "hover" || (touch.has-hover && enabled);
+
+    forward-focus: input;
+    height: Tokens.density-input;
+    background: !enabled || read-only ? Ds.color-base-200 : Ds.color-base-100;
+    border-width: 1px;
+    border-radius: Tokens.radius-md;
+    border-color: error ? Ds.color-error
+        : focused ? Ds.color-primary
+        : read-only ? transparent
+        : hovered ? Ds.color-base-content.mix(Ds.color-base-100, 0.4)
+        : Ds.hair;
+
+    accessible-role: text-input;
+    accessible-value: (root.focused ? "focus " : "") + (root.hovered ? "hover " : "") + root.text;
+
+    // The input inside the area: as a sibling above it, it takes the pointer and the area hovers in the margins alone.
+    touch := TouchArea {
+        clicked => { input.focus(); }
+        input := TextInput {
+            x: Ds.spacing-s2;
+            width: parent.width - 2 * Ds.spacing-s2;
+            height: parent.height;
+            text <=> root.text;
+            color: root.enabled ? Ds.color-base-content : Ds.muted;
+            font-size: Tokens.typography-body-size;
+            single-line: true;
+            read-only: root.read-only || !root.enabled;
+            enabled: root.enabled;
+            vertical-alignment: center;
+            edited => { root.edited(self.text); }
+        }
+    }
+
+    if root.text == "": Text {
+        x: input.x;
+        height: parent.height;
+        text: root.placeholder;
+        color: Ds.muted;
+        font-size: Tokens.typography-body-size;
+        vertical-alignment: center;
+    }
+
+    if root.focused || root.error: Rectangle {
+        x: -3px;
+        y: -3px;
+        width: parent.width + 6px;
+        height: parent.height + 6px;
+        border-width: 3px;
+        border-color: root.error ? Ds.soft-danger : Tokens.color-ring-muted;
+        border-radius: Tokens.radius-md + 3px;
+    }
+}
+
+export component Textarea inherits Rectangle {
+    in-out property <string> text;
+    in property <bool> error: false;
+
+    forward-focus: input;
+    height: 72px;
+    background: Ds.color-base-100;
+    border-width: 1px;
+    border-radius: Tokens.radius-md;
+    border-color: error ? Ds.color-error : input.has-focus ? Ds.color-primary : Ds.hair;
+
+    TouchArea {
+        clicked => { input.focus(); }
+    }
+
+    input := TextInput {
+        x: Ds.spacing-s2;
+        y: Ds.spacing-s2;
+        width: parent.width - 2 * Ds.spacing-s2;
+        height: parent.height - 2 * Ds.spacing-s2;
+        text <=> root.text;
+        color: Ds.color-base-content;
+        font-size: Tokens.typography-body-size;
+        wrap: word-wrap;
+        single-line: false;
+    }
+
+    if root.error: Rectangle {
+        x: -3px;
+        y: -3px;
+        width: parent.width + 6px;
+        height: parent.height + 6px;
+        border-width: 3px;
+        border-color: Ds.soft-danger;
+        border-radius: Tokens.radius-md + 3px;
+    }
+}
