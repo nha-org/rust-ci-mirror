@@ -1,0 +1,196 @@
+// The design system page's frame: a bar, then a family or a screen. Each family's rows are the same source compiled as a Light
+// and a Dark copy (build.rs), so the page's own toggle moves the frame and each cell keeps its theme.
+import { Family as LightFamily } from "light/families.slint";
+import { Family as DarkFamily } from "dark/families.slint";
+import { T, Meta, Button, Ds, Theme, ThemeMode } from "page/parts.slint";
+import { Linear, LinearCard } from "page/linear.slint";
+import { Notion, NotionLine, NotionMark, NotionThread, NotionSaid } from "page/notion.slint";
+import "InstrumentSans-latin.ttf";
+import "Kalam-latin.ttf";
+
+export { LinearCard, NotionLine, NotionMark, NotionThread, NotionSaid }
+
+component Tab inherits VerticalLayout {
+    in property <string> id;
+    in property <string> text;
+    in property <bool> on;
+    callback clicked();
+    alignment: center;
+    Rectangle {
+        height: 28px;
+        width: t.preferred-width + 2 * Ds.spacing-s2;
+        border-radius: Ds.radius-field;
+        background: root.on ? Ds.tint : touch.has-hover ? Ds.color-base-200 : transparent;
+        accessible-role: groupbox;
+        accessible-id: root.id;
+        t := T {
+            text: root.text;
+            color: root.on ? Ds.color-primary : Ds.color-base-content;
+            font-weight: root.on ? 600 : 400;
+        }
+        touch := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    }
+}
+
+export component App inherits Window {
+    // 0 to 5 a family, 6 Linear, 7 Notion.
+    in-out property <int> view: 0;
+    // Leaving Notion destroys the lines and their selection, with no event to say so: the toolbar goes with them.
+    changed view => { root.picked = -1; }
+    in property <[string]> slugs: ["layout", "data", "forms", "feedback", "mail", "board"];
+    in property <[string]> titles: ["Layout", "Data", "Forms", "Feedback", "Mail", "Board"];
+    in property <[string]> whats: [
+        "The rules every page follows, the shell and the parts a page is framed with.",
+        "How a quantity is shown, then the parts that show it: tables, charts, timelines, lists.",
+        "What he presses, picks and types: actions, toggles, fields, the text editor.",
+        "What tells him where a thing stands, and his comments and approvals on it.",
+        "The inbox's list, a thread's message and the composer.",
+        "The agents' work: the board, a project's issues, a task's page and its card."
+    ];
+    in property <[LinearCard]> cards;
+    in property <[int]> counts: [5, 5];
+    callback dropped(int, int);
+    in property <[NotionLine]> lines;
+    in property <[NotionThread]> threads;
+    in property <[NotionSaid]> page-comments;
+    in-out property <int> picked: -1;
+    in property <int> picked-depth;
+    in property <string> picked-before;
+    in property <string> picked-phrase;
+    in property <bool> composing-new;
+    in property <string> new-quote;
+    in property <int> rail-line;
+    // What a script names by its bytes is placed by measuring the words before them: Slint has no call for that.
+    in property <string> probe;
+    out property <length> probe-width: probe-text.preferred-width;
+    in-out property <int> composing: -1;
+    in-out property <string> draft;
+    in-out property <string> page-draft;
+    in-out property <bool> page-open;
+    callback selected(int, int, int);
+    callback comment();
+    callback post();
+    callback post-page();
+    callback fold-threads();
+    callback unfold(int);
+    callback reopen(int);
+    in-out property <length> scroll <=> flick.content-y;
+    out property <bool> dark: Theme.mode == ThemeMode.dark;
+
+    default-font-family: "Instrument Sans";
+    default-font-size: 14px;
+    background: Ds.color-base-200;
+    accessible-role: groupbox;
+    accessible-id: "ds-root";
+    accessible-value: root.dark ? "dark" : "light";
+    probe-text := Text { visible: false; text: root.probe; font-size: Ds.text-body; }
+
+        Rectangle {
+            x: 0;
+            y: 0;
+            width: root.width;
+            height: 44px;
+            background: Ds.color-base-100;
+            HorizontalLayout {
+                padding-left: Ds.spacing-s3;
+                padding-right: Ds.spacing-s3;
+                spacing: Ds.spacing-s1;
+                T { text: "Design"; font-weight: 600; width: 64px; }
+                for slug[i] in root.slugs: Tab {
+                    id: "f-" + slug;
+                    text: root.titles[i];
+                    on: root.view == i;
+                    clicked => { root.view = i; root.scroll = 0; }
+                }
+                Rectangle { width: Ds.spacing-s4; }
+                Tab {
+                    id: "v-linear";
+                    text: "Linear cards";
+                    on: root.view == 6;
+                    // Each opens in the theme its evidence screen is in.
+                    clicked => { root.view = 6; Theme.mode = ThemeMode.light; }
+                }
+                Tab {
+                    id: "v-notion";
+                    text: "Notion comments";
+                    on: root.view == 7;
+                    clicked => { root.view = 7; Theme.mode = ThemeMode.dark; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        kind: quiet;
+                        text: root.dark ? "Light" : "Dark";
+                        accessible-id: "ds-theme";
+                        clicked => { Theme.mode = root.dark ? ThemeMode.light : ThemeMode.dark; }
+                    }
+                }
+            }
+            Rectangle { y: parent.height - 1px; height: 1px; background: Ds.hair; }
+        }
+        flick := Flickable {
+            x: 0;
+            y: 44px;
+            width: root.width;
+            height: root.height - 44px;
+            visible: root.view < 6;
+            accessible-role: groupbox;
+            accessible-id: "ds-main";
+            content-width: self.width;
+            content-height: page.preferred-height;
+            page := VerticalLayout {
+                width: root.width;
+                padding-top: Ds.spacing-s5;
+                padding-left: Ds.spacing-s6;
+                padding-right: Ds.spacing-s6;
+                spacing: Ds.spacing-s5;
+                if root.view < 6: VerticalLayout {
+                    T { text: root.titles[root.view]; font-size: Ds.text-heading; font-weight: 600; }
+                    Meta { text: root.whats[root.view]; font-size: Ds.text-ui; }
+                }
+                if root.view < 6: HorizontalLayout {
+                    spacing: Ds.spacing-s3;
+                    alignment: start;
+                    LightFamily { family: root.view; width: (root.width - 2 * Ds.spacing-s6 - Ds.spacing-s3 + 150px) / 2; }
+                    DarkFamily { family: root.view; width: (root.width - 2 * Ds.spacing-s6 - Ds.spacing-s3 - 150px) / 2; }
+                }
+            }
+        }
+        if root.view == 6: Linear {
+            x: 0;
+            y: 44px;
+            width: root.width;
+            height: root.height - 44px;
+            cards: root.cards;
+            counts: root.counts;
+            dropped(id, to) => { root.dropped(id, to); }
+        }
+        if root.view == 7: Notion {
+            x: 0;
+            y: 44px;
+            width: root.width;
+            height: root.height - 44px;
+            lines: root.lines;
+            threads: root.threads;
+            page-comments: root.page-comments;
+            picked <=> root.picked;
+            picked-before: root.picked-before;
+            picked-phrase: root.picked-phrase;
+            composing <=> root.composing;
+            draft <=> root.draft;
+            page-draft <=> root.page-draft;
+            page-open <=> root.page-open;
+            picked-depth: root.picked-depth;
+            composing-new: root.composing-new;
+            new-quote: root.new-quote;
+            rail-line: root.rail-line;
+            selected(l, a, b) => { root.selected(l, a, b); }
+            comment => { root.comment(); }
+            post => { root.post(); }
+            post-page => { root.post-page(); }
+            fold-threads => { root.fold-threads(); }
+            unfold(t) => { root.unfold(t); }
+            reopen(t) => { root.reopen(t); }
+        }
+}
