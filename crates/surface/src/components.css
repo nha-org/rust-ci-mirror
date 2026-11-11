@@ -1,0 +1,319 @@
+/* The looks of components.rs, each a `look` a page passes: /design?tab=components draws them. Layout and tokens only. */
+.avatar { display: inline-block; flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--color-base-300); color: var(--color-base-content); font-size: 10px; font-weight: 600; line-height: 24px; text-align: center; }
+.badge { display: inline-block; padding: 0 var(--spacing-s2); border-radius: 999px; font-size: var(--text-caption); font-weight: 500; line-height: 20px; }
+.button { display: inline-block; height: 32px; line-height: 32px; padding: 0 var(--spacing-s3); border-radius: var(--radius-field); border: 0; font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); font-weight: 500; background: var(--color-primary); color: var(--color-primary-content); cursor: pointer; }
+.button:hover { background: var(--color-primary-700); }
+.button.quiet { background: var(--color-base-200); color: var(--color-base-content); }
+.button.quiet:hover { background: var(--color-base-300); }
+.input { box-sizing: border-box; width: 100%; height: 32px; padding: 0 var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.input:focus { border-color: var(--color-primary); }
+.textarea { box-sizing: border-box; width: 100%; min-height: 64px; padding: var(--spacing-s2); resize: vertical; border: 1px solid var(--color-base-300); border-radius: var(--radius-field); background: var(--color-base-100); color: var(--color-base-content); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); }
+.textarea:focus { border-color: var(--color-primary); }
+.button.icon { display: flex; height: auto; line-height: normal; padding: 3px; border-radius: var(--radius-field); background: none; color: inherit; box-shadow: none; }
+.button.icon:hover, .button.icon[aria-pressed="true"] { background: var(--color-base-300); }
+.form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); margin: var(--spacing-s2) 0; }
+.form .input[type=file] { width: auto; flex: 1 1 16rem; height: auto; padding: 4px; }
+.form .textarea { flex: 1 1 100%; }
+/* Toggle and the pill button: board_live.ex's button group (Petal's xs white-outline, its current one primary-soft): a 30 px
+   pill of translucent segments, a hairline between them, the current one tinted primary (task rust-board-buttons-new-issue). */
+.toggle { display: inline-flex; max-width: 100%; margin: var(--spacing-s2) 0; border-radius: 999px; overflow-x: auto; }
+.toggle a, .button.pill { display: inline-flex; flex: none; align-items: center; gap: 6px; box-sizing: border-box; height: 30px; line-height: normal; padding: 6px 10px; border: 0; color: var(--color-base-content); background: color-mix(in oklab, var(--color-base-content) 8%, transparent); font-size: var(--text-caption); font-weight: 510; text-decoration: none; white-space: nowrap; transition: background-color 150ms ease-out; }
+.toggle a + a { box-shadow: inset 1px 0 0 var(--color-base-300); }
+.toggle a:hover, .button.pill:hover { background: color-mix(in oklab, var(--color-base-content) 12%, transparent); }
+.toggle a[aria-current] { background: color-mix(in oklab, var(--color-primary) 15%, transparent); color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-content)); }
+.toggle .ic, .button.pill .ic { width: 14px; height: 14px; color: inherit; }
+.button.pill { border-radius: 999px; }
+.button.pill:active { transform: scale(0.97); }
+/* Bar: a page's top line, its first part at the left, the rest at the right end (a part's hidden dialog last). Dialog: the
+   browser's modal, its form a column. */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); }
+.bar > :first-child { margin: 0 auto 0 0; }
+.dialog { box-sizing: border-box; width: min(36rem, calc(100% - 2rem)); margin-top: 12vh; padding: var(--spacing-s4); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); color: var(--color-base-content); box-shadow: 0 16px 48px rgb(0 0 0 / 0.35); }
+.dialog::backdrop { background: color-mix(in oklab, var(--color-base-content) 30%, transparent); }
+.dialog .form { flex-direction: column; align-items: stretch; margin: 0; }
+.dialog-title { font-size: var(--text-ui); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--spacing-s2); }
+/* CopyButton: a round icon button. PropertyMenu: a details element whose summary is the value, its choices a menu under it. */
+.copies { display: flex; gap: var(--spacing-s1); }
+.button.icon.round { width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 999px; opacity: 0.75; }
+.button.icon.round:hover { opacity: 1; }
+.prop-menu { position: relative; }
+.prop-menu > summary { display: flex; align-items: center; gap: var(--spacing-s2); margin: 0 -6px; padding: 2px 6px; border-radius: var(--radius-field); list-style: none; cursor: pointer; }
+.prop-menu > summary::-webkit-details-marker { display: none; }
+.prop-menu > summary:hover { background: var(--color-base-200); }
+.prop-menu-list { position: absolute; z-index: 3; top: 100%; left: 0; min-width: 180px; margin-top: 4px; padding: 4px; background: var(--color-base-100); border-radius: var(--radius-field); box-shadow: 0 8px 28px rgb(0 0 0 / 0.3), 0 0 0 1px var(--color-base-300); }
+.prop-menu-list .form { margin: 0; }
+.prop-menu-item { width: 100%; padding: 6px 8px; border: 0; border-radius: var(--radius-field); background: none; color: inherit; font: inherit; font-size: var(--text-ui); text-align: left; cursor: pointer; }
+.prop-menu-item:hover { background: var(--color-base-200); }
+.prop-menu-item[aria-checked="true"]::after { content: "✓"; float: right; }
+/* Linear's menus filter as he types (task rust-issue-sidebar-menus); a long list (projects) scrolls inside the menu */
+.prop-menu-filter { width: 100%; margin-bottom: 4px; }
+.prop-menu-list { max-height: 360px; overflow-y: auto; }
+.prop-menu-item { display: flex; align-items: center; gap: var(--spacing-s2); }
+.prop-menu-item[aria-checked="true"]::after { margin-left: auto; }
+/* a numbered choice's digit, the older app's data-n: after its name and its tick, quiet */
+.prop-menu-n { order: 2; min-width: 1ch; margin-left: auto; text-align: right; font-size: var(--text-caption); opacity: .6; }
+/* the tick stays last and flush right, numbered or not: after the digit, which takes the free space */
+.prop-menu-item[aria-checked="true"]::after { order: 3; }
+.prop-menu-item[aria-checked="true"]:has(.prop-menu-n)::after { margin-left: 0; }
+.tabs { display: flex; gap: 2px; margin: var(--spacing-s2) 0; }
+.tabs a { color: inherit; text-decoration: none; padding: 3px 10px; border-radius: var(--radius-field); border: 1px solid var(--color-base-300); }
+.tabs a[aria-current] { background: var(--color-base-300); font-weight: 600; }
+.card { display: flex; flex-direction: column; gap: var(--spacing-s1); min-width: 0; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); color: inherit; text-decoration: none; }
+a.card:hover { border-color: var(--color-primary); }
+.card .title { font-weight: 600; overflow-wrap: anywhere; }
+.card .description { font-size: var(--text-caption); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Table: a row each, a linked row's first cell taking the whole row's tap. */
+/* words a drawing says only by its shape (a bar's height, a line's points): read by the text form and screen readers, never drawn */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.table-filter { margin-bottom: var(--spacing-s2); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-ui); background: var(--color-base-100); }
+.table th, .table td { padding: var(--spacing-s1) var(--spacing-s2); border-bottom: 1px solid var(--color-base-300); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.table th { font-weight: 600; background: var(--color-base-200); }
+.table tbody tr { position: relative; }
+.table tbody tr:hover { background: var(--color-base-200); }
+.table td a { color: inherit; text-decoration: none; }
+.table td a::after { content: ""; position: absolute; inset: 0; }
+/* a head sorts by its column (rust-ui's DataGrid sortable head): its arrow drawn, never words, so the text form stays the column's name */
+.table th a { color: inherit; text-decoration: none; display: inline-flex; gap: var(--spacing-s1); }
+.table th a::after { content: "\2195"; opacity: .35; }
+.table th[aria-sort="ascending"] a::after { content: "\2191"; opacity: 1; }
+.table th[aria-sort="descending"] a::after { content: "\2193"; opacity: 1; }
+.table caption { caption-side: bottom; text-align: left; padding: var(--spacing-s1) var(--spacing-s2); color: var(--color-base-content); opacity: .7; }
+/* dioxus-components' Pagination (NOTICE-dioxus-components), on design.json's tokens */
+.pagination { display: flex; justify-content: center; margin: var(--spacing-s2) 0; }
+.pagination-content { display: flex; align-items: center; gap: .25rem; padding: 0; margin: 0; list-style: none; }
+.pagination-link, .pagination-ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem; padding: 0 .625rem; box-sizing: border-box; border-radius: .625rem; font-size: var(--text-ui); color: inherit; text-decoration: none; }
+.pagination-link:hover { background: var(--color-base-200); }
+.pagination-link[aria-current="page"] { border: 1px solid var(--color-base-300); background: var(--color-base-100); font-weight: 600; }
+/* Item's issue-row: a task's row in /tasks' list. */
+.issue-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s1) var(--spacing-s2); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); color: inherit; text-decoration: none; }
+.issue-row:hover { background: var(--color-base-200); }
+.issue-row .status-icon { margin-right: 0; }
+.issue-row .key, .issue-row .says { font-size: var(--text-caption); opacity: 0.7; }
+.issue-row .title { flex: 1 1 16rem; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.issue-row .says { flex: 0 1 auto; overflow-wrap: anywhere; }
+/* ThreadRow: a conversation of /mail's list, as the older app's /mail (Gmail's): unread bold on white, read on grey. */
+.thread-row { display: flex; align-items: baseline; gap: var(--spacing-s3); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-200); border-bottom: 1px solid var(--color-base-300); color: inherit; text-decoration: none; font-size: var(--text-ui); }
+.thread-row.unread { background: var(--color-base-100); font-weight: 600; }
+.thread-row:hover { box-shadow: inset 1px 0 0 var(--color-base-300), inset -1px 0 0 var(--color-base-300), 0 1px 2px 0 rgb(60 64 67 / 0.3); }
+.thread-row .from { flex: none; width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-row .words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-row .gist { font-weight: 400; opacity: 0.6; }
+.thread-row .at { flex: none; font-size: var(--text-caption); white-space: nowrap; }
+@media (max-width: 42rem) { .thread-row { flex-wrap: wrap; } .thread-row .from { flex: 1; width: auto; } .thread-row .words { order: 3; flex-basis: 100%; } }
+.thread-row { align-items: center; }
+.thread-row .star { flex: none; display: inline-flex; opacity: 0.45; }
+.thread-row .star.on { opacity: 1; color: var(--color-warning); }
+.thread-row .star.on svg path { fill: currentColor; }
+.thread-row .from .n { font-weight: 400; font-size: var(--text-caption); opacity: 0.7; }
+/* MailShell: /mail's frame as the older app's (Gmail's): the side column, then the search over the list or a conversation. */
+.mail-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: var(--spacing-s3); align-items: start; }
+.mail-side { display: flex; flex-direction: column; gap: var(--spacing-s3); position: sticky; top: var(--spacing-s3); }
+.mail-account { position: relative; }
+.mail-account > summary { display: flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s2) var(--spacing-s3); border-radius: var(--radius-field); background: var(--color-base-100); cursor: pointer; list-style: none; font-weight: 600; font-size: var(--text-ui); }
+.mail-account > summary::-webkit-details-marker { display: none; }
+.mail-account > summary .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-account .dropdown-menu-content { position: absolute; z-index: 5; left: 0; right: 0; margin-top: var(--spacing-s1); display: flex; flex-direction: column; padding: var(--spacing-s1); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); }
+.mail-account [aria-checked="true"] { font-weight: 600; }
+.mail-compose { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s3) var(--spacing-s4); border-radius: var(--radius-box); background: var(--color-base-100); color: inherit; font-weight: 600; text-decoration: none; }
+.mail-compose:hover { background: var(--color-base-300); }
+.mail-folders { display: flex; flex-direction: column; }
+.mail-folder { display: flex; align-items: center; gap: var(--spacing-s3); padding: var(--spacing-s1) var(--spacing-s3); border-radius: 999px; color: inherit; text-decoration: none; font-size: var(--text-ui); }
+.mail-folder:hover { background: var(--color-base-300); }
+.mail-folder[aria-current="page"] { background: color-mix(in oklab, var(--color-info) 18%, transparent); font-weight: 600; }
+.mail-folder.busy { font-weight: 600; }
+.mail-folder .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-folder .count { font-size: var(--text-caption); }
+.mail-main { min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-s3); }
+.mail-search label { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: var(--spacing-s2); max-width: 46rem; padding: 0 var(--spacing-s3); border-radius: 999px; background: var(--color-base-100); }
+.mail-search .input { flex: 1; border: 0; background: transparent; box-shadow: none; }
+.mail-bar { display: flex; align-items: center; gap: var(--spacing-s1); padding: var(--spacing-s1) var(--spacing-s2); }
+.mail-bar .range { margin-left: auto; font-size: var(--text-caption); opacity: 0.8; }
+.mail-bar [aria-disabled="true"] { opacity: 0.35; }
+.mail-head h1 { margin: var(--spacing-s1) var(--spacing-s2); font-size: 1.375rem; font-weight: 400; display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-s2); }
+.mail-head .count { font-size: var(--text-caption); opacity: 0.7; }
+.fold .avatar { margin-right: var(--spacing-s2); }
+.fold .address { font-size: var(--text-caption); opacity: 0.7; }
+.composer-field { flex: 1 1 100%; display: flex; align-items: center; gap: var(--spacing-s2); border-bottom: 1px solid var(--color-base-300); font-size: var(--text-ui); }
+.composer-field > span:first-child { flex: none; width: 4rem; opacity: 0.7; }
+.composer-attach { display: flex; flex-direction: column; gap: var(--spacing-s1); margin-top: var(--spacing-s2); font-size: var(--text-caption); }
+.composer-attach > span { opacity: 0.7; }
+.pick-bar { display: flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: 999px; box-shadow: 0 8px 24px #0003; font-size: var(--text-ui); }
+.composer-attach .input { min-width: 0; max-width: 100%; height: auto; padding: var(--spacing-s1); }
+.composer-field .input { flex: 1; border: 0; background: transparent; box-shadow: none; }
+.composer-field .value { padding: var(--spacing-s2) 0; }
+.editor-format { min-width: 2rem; font-weight: 600; }
+.editor-format[data-format="italic"] { font-style: italic; }
+@media (max-width: 700px) {
+  .mail-shell { grid-template-columns: minmax(0, 1fr); }
+  .mail-side { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .mail-account { flex: 1; min-width: 12rem; }
+  .mail-folders { flex-direction: row; flex-basis: 100%; overflow-x: auto; }
+  .mail-folder { flex: none; }
+}
+.access { padding: var(--spacing-s2) 0; border-top: 1px solid var(--color-base-300); overflow-wrap: anywhere; }
+.access p { margin: 0; }
+.access .head { display: flex; align-items: center; gap: var(--spacing-s2); }
+.access .usage { margin-top: var(--spacing-s1); }
+.access .note, .access .place { font-size: var(--text-caption); opacity: 0.7; }
+.access .source { font-weight: 600; }
+.chip { flex: none; padding: 0 var(--spacing-s2); font-size: var(--text-caption); font-weight: 600; border-radius: var(--radius-field); background: var(--color-base-300); }
+.access[data-status="works"] .chip { background: var(--color-success); color: var(--color-success-content); }
+.access[data-status="expired"] .chip { background: var(--color-error); color: var(--color-error-content); }
+.access[data-status="refused"] .chip { background: var(--color-warning); color: var(--color-warning-content); }
+/* Words for the text form alone (forms::text_of reads them): a link's target, a check's verdict that a mark shows on screen. */
+.text-only { display: none; }
+.tool { align-self: stretch; padding: var(--spacing-s2) var(--spacing-s3); border-bottom: 1px solid var(--color-base-300); }
+.tool .head { display: flex; align-items: center; gap: var(--spacing-s2); margin: 0; }
+.logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; line-height: 28px; background: var(--color-base-200); }
+.logo svg { width: 16px; height: 16px; }
+.skeleton { color: color-mix(in oklab, var(--color-base-content) 45%, var(--color-base-100)); }
+.skeleton .logo, .skeleton .line, .skeleton .title:empty { background: var(--color-base-300); animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.skeleton .title:empty { display: block; width: 8rem; height: 14px; border-radius: var(--radius-field); }
+.skeleton .line { display: block; height: 12px; margin-top: var(--spacing-s2); border-radius: var(--radius-field); }
+.skeleton .line:nth-of-type(even) { width: 60%; }
+.skeleton:not(.card) { max-width: 32rem; margin: var(--spacing-s2) 0; }
+@keyframes skeleton-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .skeleton .logo, .skeleton .line, .skeleton .title:empty { animation: none; } }
+/* a favicon drawn for a light page gets the text colour behind it on dark: a token on the dark root, never `.dark .x` (design.css) */
+.app.dark { --logo-back: var(--color-base-content); }
+.logo img { width: 18px; height: 18px; border-radius: 4px; background: var(--logo-back, transparent); }
+.skeleton .logo img { filter: grayscale(1); opacity: 0.5; }
+.fold { border-top: 1px solid var(--color-base-300); padding: var(--spacing-s2) 0; }
+.fold > summary { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold[open] > summary { white-space: normal; }
+.fold > pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: Inter, system-ui, sans-serif; }
+/* A mail with no colours of its own follows the theme (framed() lets its document take either scheme, and a frame's document
+   prefers its iframe's scheme): the theme ground shows through, its text light on dark. One with colours of its own keeps
+   them, its document light whatever the theme (task frame-dark-mode; @nha, 2026-11-09: « content with white backrground on
+   dark mode renders weird. »). The scheme is a token on each theme's own root, so a Light cell in a dark page stays light;
+   a frame drawn as sent stays light too, or a mail's own dark-mode rules would match on its white ground (/code-review). */
+.app.light { --frame-scheme: light; }
+.app.dark { --frame-scheme: dark; }
+.frame { display: block; box-sizing: border-box; width: 100%; height: 60vh; resize: vertical; overflow: auto; margin-top: var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); color-scheme: light; }
+.frame.themed { color-scheme: var(--frame-scheme, light); }
+/* drawn light on every page: the SVG bakes its colours, so it sits on a light ground of its own, as an image would */
+.diagram { display: block; background: #fff; border-radius: 8px; padding: 8px; }
+.diagram svg { display: block; width: 100%; height: auto; }
+/* DropdownMenu, after DioxusLabs/dioxus-components' (NOTICE-dioxus-components): the content under its trigger, its items rows. */
+.dropdown-menu { position: relative; display: inline-block; }
+.dropdown-menu-content { z-index: 3; position: absolute; top: 100%; right: 0; min-width: 200px; margin-top: 4px; padding: var(--spacing-s1); background: var(--color-base-100); border-radius: var(--radius-field); box-shadow: 0 8px 28px var(--veil), 0 0 0 1px var(--hair); font-weight: 400; }
+.dropdown-menu-content[hidden] { display: none; }
+.dropdown-menu-item { box-sizing: border-box; width: 100%; border: 0; background: none; font: inherit; text-align: left; display: flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s1) var(--spacing-s2); border-radius: var(--radius-selector); color: inherit; text-decoration: none; cursor: pointer; user-select: none; white-space: nowrap; }
+.dropdown-menu-item:hover, .dropdown-menu-item:focus-visible { background: var(--color-base-300); outline: none; }
+/* Print: a page holding a [data-print] part prints that part alone, the boxes around it kept (the Notion document's Export PDF). */
+@media print { body:has([data-print]) *:not([data-print], [data-print] *, :has([data-print])) { display: none !important; } }
+/* Treemap (task rust-deps-files-hover): nested boxes on a fixed canvas, a box's area its lines; each depth a shade, a box's
+   name on its top line; a hover's outlines come from the component's own rules, a box's links only. */
+.treemap { position: relative; aspect-ratio: 12 / 7; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); overflow: hidden; font-size: 11px; }
+.treemap-box { position: absolute; box-sizing: border-box; overflow: hidden; padding: 1px 3px; white-space: nowrap; text-overflow: ellipsis; line-height: 14px; border: 1px solid var(--color-base-300); color: var(--color-base-content); }
+.treemap-box[data-depth="0"] { background: var(--color-base-200); font-weight: 600; }
+.treemap-box[data-depth="1"] { background: var(--color-base-100); }
+.treemap-box[data-depth="2"] { background: var(--color-base-200); }
+.treemap-box[data-depth="3"] { background: var(--color-base-100); }
+.treemap-box:hover { outline: 2px solid var(--color-base-content); outline-offset: -2px; }
+.treemap-key { font-size: 12px; opacity: 0.8; }
+/* A day: « 3 days ago », its full date on a tap (When). A details toggles with no script; its marker is dropped. */
+.when { display: inline-block; font-size: var(--text-caption); line-height: var(--text-caption--line-height); opacity: 0.7; }
+.when > summary { cursor: pointer; list-style: none; }
+.when > summary::-webkit-details-marker { display: none; }
+.when:not([open]) time, .when[open] span { display: none; }
+/* Events in time (Timeline): a dot a row, on the line that joins them. */
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline > li { position: relative; padding: 0 0 var(--spacing-s3) var(--spacing-s4); }
+/* the date on a line of its own, the event under it; the dot centred on the date's caption line */
+.timeline .when { display: block; width: fit-content; }
+.timeline > li::before { content: ""; position: absolute; left: 0; top: calc(var(--text-caption--line-height) / 2 - 4.5px); width: 9px; height: 9px; border-radius: 50%; background: var(--color-primary); }
+.timeline > li:not(:last-child)::after { content: ""; position: absolute; left: 4px; top: calc(var(--text-caption--line-height) / 2 + 8px); bottom: 2px; width: 1px; background: var(--color-base-300); }
+/* A failed event's dot in the error colour; the next one hollow, still ahead. */
+.timeline > li.failed::before { background: var(--color-error); }
+.timeline > li.next::before { background: transparent; border: 1.5px solid var(--color-primary); box-sizing: border-box; }
+/* The strip: events side by side, the dot above each, the line running right to the next dot. */
+.timeline.strip { display: flex; flex-wrap: wrap; gap: var(--spacing-s2) var(--spacing-s4); overflow: hidden; }
+.timeline.strip > li { padding: 16px 0 0 0; max-width: 16rem; }
+.timeline.strip > li::before { top: 0; }
+.timeline.strip > li:not(:last-child)::after { top: 4px; left: 13px; bottom: auto; width: calc(100% + var(--spacing-s4) - 17px); height: 1px; }
+.timeline.strip pre { white-space: pre-wrap; margin: 0; font-size: var(--text-caption); }
+/* Switch, Toolbar and HoverCard: dioxus-components' looks on this system's tokens (NOTICE-dioxus-components). */
+.switch { position: relative; display: inline-flex; align-items: center; gap: var(--spacing-s2); cursor: pointer; }
+.switch-input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.switch-track { position: relative; flex: none; width: 2rem; height: 1.15rem; border-radius: 9999px; background: var(--color-base-300); transition: background-color 150ms, box-shadow 150ms; }
+.switch-thumb { position: absolute; top: 1px; left: 1px; width: calc(1.15rem - 2px); height: calc(1.15rem - 2px); border-radius: 9999px; background: var(--color-base-100); box-shadow: 0 1px 2px var(--veil, rgb(0 0 0 / 0.2)); transition: transform 150ms; }
+.switch-input:checked + .switch-track { background: var(--color-primary); }
+.switch-input:checked + .switch-track .switch-thumb { transform: translateX(calc(2rem - 1.15rem)); }
+.switch-input:focus-visible + .switch-track { box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 50%, transparent); }
+.switch:has(.switch-input:disabled) { cursor: not-allowed; opacity: 0.5; }
+.toolbar { display: flex; flex-flow: row wrap; align-items: center; gap: var(--spacing-s1); padding: var(--spacing-s1); border-radius: var(--radius-box); box-shadow: inset 0 0 0 1px var(--color-base-300); }
+.toolbar[data-orientation="vertical"] { flex-flow: column; align-items: stretch; }
+.toolbar-group { display: flex; align-items: center; gap: var(--spacing-s1); }
+.toolbar[data-orientation="vertical"] .toolbar-group:has(.toolbar-title) { flex-direction: column; align-items: stretch; }
+.toolbar-title { padding: var(--spacing-s1) var(--spacing-s2); font-size: var(--text-caption); opacity: 0.7; }
+.toolbar-button { display: inline-flex; align-items: center; gap: var(--spacing-s2); padding: var(--spacing-s1) var(--spacing-s2); border: 0; border-radius: var(--radius-selector); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.toolbar-button:hover, .toolbar-button:focus-visible { background: var(--color-base-300); outline: none; }
+.toolbar-separator { align-self: stretch; width: 1px; background: var(--color-base-300); }
+.toolbar-separator[aria-orientation="horizontal"] { width: auto; height: 1px; }
+/* The documents editor (Composer): its toolbar, then the Notion-style field, its words and, inside its border, Discard and Send. */
+.editor { flex: 1 1 100%; display: flex; flex-direction: column; gap: var(--spacing-s1); }
+.editor-tools { align-self: flex-start; box-shadow: none; padding: 0; font-size: var(--text-caption); }
+.editor-tools .toolbar-button[aria-pressed="true"] { background: var(--color-base-300); }
+.editor-field { position: relative; display: flex; align-items: flex-end; gap: var(--spacing-s2); padding: var(--spacing-s2); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); }
+.editor-field:focus-within { border-color: var(--color-primary); }
+.editor-field .dv { flex: 1; min-width: 0; min-height: 3em; max-height: 50vh; overflow: auto; padding: var(--spacing-s1); white-space: pre-wrap; }
+.editor-field .dv[contenteditable], .editor-field .dv[contenteditable]:focus { outline: none; background: none; } /* the field's border shows the focus */
+.editor-field[data-empty]::before { content: attr(data-placeholder); position: absolute; left: calc(var(--spacing-s2) + var(--spacing-s1)); top: calc(var(--spacing-s2) + var(--spacing-s1)); opacity: 0.5; pointer-events: none; }
+.editor-controls { display: flex; flex: none; gap: var(--spacing-s1); }
+.editor.is-preview .editor-field { background: var(--color-base-200); }
+.editor.is-preview .editor-discard, .editor.is-preview .editor-undo, .editor.is-preview .editor-redo { display: none; }
+.hover-card { position: relative; }
+.hover-card-content { z-index: 3; position: absolute; top: 100%; left: 0; right: 0; min-width: 200px; margin-top: 4px; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border-radius: var(--radius-box); box-shadow: 0 8px 28px var(--veil, rgb(0 0 0 / 0.15)), 0 0 0 1px var(--color-base-300); font-weight: 400; pointer-events: none; }
+.hover-card-content .description { white-space: normal; }
+/* Shown on a hover, after a short wait so a pointer passing over draws nothing, and on a key's focus, of the card or of what
+   holds it (a board card's link). Hidden, it takes no room; it takes no pointer either, so a click on what it covers lands
+   there and the pointer leaving its trigger closes it (/code-review). ponytail: a column's last card's opens inside its scroll
+   box, so the column scrolls to it; anchor positioning when every browser has it. */
+@keyframes hover-card-in { from { opacity: 0; } to { opacity: 1; } }
+.hover-card:hover > .hover-card-content, .hover-card:focus-within > .hover-card-content, :focus-visible > .hover-card > .hover-card-content { display: block; animation: hover-card-in 100ms 500ms both; }
+/* Kbd: rust-ui's ideas (NOTICE-rust-ui): a small keycap, never picked by a pointer, an icon in it at the text's size. */
+.kbd, .kbd-group { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-weight: 500; pointer-events: none; user-select: none; }
+.kbd { justify-content: center; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 var(--spacing-s1); font-size: var(--text-caption); border: 1px solid var(--color-base-300); border-bottom-width: 2px; border-radius: var(--radius-selector); background: var(--color-base-200); }
+.kbd svg { width: 12px; height: 12px; }
+/* Ask: the menu's Search or ask field, its ⌘ K inside its right edge. */
+.ask { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+.ask > label { display: flex; flex: 1; min-width: 0; }
+.ask .input { padding-right: 52px; }
+.ask .kbd-group { position: absolute; right: 6px; opacity: .7; }
+/* BottomNav: rust-ui's ideas (NOTICE-rust-ui): equal columns in one 56 px row, an icon over its label, muted until hovered or
+   current, a press that shrinks it, no tap flash or callout, padded clear of the phone's home bar. Its ground and edge span
+   the width, its items held to 512 px as rust-ui's max-w-lg. */
+.bottom-nav { box-sizing: border-box; width: 100%; border-top: 1px solid var(--color-base-300); background: var(--color-base-100); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bottom-nav-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); max-width: 512px; height: var(--bottom-nav-height, 56px); margin: 0 auto; font-weight: 500; }
+.bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; color: color-mix(in oklab, var(--color-base-content) 60%, transparent); text-decoration: none; cursor: pointer; user-select: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; transition: transform 120ms ease-out; }
+.bottom-nav-item:hover, .bottom-nav-item[aria-current] { color: var(--color-primary); }
+.bottom-nav-item:active { transform: scale(0.98); }
+.bottom-nav-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.bottom-nav-item svg { width: 20px; height: 20px; }
+.bottom-nav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); line-height: var(--text-caption--line-height); }
+/* Alert: a page's state, its title then what to do; the warning colour on its edge only, so its words keep the page's. */
+.alert { max-width: 40rem; margin: var(--spacing-s2) 0; padding: var(--spacing-s3); border: 1px solid var(--color-base-300); border-left: 4px solid var(--color-warning); border-radius: var(--radius-box); background: var(--color-base-100); }
+.alert-title { display: block; margin-bottom: var(--spacing-s1); }
+.alert > p { margin: 0; }
+.terminal-screen { box-sizing: border-box; margin: 0; padding: var(--spacing-s3); overflow-x: auto; white-space: pre; border-radius: var(--radius-box); background: var(--color-neutral); color: var(--color-neutral-content); font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.4; }
+.terminal > .form { flex-wrap: nowrap; }
+.terminal > .form > .input { font-family: ui-monospace, Menlo, monospace; }
+
+/* AspectRatio (dioxus-components'), Image and Attachment (rust-ui's ideas): task rust-ui-media */
+.aspect-ratio { position: relative; width: 100%; height: 0; }
+.aspect-ratio-content { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.attachment-group { display: flex; gap: var(--spacing-s3); min-width: 0; padding: var(--spacing-s1) 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; }
+.attachment { position: relative; display: flex; align-items: center; gap: var(--spacing-s2); flex: none; min-width: 160px; max-width: 100%; box-sizing: border-box; padding: var(--spacing-s2); scroll-snap-align: start; background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); color: inherit; text-decoration: none; font-size: var(--text-ui); }
+a.attachment:hover { background: var(--color-base-200); }
+a.attachment:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.attachment[data-orientation="vertical"] { flex-direction: column; align-items: stretch; width: 160px; min-width: 0; }
+.attachment-media { display: block; flex: none; width: 40px; overflow: hidden; border-radius: var(--radius-field); background: var(--color-base-200); }
+.attachment[data-orientation="vertical"] .attachment-media { width: 100%; }
+.attachment-content { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.attachment[data-orientation="vertical"] .attachment-content { padding: 0 var(--spacing-s1); }
+.attachment-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-description { margin-top: var(--spacing-s0); font-size: var(--text-caption); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
