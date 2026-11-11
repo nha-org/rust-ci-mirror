@@ -1,0 +1,10 @@
+[package]
+name = "dash-index"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+
+[dev-dependencies]
