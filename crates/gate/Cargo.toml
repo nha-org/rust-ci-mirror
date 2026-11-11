@@ -1,0 +1,12 @@
+[package]
+name = "dash-gate"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+cargo_metadata = "0.23"
+dash-meter.workspace = true
