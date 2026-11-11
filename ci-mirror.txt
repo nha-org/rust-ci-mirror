@@ -1,0 +1,14 @@
+# What dash ci mirror rust pushes to nha-org/rust-ci-mirror (rfc-rust-unified section 17): paths under rust/, one a
+# line, a folder taking its tracked files. Only these ride: never sandbox files, notes or markdown from the rest.
+Cargo.toml
+Cargo.lock
+rustfmt.toml
+crates/
+vendor/
+ci/
+.config/nextest.toml
+.github/workflows/ci.yml
+ui-spike/
+# crates/dash's tests compile in dash parity's marks; this list rides so the gate reads it on the mirror too
+parity.tsv
+ci-mirror.txt
