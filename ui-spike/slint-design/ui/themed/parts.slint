@@ -1,0 +1,238 @@
+// The design page's small parts, on Ds alone, as design.css's. A part compiled three times, once per theme tree (build.rs).
+import { Tokens, Ds, Theme, ThemeMode } from "slintcn/theme/tokens.slint";
+import { Icon } from "slintcn/components/icon.slint";
+import { Button, ButtonKind } from "slintcn/components/button.slint";
+export { Ds, Theme, ThemeMode, Icon, Button, ButtonKind }
+
+export global Paths {
+    out property <string> check: "M4 12l5 5L20 6";
+    out property <string> bell: "M6 16V11a6 6 0 0112 0v5l2 2H4zM10 21h4";
+    out property <string> lock: "M6 11h12v9H6zM8 11V8a4 4 0 018 0v3";
+    out property <string> search: "M11 4a7 7 0 100 14 7 7 0 000-14zM16 16l5 5";
+    out property <string> plus: "M12 5v14M5 12h14";
+    out property <string> inbox: "M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5";
+    out property <string> doc: "M7 3h7l4 4v14H7zM14 3v4h4";
+    out property <string> link: "M10 14a4 4 0 006 0l3-3a4 4 0 00-6-6l-1 1M14 10a4 4 0 00-6 0l-3 3a4 4 0 006 6l1-1";
+    out property <string> dots: "M5 12h.5M12 12h.5M19 12h.5";
+    out property <string> person: "M12 4a4 4 0 100 8 4 4 0 000-8zM5 20a7 7 0 0114 0";
+    out property <string> chat: "M4 5h16v11H9l-5 4z";
+    out property <string> send: "M12 19V6M6 12l6-6 6 6";
+    out property <string> star: "M12 4l2.5 5.5 6 .7-4.4 4 1.2 5.8L12 17l-5.3 3 1.2-5.8-4.4-4 6-.7z";
+    out property <string> closed: "M9 6l6 6-6 6";
+    out property <string> open: "M6 9l6 6 6-6";
+}
+
+export component T inherits Text {
+    color: Ds.color-base-content;
+    font-size: Ds.text-ui;
+    vertical-alignment: center;
+}
+export component B inherits T { font-weight: 600; }
+export component Meta inherits T {
+    color: Ds.muted;
+    font-size: Ds.text-caption;
+}
+export component Wrapped inherits T {
+    wrap: word-wrap;
+    horizontal-stretch: 1;
+}
+
+// One row of parts that wraps, as CSS's flex-wrap.
+export component Flow inherits FlexboxLayout {
+    flex-direction: row;
+    flex-wrap: wrap;
+    spacing: Ds.spacing-s2;
+    cross-axis-alignment: center;
+    @children
+}
+
+/// A label, then one theme's cell. Only the Light column carries the label: the two columns are the same source, so their
+/// rows line up by being the same height.
+export component Row {
+    in property <string> label;
+    HorizontalLayout {
+        spacing: Ds.spacing-s3;
+        padding-bottom: Ds.spacing-s2;
+        if Theme.mode == ThemeMode.light: Meta {
+            width: 138px;
+            vertical-alignment: top;
+            wrap: word-wrap;
+            text: root.label;
+        }
+        Rectangle {
+            background: Ds.color-base-100;
+            border-width: 1px;
+            border-color: Ds.hair;
+            border-radius: Ds.radius-box;
+            clip: true;
+            VerticalLayout {
+                padding: Ds.spacing-s3;
+                spacing: Ds.spacing-s1;
+                @children
+            }
+        }
+    }
+}
+
+export component Section {
+    in property <string> id;
+    in property <string> name;
+    accessible-role: groupbox;
+    accessible-id: "s-" + root.id;
+    accessible-label: root.name;
+    VerticalLayout {
+        padding-bottom: Ds.spacing-s7;
+        // The same two lines in both columns, so their rows stay level. The name may run over the label's width.
+        T {
+            height: 24px;
+            font-size: Ds.text-title;
+            font-weight: 600;
+            text: Theme.mode == ThemeMode.light ? root.name : "";
+        }
+        HorizontalLayout {
+            height: 20px;
+            spacing: Ds.spacing-s3;
+            if Theme.mode == ThemeMode.light: Rectangle { width: 138px; }
+            Meta { text: Theme.mode == ThemeMode.light ? "Light" : "Dark"; }
+        }
+        @children
+    }
+}
+
+export component Rule {
+    in property <string> lead;
+    in property <string> rest;
+    HorizontalLayout {
+        spacing: Ds.spacing-s1;
+        B { text: root.lead; horizontal-stretch: 0; }
+        Wrapped { text: root.rest; }
+    }
+}
+
+export component Say inherits Text {
+    in property <int> tone: 0;
+    font-size: Ds.text-caption;
+    color: tone == 1 ? Ds.color-success : tone == 2 ? Ds.color-error : Ds.muted;
+}
+
+export component Empty inherits Rectangle {
+    in property <string> text;
+    min-height: 40px;
+    border-width: 1px;
+    border-color: Ds.hair;
+    border-radius: Ds.radius-field;
+    // Slint's border has no dashed style: the toolkit lacks it, so it is solid here.
+    Meta { text: root.text; horizontal-alignment: center; }
+}
+
+export component Surface inherits Rectangle {
+    in property <bool> raised;
+    background: Ds.color-base-100;
+    border-radius: Ds.radius-box;
+    border-width: 1px;
+    border-color: Ds.hair;
+    // One shadow per element: the ring CSS's second shadow draws is this border.
+    drop-shadow-blur: raised ? 16px : 3px;
+    drop-shadow-offset-y: raised ? 6px : 1px;
+    drop-shadow-color: Ds.veil;
+    animate drop-shadow-blur, drop-shadow-offset-y { duration: 120ms; easing: ease-out; }
+}
+
+export component DsCard inherits Surface {
+    in property <string> title;
+    in property <string> line: "A line that says what it is about.";
+    VerticalLayout {
+        padding: Ds.spacing-s3;
+        spacing: Ds.spacing-s1;
+        B { text: root.title; }
+        Meta { text: root.line; }
+        HorizontalLayout {
+            alignment: end;
+            spacing: Ds.spacing-s2;
+            padding-top: Ds.spacing-s2;
+            @children
+        }
+    }
+}
+
+// The keyframe: Slint has no @keyframes, so a rotation is a function of the animation tick. Any stops are a function too.
+export component Spinner {
+    property <angle> turn: mod(animation-tick(), 800ms) / 800ms * 360deg;
+    accessible-role: groupbox;
+    accessible-id: "spin";
+    accessible-value: round(self.turn / 1deg);
+    min-width: 12px;
+    max-width: 12px;
+    Rectangle {
+        y: (parent.height - 12px) / 2;
+        width: 12px;
+        height: 12px;
+        transform-rotation: root.turn;
+        Path {
+            width: 12px;
+            height: 12px;
+            viewbox-width: 12;
+            viewbox-height: 12;
+            fill: transparent;
+            stroke: Ds.color-primary-content;
+            stroke-width: 2px;
+            commands: "M6 1a5 5 0 105 5";
+        }
+    }
+}
+
+// A cell's full height, the mark at its middle: a HorizontalLayout puts a shorter child at the top and only FlexboxLayout has
+// a cross-axis alignment, so the parts centre themselves.
+export component Ic {
+    in property <string> commands;
+    in property <length> size: 16px;
+    in property <color> tint: Ds.color-base-content;
+    min-width: root.size;
+    max-width: root.size;
+    min-height: root.size;
+    horizontal-stretch: 0;
+    Icon {
+        x: 0;
+        y: (parent.height - root.size) / 2;
+        width: root.size;
+        height: root.size;
+        size: root.size;
+        commands: root.commands;
+        tint: root.tint;
+    }
+}
+
+// Linear's status circle.
+export component Status {
+    in property <string> kind: "todo";
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    horizontal-stretch: 0;
+    property <color> tone: kind == "started" ? Ds.color-warning : kind == "review" || kind == "done" ? Ds.color-primary : Ds.muted;
+    Path {
+        x: 0;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        viewbox-width: 16;
+        viewbox-height: 16;
+        fill: transparent;
+        stroke: root.tone;
+        stroke-width: 1.5px;
+        commands: "M8 1.5a6.5 6.5 0 110 13 6.5 6.5 0 010-13z";
+    }
+    Path {
+        x: 0;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
+        viewbox-width: 16;
+        viewbox-height: 16;
+        fill: root.tone;
+        commands: root.kind == "started" ? "M8 3a5 5 0 010 10z"
+            : root.kind == "review" ? "M8 3a5 5 0 11-4.3 7.5L8 8z"
+            : root.kind == "done" ? "M8 3a5 5 0 110 10A5 5 0 018 3z"
+            : "M8 8z";
+    }
+}
