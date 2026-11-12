@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFC: his inbox, agent to him</title>
+<meta name="description" content="/inbox is the reverse of comments: an agent asks him something, and an ask reaches him only once a check pass has proved it truly needs him and it is ready to answer in one look. It sets the ask's states, the readiness bar, the rules that drop or hold asks, and the page.">
+<meta name="crm:icon" content="ring">
+<link rel="stylesheet" href="shell/shell.css"><script src="shell/shell.js" defer></script>
+<style>
+/* the page wireframe: a dashed frame for what folds away */
+.diagram .fold { stroke-dasharray: 5 4; }
+</style>
+</head>
+<body>
+<div class="rfc">
+<nav aria-label="Contents"><b>Contents</b>
+  <a href="#intent">1. Intent</a>
+  <a href="#mirror">2. The mirror of comments</a>
+  <a href="#states">3. The ask and its states</a>
+  <a href="#bar">4. The readiness bar</a>
+  <a href="#check">5. The check pass and its rules</a>
+  <a href="#never">6. Held, and never his</a>
+  <a href="#page">7. The page</a>
+  <a href="#tasks">8. Who builds what</a>
+  <a href="#unknowns">9. Unknowns and open points</a>
+  <a href="#glossary">10. Glossary</a>
+</nav>
+<main>
+<h1>RFC: his inbox, agent to him</h1>
+<p class="lede">An agent asks him something only once a check has proved that only he can answer it, and the ask arrives ready: what it is, why him, the agent's pick and a link to the thing itself.</p>
+<ol class="stages" aria-label="Stage"><li class="done">Draft</li><li class="done">Review</li><li aria-current="step">Accepted</li><li>Shipped</li></ol>
+<ul>
+  <li><b>For:</b> Nicolas, who reads his inbox and sets how much it shows; the tasks that build it, <a href="http://100.72.158.115:7788/tasks/rust-inbox-triage">rust-inbox-triage</a> first.</li>
+  <li><b>Goal:</b> nothing reaches /inbox that is settled, not his, held behind a gate of his, or not ready to answer.</li>
+  <li><b>Status:</b> accepted. His one decision is in: at most 7 asks shown at once (<a href="#d-cap">section 7</a>; @nha, 2026-11-11: « 7 s fine. »). The build starts from it.</li>
+</ul>
+
+<section id="intent">
+<h2>1. Intent</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>His brief, 2026-11-11, verbatim: « /inbox "72 things wait on Nicolas" - too many and how many are really needing me ? », « we need to treat this as the reverse pendant of the comments. Comments = me to agent. /inbox = agent to me. there needs to be a "backlog" of things an agent / JEV has to double-check that they truly need me. We need to start building the rules now as we find it, as well as the logic (state similar to tasks?). », « the presentation is also terrible right now », « it is clear that the things put in front of me are not ready to review or approve. Please add a design doc (light RFC) about how to handle my inbox. »</li>
+  <li>Intent only (rfc skill, rule 2): no tool, file or number here.</li>
+  <li>Rules carry <code>r-</code> ids while at Review: <code>design_rules_test</code> fails on a <code>rule-</code> id no test holds. Once accepted, rust-inbox-triage and rust-inbox-page rename each to <code>rule-</code> in the PR that adds its test (rfc skill, rule 29).</li>
+</ul></details>
+<ol>
+  <li id="r-1-1"><b>Only what needs him.</b> An ask he sees is one no agent can answer, not already settled, and not behind a gate he named.
+    <ul><li>Testable: every ask shown names the reason only he can answer it, from a short fixed list.</li></ul></li>
+  <li id="r-1-2"><b>Ready in one look.</b> He can answer an ask from its line and its link, with no search and no question back.</li>
+  <li id="r-1-3"><b>Approved means done by an agent.</b> Once he approves, the thing goes out without him; when no tool can send it, the ask says why and holds everything he needs.</li>
+  <li id="r-1-4"><b>Rules grow as cases appear.</b> Each case that should not have reached him becomes a rule with a test, so the same kind never reaches him again.</li>
+  <li id="r-1-5"><b>An ask has a life, as a task does.</b> Its state is known, every move has an owner, and nothing waits forever unseen.</li>
+  <li id="r-1-6"><b>The page reads like a short to-do.</b> One line per ask, its action and its link; no warning, raw id or pasted text.</li>
+</ol>
+</section>
+
+<section id="mirror">
+<h2>2. The mirror of comments</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « Comments = me to agent. /inbox = agent to me. »</li>
+  <li>The comment side is as built: the watcher routes a comment to its task's card (rfc-project-boards section 10), and the comment resolves when that task merges (task comment-task-status, done).</li>
+</ul></details>
+<p>A comment and an ask are the same flow, run in opposite directions. Each has a sender, a router, a place it lands and an answer that closes it. Comments already have every part; asks lack the router that checks them, so everything raised lands on him.</p>
+<figure class="diagram">
+<svg viewBox="0 0 720 230" role="img" aria-label="Two flows. Top: Nicolas writes a comment, the watcher routes it to a task's card, an agent answers in place. Bottom: an agent raises an ask, the check pass drops, holds or shows it, Nicolas answers on /inbox and the agent acts.">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <text x="10" y="18" font-weight="600">Comments: him to agent</text>
+  <rect class="box" x="10" y="30" width="150" height="50" rx="8"/><text x="85" y="60" text-anchor="middle">Nicolas</text>
+  <rect class="box" x="285" y="30" width="150" height="50" rx="8"/><text x="360" y="52" text-anchor="middle">Watcher</text><text x="360" y="70" text-anchor="middle" font-size="12">routes to a card</text>
+  <rect class="box" x="560" y="30" width="150" height="50" rx="8"/><text x="635" y="60" text-anchor="middle">Agent</text>
+  <path class="arrow" d="M160 55H281"/><text x="222" y="48" text-anchor="middle" font-size="12">comment</text>
+  <path class="arrow" d="M435 55H556"/><text x="497" y="48" text-anchor="middle" font-size="12">answer in place</text>
+  <text x="10" y="128" font-weight="600">Asks: agent to him</text>
+  <rect class="box" x="10" y="140" width="150" height="50" rx="8"/><text x="85" y="170" text-anchor="middle">Agent</text>
+  <rect class="box accent" x="285" y="140" width="150" height="50" rx="8"/><text x="360" y="162" text-anchor="middle">Check pass</text><text x="360" y="180" text-anchor="middle" font-size="12">drop, hold or show</text>
+  <rect class="box" x="560" y="140" width="150" height="50" rx="8"/><text x="635" y="162" text-anchor="middle">Nicolas</text><text x="635" y="180" text-anchor="middle" font-size="12">on /inbox</text>
+  <path class="arrow" d="M160 165H281"/><text x="222" y="158" text-anchor="middle" font-size="12">ask, raised</text>
+  <path class="arrow" d="M435 165H556"/><text x="497" y="158" text-anchor="middle" font-size="12">ready ask</text>
+  <path class="arrow" d="M635 190V215H85V194"/><text x="360" y="210" text-anchor="middle" font-size="12">his answer wakes the asker, who acts</text>
+</svg>
+<figcaption>The check pass, in accent, is the part comments have and asks lack today.</figcaption>
+</figure>
+<div class="tw"><table>
+<tr><th></th><th>Comment</th><th>Ask</th></tr>
+<tr><td>Sender</td><td>Nicolas</td><td>An agent, a task, the PM loop, the mail poll</td></tr>
+<tr><td>Router</td><td>The watcher: picks the task's card</td><td>The <a href="#g-check-pass">check pass</a>: drops, holds or shows</td></tr>
+<tr><td>Lands on</td><td>The task's card, its agent woken</td><td>/inbox, one line</td></tr>
+<tr><td>Answered by</td><td>An agent, in the thread</td><td>Nicolas: a button, or a comment on the ask</td></tr>
+<tr><td>Closes when</td><td>Its task merges</td><td>The asker acted on his answer, or a rule settled it</td></tr>
+</table></div>
+<p>The two meet at one point: a comment he writes on an ask (« not mine », « held on CAPE ») is routed like any comment, to the check pass, which turns it into a rule.</p>
+</section>
+
+<section id="states">
+<h2>3. The ask and its states</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « as well as the logic (state similar to tasks?) ». The states are the brief's six: raised, checked, held, shown, answered, dropped.</li>
+  <li>Why asks piled up (private/notes/inbox-triage-rules.md, « mechanism faults »): the PM loop wrote waiting lines for work never his; nothing closed a waiting line when its PR merged, its message went or its lead dropped; the inbox script refused to take a waiting file; two readers disagreed on what is open. One record with one state fixes all four: one writer, one reader, closed by events.</li>
+  <li>Counts: /inbox read « 71 things wait on Nicolas » on 2026-11-11 before a triage pass by hand and 25 after it (<code>curl -s -H 'accept: text/plain' http://127.0.0.1:7788/inbox | grep 'things wait'</code>, same day); 45 of the 48 asks from other sessions were already settled.</li>
+</ul></details>
+<p>An <a href="#g-ask">ask</a> is one record in the store, as a task is, with one state. Every source writes asks through the same command; nothing else lands on /inbox.</p>
+<figure class="diagram">
+<svg viewBox="0 0 720 250" role="img" aria-label="States of an ask: raised goes to checked, held or dropped by the check pass; held goes back to raised when the gate lifts; checked goes to shown by the app; shown goes to answered by Nicolas or dropped by a rule; answered closes when the asker acts.">
+  <rect class="box" x="10" y="90" width="110" height="44" rx="8"/><text x="65" y="117" text-anchor="middle">raised</text>
+  <rect class="box accent" x="210" y="90" width="110" height="44" rx="8"/><text x="265" y="117" text-anchor="middle">checked</text>
+  <rect class="box" x="410" y="90" width="110" height="44" rx="8"/><text x="465" y="117" text-anchor="middle">shown</text>
+  <rect class="box" x="600" y="90" width="110" height="44" rx="8"/><text x="655" y="117" text-anchor="middle">answered</text>
+  <rect class="box" x="210" y="10" width="110" height="44" rx="8"/><text x="265" y="37" text-anchor="middle">held</text>
+  <rect class="box" x="300" y="196" width="110" height="44" rx="8"/><text x="355" y="223" text-anchor="middle">dropped</text>
+  <path class="arrow" d="M120 112H206"/><text x="163" y="105" text-anchor="middle" font-size="11">check: ready</text>
+  <path class="arrow" d="M110 90L206 54"/><text x="140" y="64" text-anchor="end" font-size="11">check: gate</text>
+  <path class="arrow" d="M210 32H40V86"/><text x="125" y="26" text-anchor="middle" font-size="11">gate lifts</text>
+  <path class="arrow" d="M65 134V218H296"/><text x="170" y="212" text-anchor="middle" font-size="11">check: settled, not his</text>
+  <path class="arrow" d="M320 112H406"/><text x="363" y="105" text-anchor="middle" font-size="11">app: its turn</text>
+  <path class="arrow" d="M520 112H596"/><text x="558" y="105" text-anchor="middle" font-size="11">Nicolas</text>
+  <path class="arrow" d="M465 134V218H414"/><text x="473" y="175" font-size="11">rule: settled meanwhile</text>
+</svg>
+<figcaption>The check pass moves an ask out of raised; only the app puts it in front of him; only he answers it.</figcaption>
+</figure>
+<div class="tw"><table>
+<tr><th>State</th><th>Means</th><th>Who moves it out, to where</th></tr>
+<tr><td>raised</td><td>An agent wrote it; nobody checked it yet</td><td>The check pass: to checked, held or dropped; or back to its asker, still raised, with what the <a href="#g-bar">readiness bar</a> found missing</td></tr>
+<tr><td>checked</td><td>Passed the bar, truly his, waiting for its turn on the page</td><td>The app: to shown, in order of deadline then age (<a href="#d-cap">section 7</a>)</td></tr>
+<tr><td>held</td><td>His, but behind a <a href="#g-gate">gate</a> of his; prepared, never shown</td><td>The app, when the gate lifts: back to raised, so the check runs again on fresh facts</td></tr>
+<tr><td>shown</td><td>On /inbox now</td><td>Nicolas: to answered. A rule that fires meanwhile (PR merged, message sent): to dropped</td></tr>
+<tr><td>answered</td><td>He answered; the asker is woken with his words</td><td>The asker acts; the record keeps his answer, so it is never asked again</td></tr>
+<tr><td>dropped</td><td>Settled, not his, or an agent can do it</td><td>Final. Each drop names its rule; the page folds a day's drops away for trust</td></tr>
+</table></div>
+</section>
+
+<section id="bar">
+<h2>4. The readiness bar</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « it is clear that the things put in front of me are not ready to review or approve »; on Shani: « how does the /mail link help me ? »; « Datadog: unclear what I need to do. »; on Mirakl: « it says "approved" if it really is why do you ask ? If it is then where is the CV ? and the presentation is very sub-par on this page still »; « I approved so this is up to you to send automatically. You should have credentials. »; « I need a link. »</li>
+  <li>The approved free-work forms went out through freework_apply.py's API the same day (commit 9b43d44ea, applications 10599014 and 10599020): the rule « a form on someone else's site stays his » had handed them to him.</li>
+</ul></details>
+<p>An ask carries five fields, each required when it is raised; the check pass refuses an ask with one empty or weak, and sends it back to its asker.</p>
+<ol>
+  <li id="r-4-1"><b>What it is, in plain words.</b> One line he could act on without the agent's context: no task id, no file path, no pasted mail.
+    <ul><li>Jev scores the line for plain words, as <code>dash doc ready</code> scores a doc; under the bar, it goes back.</li></ul></li>
+  <li id="r-4-2"><b>Why only him.</b> One reason from a fixed list, never free text:
+    <ul><li><b>outside party:</b> a decision that commits him to someone (a call, a contract, a rate).</li>
+      <li><b>wording:</b> new words in his voice, only the new blocks of a draft.</li>
+      <li><b>his hands:</b> a browser sign-in, sudo, the keychain, a form on a site with no stored credentials.</li>
+      <li><b>one way:</b> an irreversible choice that is contested.</li></ul></li>
+  <li id="r-4-3"><b>The agent's pick.</b> What the agent would do, so his answer can be « yes ».</li>
+  <li id="r-4-4"><b>A link that opens the thing itself.</b> The mail thread, the draft, the form, the PR; never a list page such as /mail. The link must answer before the ask is shown.</li>
+  <li id="r-4-5"><b>For an approval: who sends it.</b> The tool that sends it once he says yes. Else the reason no tool can, and every piece he needs, linked: the form, the CV PDF, the message to copy.</li>
+</ol>
+<div class="tw"><table>
+<tr><th>Approved thing</th><th>Sent by, after his yes</th><th>Task</th></tr>
+<tr><td>Mail</td><td><code>dash mail send</code>, from nicolas@klar.im</td><td>exists</td></tr>
+<tr><td>LinkedIn message</td><td>The LinkedIn tool, on a slow random watch</td><td><a href="http://100.72.158.115:7788/tasks/approved-send-watch">approved-send-watch</a></td></tr>
+<tr><td>Free-work application</td><td>Free-work's API, the CV shared in the same call</td><td><a href="http://100.72.158.115:7788/tasks/freework-apply-shares-cv">freework-apply-shares-cv</a></td></tr>
+<tr><td>Greenhouse form (Mirakl)</td><td>A headless browser with its own profile</td><td><a href="http://100.72.158.115:7788/tasks/rust-apply-greenhouse">rust-apply-greenhouse</a>, first use <a href="http://100.72.158.115:7788/tasks/apply-mirakl">apply-mirakl</a></td></tr>
+<tr><td>LinkedIn Easy Apply</td><td>The app's Easy Apply, on his approval</td><td>exists</td></tr>
+<tr><td>Any other form</td><td>No tool yet: the ask links form, CV and text, and a task to build the tool is raised in the same move</td><td>one per site</td></tr>
+</table></div>
+<p>An approved item never comes back to him as an ask to approve. If it sits approved and unsent, that is an agent's failure, raised to the orchestrator, not to him.</p>
+</section>
+
+<section id="check">
+<h2>5. The check pass and its rules</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « there needs to be a "backlog" of things an agent / JEV has to double-check that they truly need me. We need to start building the rules now as we find it ».</li>
+  <li>The first rules are private/notes/inbox-triage-rules.md, found on 2026-11-11 by the triage pass by hand. They move into the rules file in rust-inbox-triage's first PR; the note then points to it.</li>
+  <li>Global rule: a new check needs a test and a count of its firings, or it is dead weight. The firing count is the reason each rule keeps a counter.</li>
+</ul></details>
+<p>The <a href="#g-check-pass">check pass</a> runs on every raised ask, again on every event a rule watches (a PR merged, a draft sent, a lead dropped, a gate lifted), and on each orchestrator tick. It works in three steps, cheapest first.</p>
+<ol>
+  <li id="r-5-1"><b>Rules, in code.</b> Each <a href="#g-rule">rule</a> is a row of data: a kind, a test against the store, his words, an example ask and the verdict it must give. Most asks end here, at no cost.</li>
+  <li id="r-5-2"><b>Jev, for words.</b> Scores the « what » line for plain words and asks « could an agent do this? ». Cheap; a low score sends the ask back.</li>
+  <li id="r-5-3"><b>An agent, for the rest.</b> An ask no rule decides and Jev doubts goes to the orchestrator's check. Its verdict must cite a rule, or add one in the same change.</li>
+</ol>
+<div class="tw"><table>
+<tr><th>Kind</th><th>Verdict</th><th>First rows</th></tr>
+<tr><td>settled</td><td>dropped</td><td>Its PR merged or closed; its task done; its approval tapped; its draft sent, moot or its lead dropped; superseded by a settled ask; a sudo run whose check passes</td></tr>
+<tr><td>never</td><td>dropped</td><td>A paid or sales pitch; an optional step nothing depends on; an after-merge check or a reviewer resuming (<a href="#never">section 6</a>)</td></tr>
+<tr><td>held</td><td>held</td><td>Anything for Babel while the CAPE contract is unsigned</td></tr>
+<tr><td>his</td><td>checked</td><td>The four reasons of <a href="#r-4-2">the bar</a></td></tr>
+</table></div>
+<pre><code><span class="cm"># one rule, a row of the tracked rules file beside the check's code</span>
+[[rule]]
+id      = <span class="st">"never-pitch"</span>
+kind    = <span class="st">"never"</span>          <span class="cm"># settled | never | held | his</span>
+when    = <span class="st">"source-is-pitch"</span> <span class="cm"># a test the check's code defines</span>
+said    = <span class="st">"@nha, 2026-11-11: « ignore all these paid pitches as a rule »"</span>
+example = { source = <span class="st">"crisp"</span>, title = <span class="st">"Collab x Max Zaharenkov (#146)"</span> }
+expect  = <span class="st">"dropped"</span></code></pre>
+<ol>
+  <li id="r-5-4"><b>A rule without its example fails the build.</b> One table test runs every row's example and checks its verdict, so each rule has its test by construction.</li>
+  <li id="r-5-5"><b>A rule counts its firings.</b> <code>dash inbox rules</code> prints each rule with its count; a rule at zero for a month is proposed for removal.</li>
+  <li id="r-5-6"><b>His « not mine » is a rule waiting to be written.</b> His comment on a shown ask drops it now, and the next check pass writes the rule it implies, with his words in <code>said</code>.</li>
+</ol>
+<details><summary>Why rows of data and not a prompt</summary>
+<p>A prompt cannot be tested row by row and drifts with the model. A row has an example and a verdict, so a broken rule shows in CI, and a count shows a rule that never fires. New kinds of test against the store (a new <code>when</code>) are Rust code with their own test; most new rules reuse an existing one.</p>
+</details>
+</section>
+
+<section id="never">
+<h2>6. Held, and never his</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « Babel stuff is all blocked on the contract CAPE. We can prepare but not act yet. So prepare but don't ask me. »</li>
+  <li>@nha, 2026-11-11: « ignore all these paid pitches as a rule. This is something to improve in Klar if this wasn't marked marketing, and in perso if it was and you ask me anyway ». Klar's side is klar-582.</li>
+  <li>« Datadog: unclear what I need to do. »: the Datadog plugin sign-in was optional, nothing depended on it; it falls under never his.</li>
+</ul></details>
+<h3>Held behind his gates</h3>
+<p>A <a href="#g-gate">gate</a> is a record: its name, his words, what it holds, and the fact that lifts it. Agents keep preparing behind it: drafts written, blocks proposed, each ask raised and held. None reaches him.</p>
+<div class="tw"><table>
+<tr><th>Gate</th><th>Holds</th><th>Lifts when</th></tr>
+<tr><td>CAPE</td><td>Every ask about Babel Coop: its drafts, its blocks, the Hostman account question</td><td>The CAPE contract is signed, recorded in the store from its mail or his word</td></tr>
+<tr><td>A date</td><td>An ask that cannot act before a day (the graal Developer ID, from 2027-01-04)</td><td>The day comes</td></tr>
+</table></div>
+<p>When a gate lifts, its asks go back to raised and are checked again: weeks behind a gate can settle or stale them.</p>
+<h3>Never his</h3>
+<ol>
+  <li id="r-6-1"><b>A paid or sales pitch.</b> Dropped, never asked. In Klar's mail, a pitch is marked marketing by its classifier (<a href="http://100.72.158.115:7788/projects/klar/issue/klar-582">klar-582</a>); here, a pitch that reaches the check anyway is dropped by rule, and that rule's firing is a Klar miss to report.</li>
+  <li id="r-6-2"><b>An optional step nothing depends on.</b> Dropped; if something later depends on it, that dependency raises it again with the reason.</li>
+  <li id="r-6-3"><b>An after-merge check, a reviewer resuming, an agent's own follow-up.</b> The orchestrator's from the start; the PM loop never raises them as asks.</li>
+  <li id="r-6-4"><b>A comment waiting on Claude.</b> An agent's queue, not his; it lives on the agents' side, never on /inbox.</li>
+  <li id="r-6-5"><b>An approved thing to send.</b> An agent sends it (<a href="#r-4-5">the bar</a>).</li>
+</ol>
+</section>
+
+<section id="page">
+<h2>7. The page</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>@nha, 2026-11-11: « the presentation is also terrible right now », « I need a link. »</li>
+  <li>On 2026-11-11, /inbox mixed warnings, raw draft ids, three comments waiting on Claude, 12 lines of Babel blocks, two pasted texts from other sessions, and the whole daily list below.</li>
+  <li>Components only from /design (rust/CLAUDE.md rule 6): List with Item rows (look issue-row), Badge, Button, Fold. One primary action per view, the rest neutral (/design's Directing rules).</li>
+</ul></details>
+<figure class="diagram">
+<svg viewBox="0 0 720 340" role="img" aria-label="The page: a heading with the count of shown asks, then three groups, Approve, Decide and Do, each a list of one-line rows with the ask in plain words, why him and the agent's pick, and a link; then two folds, held and dropped today.">
+  <rect class="box" x="10" y="10" width="700" height="320" rx="10"/>
+  <text x="30" y="42" font-size="20" font-weight="600">3 wait on you</text>
+  <text x="30" y="74" font-weight="600">Approve</text>
+  <rect class="box accent" x="30" y="84" width="660" height="40" rx="6"/>
+  <text x="44" y="102" font-size="13">New opening line for Naresh (Tether): approve it?</text><text x="44" y="118" font-size="11">his because: wording · pick: approve · sent by: LinkedIn tool</text>
+  <text x="676" y="109" font-size="12" text-anchor="end">Approve · Open ›</text>
+  <text x="30" y="148" font-weight="600">Decide</text>
+  <rect class="box" x="30" y="158" width="660" height="40" rx="6"/>
+  <text x="44" y="176" font-size="13">Take the 30-minute call Laura (Caraz) offers on Friday?</text><text x="44" y="192" font-size="11">his because: outside party · pick: yes, 14:00</text>
+  <text x="676" y="183" font-size="12" text-anchor="end">Open ›</text>
+  <text x="30" y="222" font-weight="600">Do</text>
+  <rect class="box" x="30" y="232" width="660" height="40" rx="6"/>
+  <text x="44" y="250" font-size="13">Sign in to LinkedIn in the app's browser: the session expired</text><text x="44" y="266" font-size="11">his because: his hands · pick: now, two minutes</text>
+  <text x="676" y="257" font-size="12" text-anchor="end">Open ›</text>
+  <rect class="box fold" x="30" y="284" width="320" height="32" rx="6"/><text x="44" y="305" font-size="12">› 12 held behind CAPE</text>
+  <rect class="box fold" x="370" y="284" width="320" height="32" rx="6"/><text x="384" y="305" font-size="12">› 31 dropped today, and why</text>
+</svg>
+<figcaption>Rows are made up for the layout. The count is shown asks only; held and dropped fold away, dashed.</figcaption>
+</figure>
+<ol>
+  <li id="r-7-1"><b>The count is the shown asks.</b> Never the raised, held or dropped ones.</li>
+  <li id="r-7-2"><b>Grouped by what he does:</b> Approve, Decide, Do. Inside a group, nearest deadline first, then oldest.</li>
+  <li id="r-7-3"><b>One row per ask:</b> the plain-words line as title; why him and the agent's pick on the second line; the whole row links to the thing itself.</li>
+  <li id="r-7-4"><b>Answer in place.</b> An approval row's button approves; any row takes a comment (« not mine », « later »), routed like any comment.</li>
+  <li id="r-7-5"><b>Two folds:</b> held, by gate; dropped today, each with its rule. They are there for trust, closed by default.</li>
+  <li id="r-7-6"><b>Nothing else.</b> No warning, raw id or pasted text (those go back to the check pass), no comments waiting on Claude, no daily list (it lives on /today). The text form, for agents, lists the same rows at the same URL.</li>
+</ol>
+<table class="decision" id="d-cap">
+<caption><span class="chip ok">decided</span> How many asks should /inbox show at once? A, at most 7 (@nha, 2026-11-11: « 7 s fine. »)</caption>
+<tr><th>Option</th><th>What changes for you</th><th>Cost or risk</th><th>Our call</th></tr>
+<tr><td><b>A. At most 7, the rest wait their turn</b></td><td>Never more than 7 lines. When you answer one, the next ready one takes its place. The heading says how many more wait, without listing them.</td><td>A ready ask can wait a day for its turn. A deadline within 48 hours jumps the line, so nothing urgent waits.</td><td>Pick: a short list you can clear in one sitting, and the order says what matters first.</td></tr>
+<tr><td><b>B. Everything that passed the check</b></td><td>Every ready ask at once, however many a busy day brings.</td><td>Nothing waits for a slot, but a long day looks like today's page again.</td><td>Not picked: the check cuts what is not yours, not how much is.</td></tr>
+<tr><td><b>C. One batch a day, at a set hour</b></td><td>The page fills once a day, say 9:00, and stays still until the next day.</td><td>A reply that comes at 10:00 waits a day; a call slot can be lost.</td><td>Not picked: replies to people lose a day.</td></tr>
+</table>
+</section>
+
+<section id="tasks">
+<h2>8. Who builds what</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>Links are /tasks/&lt;id&gt; on the main app, as the brief asks; a non-Rust task redirects to its issue view. Klar's task is on Klar's board.</li>
+  <li>Port, then fix (CLAUDE.md, Coordination 5): the record replaces the inbox parts of Elixir's Dashboard.Handoff and Dashboard.NeedsYou and the waiting lines of agent_inbox.py; nothing is fixed in Elixir.</li>
+</ul></details>
+<p>Phases order the build: the record and the check first, since the page shows only what the check lets through.</p>
+<div class="tw"><table>
+<tr><th>Decision</th><th>Task</th></tr>
+<tr><td>The ask record, its six states and who moves each (<a href="#states">3</a>); the check pass, rules as data with a test and a count each (<a href="#check">5</a>); gates and held asks (<a href="#never">6</a>)</td><td><a href="http://100.72.158.115:7788/tasks/rust-inbox-triage">rust-inbox-triage</a></td></tr>
+<tr><td>The page, groups, rows, folds, the cap (<a href="#page">7</a>)</td><td><a href="http://100.72.158.115:7788/tasks/rust-inbox-page">rust-inbox-page</a>, after rust-inbox-triage</td></tr>
+<tr><td>A link that opens the thing itself, here and in each turn's « What you need to do » (<a href="#r-4-4">bar 4</a>)</td><td><a href="http://100.72.158.115:7788/tasks/rust-needs-you-links">rust-needs-you-links</a></td></tr>
+<tr><td>An ask raised from a task says its intent in plain words (<a href="#r-4-1">bar 1</a>)</td><td><a href="http://100.72.158.115:7788/tasks/task-plan-required">task-plan-required</a></td></tr>
+<tr><td>Approved means sent (<a href="#r-4-5">bar 5</a>)</td><td><a href="http://100.72.158.115:7788/tasks/rust-apply-greenhouse">rust-apply-greenhouse</a>, <a href="http://100.72.158.115:7788/tasks/freework-apply-shares-cv">freework-apply-shares-cv</a>, <a href="http://100.72.158.115:7788/tasks/approved-send-watch">approved-send-watch</a>; Mirakl through <a href="http://100.72.158.115:7788/tasks/apply-mirakl">apply-mirakl</a></td></tr>
+<tr><td>An answered ask is never asked again, including a part he moved to a new task</td><td><a href="http://100.72.158.115:7788/tasks/move-names-task">move-names-task</a></td></tr>
+<tr><td>Pitches marked marketing in Klar's mail (<a href="#r-6-1">never 1</a>)</td><td><a href="http://100.72.158.115:7788/projects/klar/issue/klar-582">klar-582</a> (Klar)</td></tr>
+</table></div>
+</section>
+
+<section id="unknowns">
+<h2>9. Unknowns and open points</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>Listed before building (rfc skill, rule 11). Only <a href="#d-cap">the cap</a> is his; every other point has a default and the build goes ahead on it.</li>
+</ul></details>
+<div class="tw"><table>
+<tr><th>Point</th><th>State</th><th>What settles it</th></tr>
+<tr id="p-writers"><td>Every place that writes an ask today: handoff steps, PM loop waiting lines, drafts and blocks to review, other sessions' requests</td><td><span class="chip warn">open</span></td><td>rust-inbox-triage lists them; each moves to the one raise command in its PR</td></tr>
+<tr id="p-jev-plain"><td>Whether Jev tells a plain line from a jargon one well enough</td><td><span class="chip warn">open</span></td><td>A trial on the 25 lines of 2026-11-11 against his comments on them; a miss rate over 1 in 5 sends wording to the agent step</td></tr>
+<tr id="p-thread-link"><td>A link to one mail thread on the Rust app, so a mail ask never links /mail</td><td><span class="chip warn">open</span></td><td>The Rust mail pages; until then the ask links the thread in the webmail</td></tr>
+<tr id="p-cape-fact"><td>Which fact in the store says the CAPE contract is signed</td><td><span class="chip ok">decided</span></td><td>A field on the CAPE record, set from its signed mail or his word; default until the store has one: his word</td></tr>
+<tr id="p-rules-file"><td>Where the rules live</td><td><span class="chip ok">decided</span></td><td>A tracked data file beside the check's code, reviewed in PRs like code; the note's rules move there and the note points to it</td></tr>
+<tr id="p-cap"><td>How many asks show at once</td><td><span class="chip warn">open</span></td><td><a href="#d-cap">The decision in section 7</a></td></tr>
+</table></div>
+</section>
+
+<section id="glossary">
+<h2>10. Glossary</h2>
+<details class="wn"><summary>Writer notes</summary><ul>
+  <li>Every term defined where it first appears (rfc skill, rule 13), with its source and related rows (rule 19).</li>
+</ul></details>
+<div class="tw"><table>
+<tr><th>Term</th><th>Meaning</th><th>Source</th></tr>
+<tr id="g-ask"><td>Ask</td><td>Something an agent needs from him, one record with one state; the reverse of a comment. Checked by the <a href="#g-check-pass">check pass</a>.</td><td>@nha, 2026-11-11: « /inbox = agent to me »</td></tr>
+<tr id="g-check-pass"><td>Check pass</td><td>What decides whether an <a href="#g-ask">ask</a> reaches him: <a href="#g-rule">rules</a> first, then Jev, then an agent.</td><td>This doc, section 5</td></tr>
+<tr id="g-rule"><td>Rule</td><td>A row of data the <a href="#g-check-pass">check pass</a> runs: kind, test, his words, an example and its verdict.</td><td>private/notes/inbox-triage-rules.md</td></tr>
+<tr id="g-gate"><td>Gate</td><td>A condition of his that holds a set of <a href="#g-ask">asks</a> until a fact lifts it, such as the CAPE contract.</td><td>@nha, 2026-11-11, on Babel</td></tr>
+<tr id="g-bar"><td>Readiness bar</td><td>The five fields an <a href="#g-ask">ask</a> needs before he sees it.</td><td>This doc, section 4</td></tr>
+<tr id="g-jev"><td>Jev</td><td>A small, cheap model that scores text (readability, plain words, readiness) for a fraction of a cent.</td><td><code>dash doc ready</code>; @nha, 2026-10-19: « JEV is cheap - use it. »</td></tr>
+<tr id="g-pitch"><td>Pitch</td><td>A paid or sales offer: sponsorship, a vendor's call. Never his.</td><td>@nha, 2026-11-11; Klar's klar-582</td></tr>
+<tr id="g-cape"><td>CAPE</td><td>His contract with the Babel Coop cooperative, under which he will bill; unsigned on 2026-11-11.</td><td>private/docs/cape-activites.html</td></tr>
+</table></div>
+</section>
+<footer>private/docs/rfc-inbox.html, started from rfc-template.html on 2026-11-11.</footer>
+</main>
+</div>
+</body>
+</html>
