@@ -1,0 +1,3 @@
+# dash_meter::fixtures' list for this crate: `<sha256> <name> <url>`, fetched into target/fixtures, never in git.
+# llamaindex/liteparse_cicd_data (MIT): the PNG tests/fixtures/with-media/page.html shows, copied beside it as dot.png
+89966d71a061db69f59386ebd7726c940bae8defae518f2892d55ce309dbcd99 hello.png https://huggingface.co/datasets/llamaindex/liteparse_cicd_data/resolve/e4cdc87cf71085d99ea12921d85faac11d270b25/data/hello.png
