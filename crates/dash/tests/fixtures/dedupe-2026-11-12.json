@@ -1,0 +1,188 @@
+{
+ "adds": [
+  {
+   "id": "rust-temps-at-close",
+   "title": "A closed task's temp folders are queued at its close, not 24 h later",
+   "why": "(@nha, 2026-11-11: « if tackled first instead of the many one offs we would not be talking about this ») 12 GB of merged tasks' scratch builds waited out temps.rs's 24 h idle while the disk was red (2026-11-12).",
+   "done_when": "1. dash land and a run's close queue the closed task's session folders under Claude's temp root at once; test temps_of_a_closed_task_queue_at_close. 2. A folder whose session still runs is never queued, closed task or not; test a_live_session_folder_stays_at_close. 3. After merge: no folder under /private/tmp/claude-501 belongs to a task closed over 2 hours ago (ls against dash task state).",
+   "layer": "rfc:worktrees"
+  },
+  {
+   "id": "rust-ui-spike-retire",
+   "title": "rust/ui-spike retired: what dash still uses moves into the workspace",
+   "why": "(@nha, 2026-11-11: « if tackled first instead of the many one offs we would not be talking about this ») No job compiles ui-spike: its dioxus-page broke on main and its Cargo.lock went stale unseen (rust-hooks-rest-port, 2026-11-12).",
+   "done_when": "1. dash's theme freshness test and anything else dash reads from rust/ui-spike live in a workspace crate; test names listed in the PR. 2. rust/ui-spike is deleted, its ci-mirror.txt line and workspace_rules' lockfile entry with it; cargo nextest run -p dash-gate passes. 3. After merge: git ls-files rust/ui-spike prints nothing on main and the mirror is green.",
+   "layer": "rfc:ui-lib"
+  },
+  {
+   "id": "rust-review-next-port",
+   "title": "dash review next hands out PRs from Rust; the review lane never waits on Elixir",
+   "why": "(@nha, 2026-11-10: « remember we move to rust. no more elixir, so if something needs fixing port and then fix ») The review lane waited over an hour on 2026-11-12 for the Elixir app's review next while PRs 1460, 1480, 1484 and 1485 sat green.",
+   "done_when": "1. dash review next (Rust) picks the oldest green PR no run, reviewer or hold claims and records the claim; a test with a stand-in forge. 2. A PR held by its own run or by dash pr hold is never handed out; a test each. 3. It answers within 2 s while a whole-store write runs; a test at that limit. 4. After merge: the review lane's pane runs the Rust command and reviews a PR the same hour one turns green.",
+   "layer": "rfc:conformance"
+  }
+ ],
+ "board": [
+  {
+   "id": "task-show-reviewers",
+   "title": "dash task show <reviewer id> prints its live session, not « no task »",
+   "why": "(@nha, 2026-11-02: « waste of time and waste of tokens ») review-app-emfile (10-31) and review-lane (11-04) read « no task » and doubted their report would land.",
+   "done_when": "1. dash task show review-<x> prints the reviewer's PR, pane, last start and last report from task events when no tasks.edn row exists; a test 2. A test on a task with a merged :pr and a later PR on its branch: the reviewer row's :pr and done-when name the later PR.",
+   "layer": "rfc:dispatch"
+  },
+  {
+   "id": "rust-editor-send-blue-discard-trash",
+   "title": "Editor: Send in blue, Discard as a trash icon, as in the Elixir app",
+   "why": "(@nha, 2026-11-11: « the discard/send should be closer to the previous elixir app (Send in blue, and trash icon). Send should be blue imo. red = danger, green = safety, but sending is neither. ») One fix in the Composer reaches every compose box.",
+   "done_when": "1. On /mail compose and /design's editor, Send is the primary blue button and Discard an icon-only trash button labelled Discard 2. The text form still reads Discard and Send, and the surface crate's tests pass 3. theme.css: --color-primary is blue in the light and dark themes, --color-success stays green 4. /design, card 'With its actions': 'Do it' shows blue 5. the slint mirror in rust/ui-spike/slint-design uses the same blue",
+   "layer": "design:composer"
+  },
+  {
+   "id": "rust-inbox-take-port",
+   "title": "Taking a to_process request is a dash command; agent_inbox.py goes",
+   "why": "(@nha, 2026-11-10: « all these python scripts are also very brittle. we want to move all logic to rust and have it well tested. ») rust-hooks-rest-port kept agent_inbox.py: Dashboard.Watch's request card still names it.",
+   "done_when": "1. dash inbox take|done <file> leases and closes a to_process request as agent_inbox.py does; a test each, two sessions racing. 2. The request card Rust's watcher writes names dash inbox take; Dashboard.Watch's card named retired with the Elixir watcher off. 3. agent_inbox.py deleted; the session-start hook calls dash; scripts count lowered.",
+   "layer": "model:comment"
+  },
+  {
+   "id": "outbound-gate",
+   "title": "One Rust gate on every outgoing message; dash mail send in Rust; the .py goes",
+   "why": "(@nha, 2026-11-10: « all these python scripts are also very brittle. we want to move all logic to rust and have it well tested. ») rust-hooks-rest-port kept outbound_gate.py: Dashboard.Webmail's send still calls it.",
+   "done_when": "1. One Rust gate (banned phrases with scopes, Jev's reads-as-AI and length verdicts on the exact text) every send path calls; a test per path. 2. dash mail send <id> is Rust and calls it; each send logged as outbound.jsonl's lines are; a test. 3. LinkedIn sends (send_message, reply_in_thread, message_job_poster, connect notes) pass it through dash hook; a test each. 4. Dashboard.Webmail's send named retired; outbound_gate.py and its drafts.check call deleted; scripts count lowered. 5. After merge: one approved draft sent with dash mail send from Rust, its log line read back.",
+   "layer": "model:mail"
+  },
+  {
+   "id": "ci-rerun-reads-hold",
+   "title": "dash ci rerun refuses a head the orchestrator holds, and ci why says so",
+   "why": "(@nha, 2026-10-29: « You fixed the mistake but didn't find the cause and what could actually fix that class of errors right ? ») The review lane reran 4 held runs: ci why said re-run, and the hold was only a comment.",
+   "done_when": "1. A hold names its reason and the PR it waits on in one row a command reads: a test sets and lifts it. 2. dash ci rerun refuses a run under a hold, naming both: a test per case, held and not. 3. dash ci why prints the hold in place of its re-run advice: a test per case. 4. dash review next claims no PR under a hold: a test per case.",
+   "layer": null
+  },
+  {
+   "id": "helper-review-claims",
+   "title": "A helper reviewing a PR claims it first, so no second reviewer starts",
+   "why": "(@nha, 2026-10-22: « No double work. ») 2026-10-29: the orchestrator's helper reviewed PR 635 with no dash review claim, and the PM pass started its own reviewer on it.",
+   "done_when": "1. An Agent call whose prompt reviews a PR number with no live claim is refused, naming dash review claim: the hook's test. 2. A PrLane test: a PR whose handover went red while the app resumes its reviewer is not claimed by dash review next.",
+   "layer": null
+  },
+  {
+   "id": "lane-bounded",
+   "title": "The PR lane leaves hand-backs to the PM's reviewers, inside 40 turns",
+   "why": "(@nha, 2026-10-30: « Things slowing us down should be picked as priority items. »)\nreview-lane passed its 40 turns tonight: each hand-back and each new PR restarts its loop.",
+   "done_when": "1. A hand-back on a PR the lane handed over resumes a PM reviewer, never the lane: a test.",
+   "layer": null
+  },
+  {
+   "id": "handover-takes-lane-claim",
+   "title": "dash review handover takes over the review lane's own claim",
+   "why": "handover.ex:85 refuses 'review-lane holds a claim on 894' though the lane holds it; it took a release first. (@nha, 2026-10-25: « one sessoin continuously reviewing/simplifying/merging »)",
+   "done_when": "1. A test: a PR claimed by review-lane, handed over by that lane, is held by the app for its reviewer and the lane's claim is ended. 2. Claim holder --push names the session that handed over (the record's by) too: a merge_claim selftest case passes review-lane's push. 3. Any other session's push to that branch is still refused, in the same selftest.",
+   "layer": "rfc:orchestration"
+  },
+  {
+   "id": "reviewer-after-close",
+   "title": "A done task's reviewer starts once its pane is gone, without the orchestrator",
+   "why": "(@nha, 2026-10-30: « Things slowing us down should be picked as priority items. »)\nbounded-run-group's pane would not close; no reviewer started for PR 687 until the orchestrator closed it and ran dash task review.",
+   "done_when": "1. The PM pass that next sees the pane gone starts the reviewer: a test. 2. A pane that will not close is closed by its tab, logged. 3. A claim whose pane is gone is released and its PR gets a reviewer (683 and 686 sat on the closed lane's claim at 00:33Z).",
+   "layer": null
+  },
+  {
+   "id": "merge-past-lane-claim",
+   "title": "The orchestrator's gh pr merge passes a PR the review lane holds",
+   "why": "(@nha, 2026-10-30: « Things slowing us down should be picked as priority items ») The orchestrator merged PRs 1160 and 1158 by hand mid-review, past merge-claim.py.",
+   "done_when": "1. A test: gh pr merge of a PR under a lane claim whose session waits on a background review is refused",
+   "layer": null
+  },
+  {
+   "id": "orch-switch-at-limit",
+   "title": "The orchestrator moves to the next login the minute its limit screen shows",
+   "why": "(@nha, 2026-11-02: « make sure the orchestrator can switch even if the limit is hit ») The handover read only forecasts and waited 30 min on an old one stuck on its limit.",
+   "done_when": "1. Test: the orchestrator's pane on the limit screen starts a handover though its figure reads room 2. Test: an old orchestrator on its limit screen hands over at once, no 30-minute wait",
+   "layer": null
+  },
+  {
+   "id": "review-start-under-60s",
+   "title": "dash review start answers within its 60 s, its slow step named",
+   "why": "(@nha, 2026-11-01: « Two timeouts of one tool are a fault, never load ») 11-04: dash review start gave no answer in 60 s four times (1061 three, 1070 once)",
+   "done_when": "1. dash review start answers in under 20 s, the load at the time quoted; the step that held it named in the PR 2. A start past 60 s prints that step, not only the stuck page link: a test 3. dash review next's claim reads open PRs in one gh call, not one per branch (Dashboard.Orch.PM's rust_link, ported to Rust): a test with 30 PRs",
+   "layer": null
+  },
+  {
+   "id": "rust-approve-page",
+   "title": "Rust serves /approve within its budget, whatever the older app does",
+   "why": "(@nha, 2026-11-09: « /approve takes some time to load. let's not get to the same issues as elixir. ») It timed out at 60 s twice: Rust hands it to the older app, whose store lock was held.",
+   "done_when": "1. /approve answers from Rust in under 1 s with the older app stopped, in both forms: a test 2. The tap reaches the same approval path as today, refused from this Mac as now: a test",
+   "layer": null
+  },
+  {
+   "id": "ci-speed-lane-findings",
+   "title": "Work the review lane's 9 findings on PR 982 after it merges",
+   "why": "(@nha, 2026-10-18: « Part of the / orchestrate should also be to review / finish existing PRs »): the lane posted 9 /code-review findings on PR 982 after its reviewer handed over.",
+   "done_when": "1. Each of the 9 findings on PR 982 is fixed or answered on the PR: the follow-up PR's link",
+   "layer": null
+  },
+  {
+   "id": "ci-mirror-reads-reruns",
+   "title": "The Rust mirror's push and verdict run in Rust; a rerun's green replaces a red",
+   "why": "(@nha, 2026-11-10: « remember we move to rust. no more elixir, so if something needs fixing port and then fix ») PR 1350: the mirror's rerun went green at 11:55, ci-mirror/rust stayed failure, Dashboard.CiMirror stops reading a red.",
+   "done_when": "1. Rust pushes PR heads' rust/ and main to the mirror and writes ci-mirror/rust from its runs; the .ex untouched: a test, stand-in forge 2. dash ci wait gives no verdict while a head has no checks yet or a rerun is not pending; a superseded cancel never decides: a test each 3. A red in a setup step before any test (apt) is rerun once, never handed back to the task: a test 4. The mirror's main behind origin's main past 15 min raises one alarm (stuck 3 h on 2026-11-11): a test 5. After merge: a rerun of a failed mirror job turns the PR's ci-mirror/rust green within 6 minutes",
+   "layer": "rfc:ci"
+  },
+  {
+   "id": "judge-no-merge-wait",
+   "title": "The goal judge accepts TASK_DONE without a merge or a PM verdict",
+   "why": "(@nha, 2026-10-30: « Things slowing us down should be picked as priority items. »)\nreview-next-held: the judge refused TASK_DONE three times for want of a merge, which the brief says a task never waits for.",
+   "done_when": "1. The judge passes a TASK_DONE whose PR is open and handed over: a test on review-next-held's report.",
+   "layer": null
+  },
+  {
+   "id": "review-diff-merge-base",
+   "title": "Every review diffs from the merge base and runs before its claim is handed over",
+   "why": "(@nha, 2026-11-09: « every review diff uses the merge base (three dots), and every review pass runs before the claim is handed over, since a push after it is refused. ») A two-dot diff showed main's newer commits reversed: review-lane flagged a phantom deletion of #1249.",
+   "done_when": "1. The PM reviewer brief (Dashboard.Orch.PM) names three-dot merge-base diffs, and a test reads it 2. A review pass after the claim's hand-over is refused before it starts, naming why: a test",
+   "layer": null
+  },
+  {
+   "id": "overrides-show-budget",
+   "title": "Lifting a hold, a claim or a gate by hand shows the sessions it will start",
+   "why": "(@nha, 2026-10-28: « how did we get there ? ») The orchestrator lifted the start hold, released 16 claims and marked a task load-fixing in one hour, each blind to the total.",
+   "done_when": "1. dash project set starts, dash review release and a task's :load true print the sessions they let start and the budget left: the output printed. 2. Past the budget they refuse unless --over-budget names why: a test.",
+   "layer": null
+  },
+  {
+   "id": "store-change-tells-session",
+   "title": "A held task's done-when changed by store put or import reaches its session",
+   "why": "Store put and import skip the tell of Records' field writes, PR 838 review (@nha, 2026-10-24: « Please make sure you can _automate_ this so I don't remind you. »)",
+   "done_when": "1. A test shows dash store put tasks.edn changing a held task's done-when sends the new text to its pane.",
+   "layer": null
+  },
+  {
+   "id": "only-rust-under-hold",
+   "title": "Under the hold, --only starts Rust tasks only, unless his words allow one",
+   "why": "(@nha, 2026-11-08: « Seems like you are adding mor elixir. Is it clear still that we're moving to rust ? ») On 2026-11-08 --only started four Elixir tasks under the hold (circleci-first-run, datadog-query and two more).",
+   "done_when": "1. dash task run --only <id> on a held site_perso task not owned by rust refuses and names --allow '<his words>': a test 2. --allow records his quote on the task and starts it: a test",
+   "layer": null
+  },
+  {
+   "id": "whole-gate-child-processes",
+   "title": "whole/1 in a step's child process waits for the cut too",
+   "why": "(@nha, 2026-11-06: « slow is smooth and smooth is fast. we aim for slow but systemic improvement. ») runner.ex:323: pass_ctx/0 drops :orch_gate, so a whole/1 in a step's Task is killed mid-launch (/code-review of #1194).",
+   "done_when": "1. A test that starts a task from a Task.async under adopt_ctx inside within/4 sees the launch recorded with its claim after the cut",
+   "layer": null
+  },
+  {
+   "id": "handover-checks-reviewer-unpushed",
+   "title": "The app's handover merge waits on a reviewer's unpushed commits",
+   "why": "(@nha, 2026-10-29: « Every failure, Claude's own included, is a class »): Dashboard.Orch.Handover merges past merge-claim.py.",
+   "done_when": "1. A test: Handover merges nothing while task-review-<id> holds commits not on the PR's origin branch, through merge-claim.py's rule.",
+   "layer": null
+  },
+  {
+   "id": "pane-fail-detect",
+   "title": "A pane's failure seen by its state within a minute; every wake has an outcome",
+   "why": "(@nha, 2026-11-02: « I asked for such a status check a bunch of times fyi, we need to reliably detect failures / stuck panes automatically and alert the orchestrator ») stuck-pane-watch waits 5 h of silence; 9 vibe panes printed their failure at once and sat 3 h.",
+   "done_when": "1. Dashboard.Watch matches a pane's last lines to a signature list (env: No such file, limit dialog, Error 143, bare prompt) and wakes within a minute 2. The list is data, grown per incident; every wake records its outcome, and one with none after 15 minutes is a dash asks entry 3. Tests on a stand-in herdr: a failing pane wakes once in a minute; a wake with no outcome escalates 4. A test: a screen with a done line above a running tool call is read as working, not done 5. A test: release of a claim whose pane shows a running tool call is refused naming the pane",
+   "layer": null
+  }
+ ]
+}
