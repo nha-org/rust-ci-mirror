@@ -1,0 +1,391 @@
+{
+ "_": "Linear answers recorded 2026-11-12 from team AAA (read-only queries), trimmed: the team, its viewer, its running cycle, three issues and two roadmap projects",
+ "viewer": {
+  "viewer": {
+   "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+  }
+ },
+ "team": {
+  "teams": {
+   "nodes": [
+    {
+     "id": "b0d90161-aa0e-49f4-8938-0621b51d0b1a",
+     "key": "AAA",
+     "cyclesEnabled": true,
+     "cycleDuration": 1,
+     "cycleIssueAutoAssignStarted": true,
+     "cycleIssueAutoAssignCompleted": true,
+     "issueEstimationType": "fibonacci",
+     "states": {
+      "nodes": [
+       {
+        "id": "03d99524-7c55-4cb4-af30-cb8c8674f38c",
+        "type": "started",
+        "position": 1002
+       },
+       {
+        "id": "e9d58908-6604-4c30-b118-cee98fc57c77",
+        "type": "duplicate",
+        "position": 5
+       },
+       {
+        "id": "ca1ca704-7e60-402b-aee8-8c0c7096213f",
+        "type": "backlog",
+        "position": 0
+       },
+       {
+        "id": "c0fbaf5c-ec99-4127-a26d-81230baef25c",
+        "type": "completed",
+        "position": 3
+       },
+       {
+        "id": "77f91544-d940-4083-8cb0-b70a4d0c7a92",
+        "type": "unstarted",
+        "position": 1
+       },
+       {
+        "id": "6bed30b6-8df6-487f-b52c-b6e35ea7544e",
+        "type": "canceled",
+        "position": 4
+       },
+       {
+        "id": "6283af03-454f-4344-9861-537e112d1098",
+        "type": "started",
+        "position": 2
+       }
+      ]
+     },
+     "labels": {
+      "nodes": [
+       {
+        "id": "7a2e6200-7222-4e78-a311-412095d0907e",
+        "name": "Unplanned",
+        "retiredAt": null
+       },
+       {
+        "id": "05a2ef08-3418-4956-adea-b8a19f95a0e9",
+        "name": "Perf",
+        "retiredAt": null
+       },
+       {
+        "id": "3b4e19c8-3d3a-41e9-8143-88aea66338cd",
+        "name": "Security",
+        "retiredAt": null
+       },
+       {
+        "id": "93afaad8-6271-47a3-a824-9167d0df9ebe",
+        "name": "Infra",
+        "retiredAt": null
+       },
+       {
+        "id": "db4f0e87-d279-4d71-b759-9dbfa9fd8729",
+        "name": "Design",
+        "retiredAt": null
+       },
+       {
+        "id": "290ddba0-6283-470a-ab7e-1ad6fd60a16e",
+        "name": "Docs",
+        "retiredAt": null
+       },
+       {
+        "id": "6c8f039f-5a9d-4dfa-bf3b-d8fa823451a6",
+        "name": "Research",
+        "retiredAt": null
+       },
+       {
+        "id": "4d5af930-1c7f-482b-b06b-ecf8460baed1",
+        "name": "vibe",
+        "retiredAt": null
+       },
+       {
+        "id": "31defae2-93e2-4140-bbd4-676c9bd453d7",
+        "name": "Claude",
+        "retiredAt": null
+       },
+       {
+        "id": "f8a34cd6-4a0f-43af-affa-76937619a0e2",
+        "name": "Improvement",
+        "retiredAt": null
+       },
+       {
+        "id": "95899a40-354f-4940-a26b-238c2cccbde3",
+        "name": "Feature",
+        "retiredAt": null
+       },
+       {
+        "id": "0b10b72d-2c00-4d23-891e-3212498acbbf",
+        "name": "Bug",
+        "retiredAt": null
+       }
+      ]
+     },
+     "projects": {
+      "nodes": [
+       {
+        "id": "b7cdab5d-7efb-4154-b7e2-9aed75a9acca",
+        "name": "rust-poc",
+        "description": "The site_perso epic « rust-poc », its tasks synced by `dash linear sync`.",
+        "content": null,
+        "startDate": null,
+        "targetDate": null,
+        "status": {
+         "id": "e69ed8db-4846-45f8-b305-a2f1156a0193"
+        },
+        "lead": null
+       },
+       {
+        "id": "246890e1-05d1-43ee-b54d-07b9bbbb4698",
+        "name": "Roadmap: The Rust tool builds itself",
+        "description": "55 % of 54 points on /focus, every project's tasks. Linear's bar counts the site_perso ones it holds.",
+        "content": "**Now** on the roadmap.\n\n**Done when**\n\nTrue when: a task in the Rust store goes to merged with Rust starting it. Seen by: a merged PR. Agents may: anything in RFC 20b's plan once his three decisions are in; spikes and RFC meanwhile. Needs him: the three decisions in section 22.\n\nIts page: [http://100.72.158.115:7788/focus/rust-poc](<http://100.72.158.115:7788/focus/rust-poc>)",
+        "startDate": "2026-10-26",
+        "targetDate": "2026-11-15",
+        "status": {
+         "id": "20cd1967-0160-43b9-8e26-9e290ebb5026"
+        },
+        "lead": {
+         "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+        }
+       },
+       {
+        "id": "844177a9-4dd5-4e3e-9dcd-f392fa3fba70",
+        "name": "Roadmap: Klar Plus beta",
+        "description": "0 % of 12 points on /focus, every project's tasks. Linear's bar counts the site_perso ones it holds.",
+        "content": "**Now** on the roadmap.\n\n**Done when**\n\nTrue when: a tester can install Klar Plus and use it for a month with a promo code, with updates. Seen by: a code redeemed on a clean Mac. Later: real payment. Agents may: anything free that moves it, product, site, invitation prepared for him. Needs him: sending in his name, real money, the CAPE contract.\n\nIts page: [http://100.72.158.115:7788/focus/klar-plus-beta](<http://100.72.158.115:7788/focus/klar-plus-beta>)",
+        "startDate": "2026-10-15",
+        "targetDate": "2026-11-15",
+        "status": {
+         "id": "20cd1967-0160-43b9-8e26-9e290ebb5026"
+        },
+        "lead": {
+         "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "projectStatuses": {
+   "nodes": [
+    {
+     "id": "e69ed8db-4846-45f8-b305-a2f1156a0193",
+     "type": "backlog",
+     "position": 0
+    },
+    {
+     "id": "8e7024fc-5ebc-48a0-9dba-0da9cf20fe38",
+     "type": "completed",
+     "position": 3
+    },
+    {
+     "id": "620d1e7f-3043-4370-881c-09c884288f1f",
+     "type": "planned",
+     "position": 1
+    },
+    {
+     "id": "39a2a660-3021-4861-95cc-826923ad0105",
+     "type": "canceled",
+     "position": 4
+    },
+    {
+     "id": "20cd1967-0160-43b9-8e26-9e290ebb5026",
+     "type": "started",
+     "position": 2
+    }
+   ]
+  }
+ },
+ "cycle": {
+  "team": {
+   "activeCycle": {
+    "id": "5db290ba-b834-4393-9f53-1ede1861ec64",
+    "startsAt": "2026-11-08T23:00:00.000Z"
+   },
+   "cycles": {
+    "nodes": [
+     {
+      "id": "925492d0-e9bb-48b5-af91-3e796a77bfb9",
+      "startsAt": "2026-11-22T23:00:00.000Z"
+     },
+     {
+      "id": "de37b059-1bc9-4f3c-b44f-f8e9c95a3ef5",
+      "startsAt": "2026-11-15T23:00:00.000Z"
+     },
+     {
+      "id": "5db290ba-b834-4393-9f53-1ede1861ec64",
+      "startsAt": "2026-11-08T23:00:00.000Z"
+     },
+     {
+      "id": "fd164efd-47f1-4a3c-9500-c5c2257021f9",
+      "startsAt": "2026-10-20T22:00:00.000Z"
+     },
+     {
+      "id": "46c18062-887c-4b92-bf94-f0dfad48a678",
+      "startsAt": "2026-11-01T23:00:00.000Z"
+     }
+    ]
+   }
+  }
+ },
+ "issues": {
+  "issues": {
+   "nodes": [
+    {
+     "id": "e75e5418-61a1-4606-81bd-e52c7942721d",
+     "identifier": "AAA-117990",
+     "url": "https://linear.app/gdw/issue/AAA-117990/the-brief-says-push-the-merge-of-main-first-then-read-mergeable",
+     "title": "The brief says push the merge of main first, then read MERGEABLE",
+     "description": "(@nha, 2026-10-22: « make sure to not over-constrain but emphower them to do good work. ») outbound-gate read rule 7 as wait for MERGEABLE, yet a conflicting PR turns MERGEABLE only after its merge is pushed (2026-11-12).\n\n**Done when**\n\n1. [brief.rs](<http://brief.rs>) rule 7 says to push the merge of main, then read mergeable; a test reads the brief's text. 2. After merge: dash task brief <id> prints the new rule 7.\n\nsite_perso: `rust-brief-merge-push-order`",
+     "priority": 1,
+     "dueDate": null,
+     "estimate": null,
+     "archivedAt": "2026-11-12T09:01:13.228Z",
+     "completedAt": "2026-11-12T09:01:12.748Z",
+     "canceledAt": null,
+     "state": {
+      "id": "c0fbaf5c-ec99-4127-a26d-81230baef25c"
+     },
+     "parent": null,
+     "cycle": {
+      "id": "5db290ba-b834-4393-9f53-1ede1861ec64"
+     },
+     "project": {
+      "id": "b7cdab5d-7efb-4154-b7e2-9aed75a9acca"
+     },
+     "assignee": {
+      "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+     },
+     "labels": {
+      "nodes": []
+     },
+     "attachments": {
+      "nodes": [
+       {
+        "id": "de4fead4-45d5-449d-8d42-ff8809e27c7a",
+        "url": "https://github.com/nha-org/site_perso/pull/1494",
+        "subtitle": "",
+        "sourceType": "api"
+       }
+      ]
+     }
+    },
+    {
+     "id": "df11e336-7909-42a6-8338-0dbd313f4617",
+     "identifier": "AAA-117991",
+     "url": "https://linear.app/gdw/issue/AAA-117991/dash-task-rfc-check-gives-one-stable-score-for-one-change",
+     "title": "dash task rfc-check gives one stable score for one change",
+     "description": "(@nha, 2026-11-09: « we probably want a pass to ensure we follow the rust RFC. ») PR 1480 scored 0.44, 0.51, 0.47 as moves changed only the diff's chunk boundaries; the 0.5 bar read noise as a breach (2026-11-12).\n\n**Done when**\n\n1. The same change split into different chunks scores within 0.02; a test with PR 1480's three heads as fixtures. 2. A score within 0.05 of the bar names the part that decided it and is read twice; a test. 3. After merge: dash task rfc-check 1480 prints the same score three runs in a row.\n\nsite_perso: `rust-rfc-check-stable`",
+     "priority": 2,
+     "dueDate": null,
+     "estimate": null,
+     "archivedAt": null,
+     "completedAt": null,
+     "canceledAt": null,
+     "state": {
+      "id": "77f91544-d940-4083-8cb0-b70a4d0c7a92"
+     },
+     "parent": null,
+     "cycle": null,
+     "project": {
+      "id": "b7cdab5d-7efb-4154-b7e2-9aed75a9acca"
+     },
+     "assignee": {
+      "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+     },
+     "labels": {
+      "nodes": []
+     },
+     "attachments": {
+      "nodes": []
+     }
+    },
+    {
+     "id": "c204426c-4eb7-4ff9-81e8-7a8da24bec7b",
+     "identifier": "AAA-118000",
+     "url": "https://linear.app/gdw/issue/AAA-118000/a-test-attribute-adds-the-test-budget-itself-no-line-to-forget",
+     "title": "A test attribute adds the test budget itself; no line to forget",
+     "description": "(@nha, 2026-11-12: « always aim for the systemic improvement not the cheap one-off ») Three tasks lost a commit attempt on 2026-11-12 to the gate's « every test needs TestBudget » (apply-greenhouse, monitors-port, an earlier one).\n\n**Done when**\n\n1. A #\\[dash_test\\] attribute (or a nextest setup) gives every test its budget; a test proves a test without the line still runs inside it. 2. The workspace's tests use it; every_rule_opens_with_its_guard no longer asks for the line; a test. 3. After merge: a week of task commits shows no refusal for a missing budget.\n\nsite_perso: `rust-test-budget-attr`",
+     "priority": 1,
+     "dueDate": null,
+     "estimate": null,
+     "archivedAt": null,
+     "completedAt": null,
+     "canceledAt": null,
+     "state": {
+      "id": "6283af03-454f-4344-9861-537e112d1098"
+     },
+     "parent": null,
+     "cycle": {
+      "id": "5db290ba-b834-4393-9f53-1ede1861ec64"
+     },
+     "project": {
+      "id": "b7cdab5d-7efb-4154-b7e2-9aed75a9acca"
+     },
+     "assignee": {
+      "id": "373c21e4-627a-4403-b83e-c0f3da1e5c19"
+     },
+     "labels": {
+      "nodes": []
+     },
+     "attachments": {
+      "nodes": [
+       {
+        "id": "f91f8b46-b267-4d38-a151-64fd7c0cf27a",
+        "url": "https://github.com/nha-org/site_perso/pull/1506",
+        "subtitle": "",
+        "sourceType": "api"
+       }
+      ]
+     }
+    }
+   ],
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": null
+   }
+  }
+ },
+ "projects": {
+  "projects": {
+   "pageInfo": {
+    "hasNextPage": false,
+    "endCursor": "03a8ab0a-3e29-4c2d-ad3b-eee8a39acf8d"
+   },
+   "nodes": [
+    {
+     "id": "246890e1-05d1-43ee-b54d-07b9bbbb4698",
+     "name": "Roadmap: The Rust tool builds itself",
+     "projectMilestones": {
+      "pageInfo": {
+       "hasNextPage": false
+      },
+      "nodes": []
+     },
+     "relations": {
+      "pageInfo": {
+       "hasNextPage": false
+      },
+      "nodes": []
+     }
+    },
+    {
+     "id": "844177a9-4dd5-4e3e-9dcd-f392fa3fba70",
+     "name": "Roadmap: Klar Plus beta",
+     "projectMilestones": {
+      "pageInfo": {
+       "hasNextPage": false
+      },
+      "nodes": []
+     },
+     "relations": {
+      "pageInfo": {
+       "hasNextPage": false
+      },
+      "nodes": []
+     }
+    }
+   ]
+  }
+ }
+}
