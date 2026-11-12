@@ -1,0 +1,18 @@
+[package]
+name = "dash-store"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+libc = "0.2"
+rusqlite = { version = "0.41", features = ["bundled"] }
+# the older app's drafts and leads, JSON in its cells (older_drafts)
+serde_json.workspace = true
+# /settings' backup: every store as SQL, one zip (task dash-settings-backup)
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+dash-meter.workspace = true
+proptest = { version = "1.12.0", default-features = false, features = ["std"] }
