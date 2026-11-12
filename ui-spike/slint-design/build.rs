@@ -1,0 +1,229 @@
+//! design.json's tokens for Slint, and the trees that let two themes share a window.
+//!
+//! The tokens come from the CSS Dioxus draws with, itself checked against design.json, so both toolkits draw the same values and no
+//! colour is typed twice. A Slint global has one value per window and no subtree can override it, unlike a CSS variable, so
+//! a Light cell beside a Dark cell needs two copies of the global. Importing the same source from three folders gives that:
+//! `light` and `dark` for the cells, `page` for the frame and its toggle.
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+type Rgba = [f64; 4];
+
+fn declarations(
+    css: &str,
+    light: &mut BTreeMap<String, String>,
+    dark: &mut BTreeMap<String, String>,
+) {
+    let mut text = css.to_string();
+    while let (Some(a), Some(b)) = (text.find("/*"), text.find("*/")) {
+        text.replace_range(a..b + 2, "");
+    }
+    for block in text.split('}') {
+        let Some((selector, body)) = block.split_once('{') else {
+            continue;
+        };
+        let selector = selector.trim();
+        let (l, d) = match selector {
+            ".app" => (true, true),
+            ".app.light" => (true, false),
+            ".app.dark" => (false, true),
+            _ => continue,
+        };
+        for decl in body.split(';') {
+            let Some((name, value)) = decl.trim().split_once(':') else {
+                continue;
+            };
+            let Some(name) = name.trim().strip_prefix("--") else {
+                continue;
+            };
+            if l {
+                light.insert(name.into(), value.trim().into());
+            }
+            if d {
+                dark.insert(name.into(), value.trim().into());
+            }
+        }
+    }
+}
+
+fn to_oklab(c: Rgba) -> [f64; 3] {
+    let f = |v: f64| {
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let (r, g, b) = (f(c[0]), f(c[1]), f(c[2]));
+    let l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b).cbrt();
+    let m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b).cbrt();
+    let s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b).cbrt();
+    [
+        0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+        1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+    ]
+}
+
+fn from_oklab(c: [f64; 3], alpha: f64) -> Rgba {
+    let l = (c[0] + 0.3963377774 * c[1] + 0.2158037573 * c[2]).powi(3);
+    let m = (c[0] - 0.1055613458 * c[1] - 0.0638541728 * c[2]).powi(3);
+    let s = (c[0] - 0.0894841775 * c[1] - 1.291485548 * c[2]).powi(3);
+    let f = |v: f64| {
+        let v = v.clamp(0.0, 1.0);
+        if v <= 0.0031308 {
+            12.92 * v
+        } else {
+            1.055 * v.powf(1.0 / 2.4) - 0.055
+        }
+    };
+    [
+        f(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+        f(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+        f(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+        alpha,
+    ]
+}
+
+/// `color-mix(in oklab, a p%, b)` as a browser does it, so a Slint pixel equals the CSS one. A transparent side keeps the other's hue.
+fn mix(a: Rgba, p: f64, b: Rgba) -> Rgba {
+    let alpha = a[3] * p + b[3] * (1.0 - p);
+    let (la, lb) = (to_oklab(a), to_oklab(b));
+    let premultiplied = |i: usize| (la[i] * a[3] * p + lb[i] * b[3] * (1.0 - p)) / alpha.max(1e-9);
+    from_oklab(
+        [premultiplied(0), premultiplied(1), premultiplied(2)],
+        alpha,
+    )
+}
+
+fn color(value: &str, vars: &BTreeMap<String, String>) -> Option<Rgba> {
+    let v = value.trim();
+    if let Some(hex) = v.strip_prefix('#') {
+        let hex: String = if hex.len() == 3 {
+            hex.chars().flat_map(|c| [c, c]).collect()
+        } else {
+            hex.into()
+        };
+        let n = u32::from_str_radix(&hex, 16).ok()?;
+        return Some([
+            f64::from((n >> 16) & 255) / 255.0,
+            f64::from((n >> 8) & 255) / 255.0,
+            f64::from(n & 255) / 255.0,
+            1.0,
+        ]);
+    }
+    match v {
+        "white" => return Some([1.0, 1.0, 1.0, 1.0]),
+        "black" => return Some([0.0, 0.0, 0.0, 1.0]),
+        "transparent" => return Some([0.0, 0.0, 0.0, 0.0]),
+        _ => {}
+    }
+    if let Some(name) = v.strip_prefix("var(--").and_then(|r| r.strip_suffix(')')) {
+        return color(vars.get(name)?, vars);
+    }
+    let inner = v.strip_prefix("color-mix(in oklab,")?.strip_suffix(')')?;
+    let (first, second) = inner.split_once(',')?;
+    let (a, percent) = first.trim().rsplit_once(' ')?;
+    let p = percent.strip_suffix('%')?.parse::<f64>().ok()? / 100.0;
+    Some(mix(color(a, vars)?, p, color(second, vars)?))
+}
+
+fn length(value: &str) -> Option<f64> {
+    if let Some(rem) = value.strip_suffix("rem") {
+        return rem.parse::<f64>().ok().map(|r| r * 16.0);
+    }
+    value.strip_suffix("px")?.parse().ok()
+}
+
+fn hex(c: Rgba) -> String {
+    let b = |v: f64| (v * 255.0).round() as u32;
+    format!(
+        "#{:02x}{:02x}{:02x}{:02x}",
+        b(c[0]),
+        b(c[1]),
+        b(c[2]),
+        b(c[3])
+    )
+}
+
+fn tokens(mode: &str, light: &BTreeMap<String, String>, dark: &BTreeMap<String, String>) -> String {
+    let mut out = format!(
+        "// Generated by build.rs from design.json's CSS.\nexport enum ThemeMode {{ dark, light }}\nexport global Theme {{\n    in-out property <ThemeMode> mode: ThemeMode.{mode};\n}}\nexport global Ds {{\n"
+    );
+    let pick = "Theme.mode == ThemeMode.light";
+    for (name, value) in light {
+        let id = name.replace("--", "-");
+        let other = dark.get(name).unwrap_or(value);
+        if let (Some(a), Some(b)) = (color(value, light), color(other, dark)) {
+            out += &format!(
+                "    out property <color> {id}: {pick} ? {} : {};\n",
+                hex(a),
+                hex(b)
+            );
+        } else if let (Some(a), Some(b)) = (length(value), length(other)) {
+            out += &format!("    out property <length> {id}: {pick} ? {a}px : {b}px;\n");
+        }
+    }
+    out + "}\n"
+}
+
+/// A file slint_build names to cargo as a dependency: rewritten unchanged, it would look newer than the last run and rebuild the crate each time.
+fn write_changed(path: &Path, text: &str) {
+    if fs::read_to_string(path).ok().as_deref() != Some(text) {
+        fs::write(path, text).expect("write");
+    }
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    fs::create_dir_all(to).expect("create");
+    for entry in fs::read_dir(from).expect("read ui") {
+        let entry = entry.expect("entry");
+        let target = to.join(entry.file_name());
+        if entry.path().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else if entry.path().extension().is_some_and(|e| e == "slint") {
+            write_changed(&target, &fs::read_to_string(entry.path()).expect("read"));
+        }
+    }
+}
+
+fn main() {
+    println!("cargo:rerun-if-changed=ui");
+    println!("cargo:rerun-if-changed=../fonts");
+    let css = [
+        "../crates/surface/src/theme.css",
+        "../crates/surface/src/design/base.css",
+        "../crates/surface/src/design/design.css",
+    ]
+    .map(|f| Path::new("..").join(f));
+    let (mut light, mut dark) = (BTreeMap::new(), BTreeMap::new());
+    for file in &css {
+        println!("cargo:rerun-if-changed={}", file.display());
+        declarations(
+            &fs::read_to_string(file).expect("the design tokens"),
+            &mut light,
+            &mut dark,
+        );
+    }
+    let out = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
+    for (tree, mode) in [("page", "light"), ("light", "light"), ("dark", "dark")] {
+        let root = out.join(tree);
+        copy_tree(Path::new("ui/themed"), &root);
+        copy_tree(Path::new("ui/slintcn"), &root.join("slintcn"));
+        write_changed(
+            &root.join("slintcn/theme/ds.slint"),
+            &tokens(mode, &light, &dark),
+        );
+    }
+    write_changed(
+        &out.join("app.slint"),
+        &fs::read_to_string("ui/app.slint").expect("app"),
+    );
+    let fonts = std::env::current_dir().expect("dir").join("../fonts");
+    // Debug info: ElementHandle needs it to read an element's accessible-id.
+    let config = slint_build::CompilerConfiguration::new()
+        .with_include_paths(vec![fonts])
+        .with_debug_info(true);
+    slint_build::compile_with_config(out.join("app.slint"), config).expect("slint compile");
+}
