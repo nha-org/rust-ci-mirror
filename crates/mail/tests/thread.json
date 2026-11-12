@@ -1,0 +1,32 @@
+{
+ "session": {
+  "apiUrl": "https://mail.klar.im/jmap/",
+  "primaryAccounts": {"urn:ietf:params:jmap:mail": "f", "urn:ietf:params:jmap:submission": "f"},
+  "state": "820976ef"
+ },
+ "thread": {
+  "methodResponses": [
+   ["Thread/get", {"accountId": "f", "state": "s1", "list": [{"id": "brq", "emailIds": ["m1", "m2", "m3"]}], "notFound": []}, "t"],
+   ["Email/get", {"accountId": "f", "state": "s2", "notFound": [], "list": [
+    {"id": "m3", "messageId": ["c3@example.org"], "references": ["c1@example.org", "c2@klar.im"],
+     "from": [{"name": "Ada Example", "email": "ada@example.org"}], "to": [{"name": null, "email": "nicolas@klar.im"}], "cc": null,
+     "subject": "Re: The grant", "receivedAt": "2026-11-08T20:28:45Z",
+     "textBody": [{"partId": "1", "type": "text/plain"}], "htmlBody": [{"partId": "2", "type": "text/html"}],
+     "bodyValues": {"1": {"value": "Monday works.\nAda"}, "2": {"value": "<html><head><meta http-equiv=\"refresh\" content=\"0;url=https://track.example.org/r\"><script>alert(1)</script></head><body><p>Monday <b>works</b>.</p><img src=\"https://track.example.org/pixel.gif\"></body></html>"}},
+     "attachments": [{"blobId": "b1", "name": "slots.pdf", "type": "application/pdf", "size": 1200},
+                     {"blobId": "b2", "name": "room.png", "type": "image/png", "size": 5400}]},
+    {"id": "m1", "messageId": ["c1@example.org"], "references": null,
+     "from": [{"name": "Ada Example", "email": "ada@example.org"}], "to": [{"email": "nicolas@klar.im"}], "cc": null,
+     "subject": "The grant", "receivedAt": "2026-11-06T09:00:00Z",
+     "textBody": [{"partId": "1", "type": "text/plain"}], "htmlBody": [{"partId": "1", "type": "text/plain"}],
+     "bodyValues": {"1": {"value": "Six questions on the grant, below."}}, "attachments": []},
+    {"id": "m2", "messageId": ["c2@klar.im"], "references": ["c1@example.org"],
+     "from": [{"name": "", "email": "nicolas@klar.im"}], "to": [{"email": "ada@example.org"}], "cc": [{"email": "bob@example.org"}],
+     "subject": "Re: The grant", "receivedAt": "2026-11-07T10:15:00Z",
+     "textBody": [{"partId": "1", "type": "text/plain"}], "htmlBody": [{"partId": "1", "type": "text/plain"}],
+     "bodyValues": {"1": {"value": "Answers inline. A call?"}}, "attachments": []}
+   ]}, "e"]
+  ],
+  "sessionState": "820976ef"
+ }
+}
