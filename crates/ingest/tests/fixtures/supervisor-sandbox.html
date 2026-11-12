@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sandbox and supervisor</title>
+<meta name="description" content="The sandbox, the supervisor and the approval, on one page. Why sessions work freely, how they restart, and how he approves a change from the phone or the Mac.">
+<meta name="crm:icon" content="laptop">
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="shell/shell.css">
+<style>
+/* 3Blue1Brown's palette: near-black ground, chalk white, blue, yellow, brown, green (@nha, 2026-10-05:
+   « a one-page in HTML to explain to myself the supervisor / sandbox etc. mechanism ... Use 3b1b style. ») */
+:root{--ground:#1c1c1c;--chalk:#ece6e2;--dim:#9a9590;--blue:#58c4dd;--yellow:#ffff00;--brown:#cd853f;--green:#83c167;--line:#3a3a3a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--chalk);font:19px/1.6 'EB Garamond',Georgia,serif}
+main{max-width:860px;margin:0 auto;padding:48px 20px 80px}
+h1{font-weight:400;font-size:2.4rem;line-height:1.15;margin:0 0 6px}
+h1 .b{color:var(--blue)}h1 .y{color:var(--yellow)}
+.sub{color:var(--dim);font-style:italic;margin:0 0 36px}
+h2{font-weight:600;font-size:1.35rem;margin:52px 0 14px;color:var(--chalk);border-bottom:1px solid var(--line);padding-bottom:6px}
+h2 span{color:var(--dim);font-weight:400;margin-right:8px}
+.big{font-size:1.5rem;line-height:1.4;margin:10px 0}
+.big em{color:var(--yellow);font-style:normal}
+figure{margin:18px -10px 6px}figure img{width:100%;display:block;border-radius:6px}
+figcaption{font-family:Kalam,cursive;font-size:.95rem;color:var(--dim);margin:6px 10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.95rem;margin:8px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+ol.pts{list-style:none;padding:0;margin:0;counter-reset:p}
+ol.pts>li{counter-increment:p;display:grid;grid-template-columns:34px 1fr;gap:4px 12px;margin:16px 0}
+ol.pts>li>svg{width:28px;height:28px;margin-top:3px}
+ol.pts>li b{font-weight:600}
+ol.pts>li ul{margin:2px 0 0;padding-left:18px;color:#cfc9c4}
+ol.pts>li ul li{margin:2px 0}
+code{font:.82em ui-monospace,Menlo,monospace;background:#2a2a2a;padding:1px 5px;border-radius:3px;color:var(--chalk)}
+/* one step at a time, as the animations do */
+ol.steps{list-style:none;padding:0;margin:8px 0;counter-reset:s}
+ol.steps li{counter-increment:s;position:relative;padding:10px 0 10px 54px;border-left:2px solid var(--line);margin-left:18px;opacity:0;transform:translateY(8px);animation:in .6s ease forwards}
+ol.steps li::before{content:counter(s);position:absolute;left:-19px;top:8px;width:36px;height:36px;border-radius:50%;background:var(--ground);border:2px solid var(--blue);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+ol.steps li.you::before{border-color:var(--yellow);color:var(--yellow)}
+ol.steps li.mac::before{border-color:var(--brown);color:var(--brown)}
+ol.steps li:nth-child(1){animation-delay:.2s}ol.steps li:nth-child(2){animation-delay:.9s}ol.steps li:nth-child(3){animation-delay:1.6s}
+ol.steps li:nth-child(4){animation-delay:2.3s}ol.steps li:nth-child(5){animation-delay:3s}ol.steps li:nth-child(6){animation-delay:3.7s}
+@keyframes in{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ol.steps li{animation:none;opacity:1;transform:none}}
+.c-b{color:var(--blue)}.c-y{color:var(--yellow)}.c-o{color:var(--brown)}.c-g{color:var(--green)}
+a{color:var(--blue)}
+footer{margin-top:56px;color:var(--dim);font-size:.9rem;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>Claude is free <span class="b">inside its box</span>.<br>What leaves it goes <span class="y">through you</span>.</h1>
+<p class="sub">The sandbox, the supervisor and the approval, on one page.</p>
+
+<p class="big">One idea: Claude can do anything <em>inside</em> the repo, but nothing that runs <em>outside</em> the box changes without your « yes ».</p>
+
+<h2><span>1</span>The picture</h2>
+<figure>
+  <a href="/f/private/docs/supervisor-sandbox.en.svg" title="full size"><img src="/f/private/docs/supervisor-sandbox.en.svg" alt="The phone, the Mac with the supervisor and the approved copy, the sandbox with Claude and the repo, the other repos"></a>
+  <figcaption>Drawn in Excalidraw: <a href="/f/private/docs/supervisor-sandbox.en.excalidraw">the scene</a>, checked by <code>bin/excalidraw check</code> (arrows connected, nothing overlaps).</figcaption>
+</figure>
+<div class="legend">
+  <span><i style="background:var(--yellow)"></i>you</span>
+  <span><i style="background:var(--brown)"></i>the Mac, outside the box</span>
+  <span><i style="background:var(--blue)"></i>the box (the sandbox)</span>
+  <span><i style="background:var(--green)"></i>Claude's work</span>
+</div>
+
+<h2><span>2</span>The parts</h2>
+<ol class="pts">
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+    <div><b class="c-b">The sandbox</b>: a box around Claude.
+      <ul><li>macOS enforces it (safehouse, rules in <code>sandbox.sb</code>): whatever is not allowed is refused.</li>
+          <li>It guards against an oops, not against a hostile agent.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1"/></svg>
+    <div><b class="c-b">Claude</b>: writes, tests, commits, in the repo.
+      <ul><li>Every proposal becomes a commit.</li>
+          <li>It cannot write the approved copy: that is outside its box.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--brown)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <div><b class="c-o">The supervisor</b> (<code>bin/claude-supervise</code>): a bash program, not an AI.
+      <ul><li>It starts Claude in the box, then watches two things: your approval, and a restart request.</li>
+          <li>Between two turns, with no agent running, it stops Claude and resumes the same conversation.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--brown)" stroke-width="2" stroke-linecap="round"><path d="M4 4h16v16H4z"/><path d="M8 12l3 3 5-6"/></svg>
+    <div><b class="c-o">The approved copy</b> (<code>~/.config/site_perso/host</code>): the code that runs outside the box.
+      <ul><li>Makefile, sandbox rules, Mac scripts: as they are at the last commit you approved.</li>
+          <li>A commit of Claude's gets in only through your « yes ».</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--brown)" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+    <div><b class="c-o">sandbox-apply</b>: the door.
+      <ul><li>It shows what changes (in words first, <code>approval.md</code>, then the diff) and waits for your yes.</li>
+          <li>From the phone (the Shortcut goes through klar) or the Mac.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--brown)" stroke-width="2" stroke-linecap="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+    <div><b class="c-o">comment-wake</b>: the doorbell.
+      <ul><li>A comment of yours in the CRM, or a request from another repo, wakes the session.</li></ul></div></li>
+</ol>
+
+<h2><span>3</span>One approval, step by step</h2>
+<ol class="steps">
+  <li><span class="c-g">Claude</span> changes code that runs on the Mac, commits it, and writes in words what it changes for you.</li>
+  <li class="you"><span class="c-y">You</span>: open <a href="http://100.72.158.115:7788/approve">/approve</a>, read, tap « Approuver ».</li>
+  <li class="mac"><span class="c-o">sandbox-apply</span> copies that commit into the approved copy and records its number.</li>
+  <li class="mac"><span class="c-o">The supervisor</span> sees the number change; it waits for Claude's turn and its agents to finish.</li>
+  <li class="mac">It stops Claude, then starts it again <b>on the new code</b>, in the same conversation.</li>
+  <li><span class="c-g">Claude</span> resumes, checks that what needed the restart works, and carries on.</li>
+</ol>
+
+<h2><span>4</span>Why it is built this way</h2>
+<ol class="pts">
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg>
+    <div><b>An oops does not spread.</b><ul><li>Claude works freely; a mistake stays in the repo, where git undoes it.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+    <div><b>One tap, nothing more.</b><ul><li>No restart by hand, no command to paste: the supervisor does it.</li></ul></div></li>
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--brown)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    <div><b>Each repo has its own.</b><ul><li>No shared rule: each its own box, and the repos pass rules to each other through their <code>to_process/</code> inbox.</li></ul></div></li>
+</ol>
+
+<h2><span>5</span>What prevents forgetting</h2>
+<ol class="pts">
+  <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+    <div><b>Checks, not memory.</b>
+      <ul><li><code>approval-guard</code>: no approval link when nothing waits, always phone and Mac.</li>
+          <li><code>sandbox_rules</code>: every new rule says what each other repo gets.</li>
+          <li><code>approved-test</code>: an unapproved commit does not run on the Mac.</li></ul></div></li>
+</ol>
+
+<footer>site_perso · 2026-10-05 · the picture comes from <code>private/docs/supervisor-sandbox.en.excalidraw</code></footer>
+</main>
+</body>
+</html>
