@@ -1,0 +1,5 @@
+# As rust/.config/nextest.toml: a slow test is named and ended, the whole run past 120 s fails. Nextest reads the
+# workspace root's, and this is a workspace of its own. Picture tests draw 8 full windows, so 60 s, not 30.
+[profile.default]
+slow-timeout = { period = "10s", terminate-after = 6 }
+global-timeout = "120s"
