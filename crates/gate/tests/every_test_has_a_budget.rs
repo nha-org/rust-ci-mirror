@@ -1,0 +1,50 @@
+//! Section 4's « 50 MB by default » holds only for a test that declares its budget, so a test with none fails here.
+use dash_gate::rust_files;
+use dash_meter::memory::TestBudget;
+use std::path::Path;
+
+// ponytail: counts per file, so a test with two guards hides one with none; a #[test] wrapper macro if that ever bites.
+#[test]
+fn every_test_declares_a_budget() {
+    let _budget = TestBudget::new();
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let mut bad = vec![];
+    for file in rust_files(&crates) {
+        let text = std::fs::read_to_string(&file).expect("read");
+        let code: String = text
+            .lines()
+            .filter(|l| !l.trim_start().starts_with("//"))
+            .collect();
+        let (tests, budgets) = (
+            code.matches("#[test]").count(),
+            code.matches("let _budget = ").count(),
+        );
+        if tests > budgets {
+            bad.push(format!(
+                "{}: {tests} tests, {budgets} budgets",
+                file.display()
+            ));
+        }
+        // The budget counts from its start (task rust-test-budget-growth): a fixture built before it would not count.
+        let lines: Vec<&str> = text.lines().map(str::trim_start).collect();
+        for (at, _) in lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| l.starts_with("let _budget = "))
+        {
+            let body = lines[..at].iter().rev().take_while(|l| !l.contains("fn "));
+            if body.clone().any(|l| l.starts_with("let ")) {
+                bad.push(format!(
+                    "{}:{}: a let before the budget",
+                    file.display(),
+                    at + 1
+                ));
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "a test with no TestBudget, or one after its first let: {}",
+        bad.join("; ")
+    );
+}
