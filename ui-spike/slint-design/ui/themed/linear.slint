@@ -1,0 +1,241 @@
+// Linear-like cards, after private/evidence/linear/board-1512.jpg, on design.json's tokens. Its issues are made up: rust/ rides to
+// the CI mirror. Each card is placed by its column and slot, so a drop only changes those and `animate` settles it.
+import { T, B, Meta, Surface, Status, Ic, Paths, Ds } from "parts.slint";
+
+export struct LinearCard { id: int, title: string, tag: string, column: int, slot: int }
+
+component Item inherits Rectangle {
+    in property <string> text;
+    in property <string> path;
+    in property <string> count;
+    in property <bool> on;
+    in property <bool> sub;
+    height: 28px;
+    border-radius: Ds.radius-field;
+    background: on || touch.has-hover ? Ds.color-base-300 : transparent;
+    touch := TouchArea { }
+    HorizontalLayout {
+        padding-left: Ds.spacing-s2 + (root.sub ? Ds.spacing-s4 : 0px);
+        padding-right: Ds.spacing-s2;
+        spacing: Ds.spacing-s2;
+        if root.path != "": Ic { commands: root.path; }
+        T { text: root.text; horizontal-stretch: 1; }
+        Meta { text: root.count; }
+    }
+}
+
+component Chip inherits VerticalLayout {
+    in property <string> text;
+    in property <bool> on;
+    alignment: center;
+    Rectangle {
+        height: 24px;
+        width: t.preferred-width + 2 * Ds.spacing-s3;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Ds.hair;
+        background: root.on || touch.has-hover ? Ds.color-base-200 : transparent;
+        t := Meta { text: root.text; color: Ds.color-base-content; font-weight: 500; }
+        touch := TouchArea { }
+    }
+}
+
+export component Linear {
+    in property <[LinearCard]> cards;
+    in property <[int]> counts: [5, 5];
+    // A card's column from where it was let go, the board's own x.
+    callback dropped(/* id */ int, /* column */ int);
+    out property <int> lifted: -1;
+    // The column under a carried card, or -1.
+    property <int> over: -1;
+
+    property <length> column-w: 330px;
+    property <length> gap: Ds.spacing-s3;
+    property <length> head-h: 40px;
+    property <length> card-h: 116px;
+    function column-x(c: int) -> length { return Ds.spacing-s2 + c * (self.column-w + self.gap) + Ds.spacing-s2; }
+    // The column at a point of the board, or -1: a card let go elsewhere stays where it was, as on dioxus-page.
+    function column-at(x: length, y: length) -> int {
+        if (y < 0 || y >= board.height) { return -1; }
+        if (x >= Ds.spacing-s2 && x < Ds.spacing-s2 + self.column-w) { return 0; }
+        if (x >= Ds.spacing-s2 + self.column-w + self.gap && x < Ds.spacing-s2 + 2 * self.column-w + self.gap) { return 1; }
+        return -1;
+    }
+
+    Rectangle {
+        background: Ds.color-base-200;
+        HorizontalLayout {
+            VerticalLayout {
+                width: 228px;
+                padding: Ds.spacing-s3;
+                spacing: 2px;
+                alignment: start;
+                HorizontalLayout {
+                    spacing: Ds.spacing-s2;
+                    padding-bottom: Ds.spacing-s3;
+                    Rectangle { width: 20px; height: 20px; border-radius: 10px; background: Ds.color-secondary; T { text: "AA"; font-size: 10px; color: Ds.color-secondary-content; } }
+                    T { text: "aaa"; font-weight: 500; horizontal-stretch: 1; }
+                    Ic { commands: Paths.search; }
+                }
+                Item { text: "Inbox"; path: Paths.inbox; }
+                Item { text: "Reviews"; path: Paths.link; count: "14"; }
+                Item { text: "My issues"; path: Paths.person; }
+                Item { text: "Agent"; path: Paths.chat; }
+                Item { text: "Drafts"; path: Paths.doc; count: "1"; }
+                Meta { text: "Your teams"; height: 40px; vertical-alignment: bottom; }
+                Item { sub: true; text: "Home"; }
+                Item { sub: true; text: "Issues"; on: true; }
+                Item { sub: true; text: "Cycles"; }
+                Item { sub: true; text: "Current"; }
+                Item { sub: true; text: "Upcoming"; }
+                Item { sub: true; text: "Views"; }
+            }
+            Rectangle {
+                background: Ds.color-base-100;
+                border-radius: Ds.radius-box;
+                border-width: 1px;
+                border-color: Ds.hair;
+                clip: true;
+                VerticalLayout {
+                    HorizontalLayout {
+                        height: 44px;
+                        padding-left: Ds.spacing-s4;
+                        padding-right: Ds.spacing-s4;
+                        spacing: Ds.spacing-s2;
+                        B { text: "Aaa"; }
+                        Meta { text: ">"; }
+                        B { text: "Issues"; horizontal-stretch: 1; }
+                        Ic { commands: Paths.plus; }
+                        T { text: "New issue"; }
+                    }
+                    Rectangle { height: 1px; background: Ds.hair; }
+                    HorizontalLayout {
+                        height: 44px;
+                        padding: Ds.spacing-s2;
+                        spacing: Ds.spacing-s1;
+                        Chip { text: "Active"; on: true; }
+                        Chip { text: "Backlog"; }
+                        Chip { text: "All issues"; }
+                        Rectangle { horizontal-stretch: 1; }
+                        VerticalLayout { alignment: center; Rectangle { width: 26px; height: 26px; border-radius: 13px; border-width: 1px; border-color: Ds.hair; Ic { commands: Paths.dots; } } }
+                    }
+                    board := Rectangle {
+                        clip: true;
+                        for name[c] in ["Todo", "In Progress"]: Rectangle {
+                            x: root.column-x(c) - Ds.spacing-s2;
+                            width: root.column-w;
+                            height: parent.height;
+                            border-top-left-radius: Ds.radius-box;
+                            border-top-right-radius: Ds.radius-box;
+                            accessible-role: groupbox;
+                            accessible-id: "li-col-" + c;
+                            accessible-value: root.over == c ? "over" : "";
+                            background: root.over == c ? Ds.tint : Ds.color-base-200;
+                            animate background { duration: 120ms; }
+                            HorizontalLayout {
+                                y: Ds.spacing-s2;
+                                height: 32px;
+                                padding-left: Ds.spacing-s3;
+                                padding-right: Ds.spacing-s3;
+                                spacing: Ds.spacing-s2;
+                                Status { kind: c == 0 ? "todo" : "started"; }
+                                B { text: name; horizontal-stretch: 0; }
+                                Meta { text: root.counts[c]; accessible-role: groupbox; accessible-id: "li-count-" + c; accessible-value: root.counts[c]; horizontal-stretch: 1; }
+                                Ic { commands: Paths.dots; }
+                                Ic { commands: Paths.plus; }
+                            }
+                        }
+                        Rectangle {
+                            x: root.column-x(2);
+                            y: Ds.spacing-s2;
+                            width: max(0px, parent.width - self.x - Ds.spacing-s2);
+                            height: 80px;
+                            VerticalLayout {
+                                spacing: Ds.spacing-s2;
+                                alignment: start;
+                                Meta { text: "Hidden columns"; }
+                                Rectangle {
+                                    height: 36px;
+                                    border-radius: Ds.radius-field;
+                                    border-width: 1px;
+                                    border-color: Ds.hair;
+                                    HorizontalLayout { padding-left: Ds.spacing-s3; padding-right: Ds.spacing-s3; spacing: Ds.spacing-s2; Status { kind: "review"; } T { text: "In Review"; horizontal-stretch: 1; } Meta { text: "0"; } }
+                                }
+                            }
+                        }
+                        for card in root.cards: Surface {
+                            property <bool> carried: root.lifted == card.id;
+                            property <length> dx: 0;
+                            property <length> dy: 0;
+                            // Where the model says, plus the pointer's offset: a drop zeroes the offset and moves the slot, and `animate` settles it.
+                            x: root.column-x(card.column) + self.dx;
+                            y: root.head-h + card.slot * (root.card-h + Ds.spacing-s2) + self.dy;
+                            animate x, y { duration: self.carried ? 0ms : 240ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+                            z: self.carried ? 2 : 0;
+                            width: root.column-w - 2 * Ds.spacing-s2;
+                            height: root.card-h;
+                            border-radius: Ds.radius-field;
+                            transform-rotation: self.carried ? 1.5deg : 0deg;
+                            animate transform-rotation { duration: 120ms; }
+                            raised: touch.has-hover || self.carried;
+                            border-color: self.carried ? Ds.color-primary : touch.has-hover ? Ds.color-base-content.mix(Ds.color-base-100, 0.4) : Ds.hair;
+                            accessible-role: groupbox;
+                            accessible-id: "li-card-" + card.id;
+                            // Where it stands now, so a test sees it between the drop and its slot.
+                            accessible-value: card.column + " " + round(self.x / 1px) + " " + round(self.y / 1px) + " " + (touch.has-hover ? "hover" : "rest");
+                            VerticalLayout {
+                                padding-left: Ds.spacing-s3;
+                                padding-right: Ds.spacing-s3;
+                                padding-top: 10px;
+                                padding-bottom: Ds.spacing-s2;
+                                spacing: Ds.spacing-s0;
+                                HorizontalLayout { Meta { text: "AAA-" + card.id; horizontal-stretch: 1; } Ic { commands: Paths.person; tint: Ds.muted; } }
+                                HorizontalLayout {
+                                    spacing: Ds.spacing-s2;
+                                    Status { kind: card.column == 0 ? "todo" : "started"; }
+                                    T { text: card.title; font-weight: 500; wrap: word-wrap; overflow: elide; height: 36px; vertical-alignment: top; horizontal-stretch: 1; }
+                                }
+                                HorizontalLayout {
+                                    spacing: Ds.spacing-s1;
+                                    alignment: start;
+                                    VerticalLayout { alignment: center; Rectangle { width: 16px; height: 16px; border-radius: Ds.radius-selector; background: Ds.color-accent; T { text: "!"; font-size: 11px; font-weight: 700; color: Ds.color-accent-content; } } }
+                                    Rectangle { height: 22px; width: tag.preferred-width + 2 * Ds.spacing-s2; border-radius: 11px; border-width: 1px; border-color: Ds.hair; tag := Meta { text: card.tag; color: Ds.color-base-content; } }
+                                }
+                                Meta { text: "Created Oct 23"; }
+                            }
+                            touch := TouchArea {
+                                mouse-cursor: pointer;
+                                // The area moves with the card, so its pointer stays near where it was pressed: each move adds the difference.
+                                moved => {
+                                    if (self.pressed) {
+                                        root.lifted = card.id;
+                                        parent.dx += self.mouse-x - self.pressed-x;
+                                        parent.dy += self.mouse-y - self.pressed-y;
+                                        root.over = root.column-at(parent.x + self.mouse-x, parent.y + self.mouse-y);
+                                    }
+                                }
+                                pointer-event(e) => {
+                                    // Up from the button that carries it, or the grab lost: either way it goes back to the model's place.
+                                    if (e.kind == PointerEventKind.cancel && root.lifted == card.id) {
+                                        root.lifted = -1;
+                                        root.over = -1;
+                                        parent.dx = 0;
+                                        parent.dy = 0;
+                                    }
+                                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.lifted == card.id) {
+                                        let to = root.column-at(parent.x + self.mouse-x, parent.y + self.mouse-y);
+                                        root.lifted = -1;
+                                        root.over = -1;
+                                        parent.dx = 0;
+                                        parent.dy = 0;
+                                        if (to >= 0) { root.dropped(card.id, to); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

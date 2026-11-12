@@ -1,0 +1,19 @@
+[package]
+name = "dash-pdf"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# the reader registry and document model it plugs into
+dash-ingest.workspace = true
+inventory.workspace = true
+# graal's pdf.clj reads with PDFium; this reads the text layer in pure Rust, over lopdf, so the Linux CI builds it
+pdf-extract = "=0.12.1"
+# a page's web and mail addresses, as PDFium's web links find them
+regex.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
+# a fetched fixture's hash, checked again by its test
+sha2.workspace = true
