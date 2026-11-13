@@ -1,0 +1,553 @@
+﻿2026-11-11T17:05:16.2201233Z Current runner version: '2.338.2'
+2026-11-11T17:05:16.2229400Z ##[group]Runner Image Provisioner
+2026-11-11T17:05:16.2230246Z Hosted Compute Agent
+2026-11-11T17:05:16.2230997Z Version: 20261028.624
+2026-11-11T17:05:16.2231639Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T17:05:16.2232509Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T17:05:16.2233223Z Worker ID: {98f63c7f-94bc-4564-ba4e-c06e0dc85687}
+2026-11-11T17:05:16.2233941Z Region: eastus
+2026-11-11T17:05:16.2234820Z Cloud: Azure
+2026-11-11T17:05:16.2235367Z ##[endgroup]
+2026-11-11T17:05:16.2236969Z ##[group]Operating System
+2026-11-11T17:05:16.2237649Z Ubuntu
+2026-11-11T17:05:16.2238176Z 24.04.5
+2026-11-11T17:05:16.2238774Z LTS
+2026-11-11T17:05:16.2239291Z ##[endgroup]
+2026-11-11T17:05:16.2239836Z ##[group]Runner Image
+2026-11-11T17:05:16.2240520Z Image: ubuntu-24.04
+2026-11-11T17:05:16.2241098Z Version: 20261101.360.1
+2026-11-11T17:05:16.2242454Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T17:05:16.2244583Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T17:05:16.2245669Z ##[endgroup]
+2026-11-11T17:05:16.2246898Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T17:05:16.2249021Z Contents: read
+2026-11-11T17:05:16.2249646Z Metadata: read
+2026-11-11T17:05:16.2250375Z ##[endgroup]
+2026-11-11T17:05:16.2252620Z Secret source: Actions
+2026-11-11T17:05:16.2253673Z Cache mode: write
+2026-11-11T17:05:16.2254807Z Prepare workflow directory
+2026-11-11T17:05:16.2659739Z Prepare all required actions
+2026-11-11T17:05:16.2709767Z Getting action download info
+2026-11-11T17:05:16.5045982Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-11T17:05:16.5955577Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-11T17:05:16.7866508Z Download action repository 'taiki-e/install-action@v2' (SHA:cfdb7ed4ccc7c7dce37759eae89dc5674b469b39)
+2026-11-11T17:05:16.9743918Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-11T17:05:17.2138051Z Complete job name: test
+2026-11-11T17:05:17.3249729Z ##[group]Run actions/checkout@v4
+2026-11-11T17:05:17.3250839Z with:
+2026-11-11T17:05:17.3251579Z   repository: nha-org/rust-ci-mirror
+2026-11-11T17:05:17.3255884Z   token: ***
+2026-11-11T17:05:17.3256531Z   ssh-strict: true
+2026-11-11T17:05:17.3257134Z   ssh-user: git
+2026-11-11T17:05:17.3257979Z   persist-credentials: true
+2026-11-11T17:05:17.3258679Z   clean: true
+2026-11-11T17:05:17.3259348Z   sparse-checkout-cone-mode: true
+2026-11-11T17:05:17.3260057Z   fetch-depth: 1
+2026-11-11T17:05:17.3260657Z   fetch-tags: false
+2026-11-11T17:05:17.3261243Z   show-progress: true
+2026-11-11T17:05:17.3261888Z   lfs: false
+2026-11-11T17:05:17.3262499Z   submodules: false
+2026-11-11T17:05:17.3263079Z   set-safe-directory: true
+2026-11-11T17:05:17.3263797Z   allow-unsafe-pr-checkout: false
+2026-11-11T17:05:17.3265086Z env:
+2026-11-11T17:05:17.3265736Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:17.3266467Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:17.3267081Z ##[endgroup]
+2026-11-11T17:05:17.6491160Z Syncing repository: nha-org/rust-ci-mirror
+2026-11-11T17:05:17.6494879Z ##[group]Getting Git version info
+2026-11-11T17:05:17.6496736Z Working directory is '/home/runner/work/rust-ci-mirror/rust-ci-mirror'
+2026-11-11T17:05:17.6499129Z [command]/usr/bin/git version
+2026-11-11T17:05:17.6589410Z git version 2.56.0
+2026-11-11T17:05:17.6613405Z ##[endgroup]
+2026-11-11T17:05:17.6646747Z Temporarily overriding HOME='/home/runner/work/_temp/6d253ac4-032f-4ccc-95ad-a4cadfcebabb' before making global git config changes
+2026-11-11T17:05:17.6649754Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T17:05:17.6652423Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/rust-ci-mirror/rust-ci-mirror
+2026-11-11T17:05:17.6691193Z Deleting the contents of '/home/runner/work/rust-ci-mirror/rust-ci-mirror'
+2026-11-11T17:05:17.6697926Z ##[group]Initializing the repository
+2026-11-11T17:05:17.6705721Z [command]/usr/bin/git init /home/runner/work/rust-ci-mirror/rust-ci-mirror
+2026-11-11T17:05:17.6817913Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T17:05:17.6820393Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T17:05:17.6822755Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T17:05:17.6825281Z hint: call:
+2026-11-11T17:05:17.6826516Z hint:
+2026-11-11T17:05:17.6827874Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T17:05:17.6830596Z hint:
+2026-11-11T17:05:17.6833123Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T17:05:17.6837280Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T17:05:17.6840401Z hint:
+2026-11-11T17:05:17.6842101Z hint: 	git branch -m <name>
+2026-11-11T17:05:17.6844517Z hint:
+2026-11-11T17:05:17.6846870Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T17:05:17.6849958Z Initialized empty Git repository in /home/runner/work/rust-ci-mirror/rust-ci-mirror/.git/
+2026-11-11T17:05:17.6855286Z [command]/usr/bin/git remote add origin https://github.com/nha-org/rust-ci-mirror
+2026-11-11T17:05:17.6911341Z ##[endgroup]
+2026-11-11T17:05:17.6913839Z ##[group]Disabling automatic garbage collection
+2026-11-11T17:05:17.6916595Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T17:05:17.6956626Z ##[endgroup]
+2026-11-11T17:05:17.6959154Z ##[group]Setting up auth
+2026-11-11T17:05:17.6962954Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T17:05:17.7008277Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T17:05:17.7462121Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T17:05:17.7513496Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T17:05:17.7796683Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T17:05:17.7849404Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T17:05:17.8112791Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T17:05:17.8167320Z ##[endgroup]
+2026-11-11T17:05:17.8169213Z ##[group]Fetching the repository
+2026-11-11T17:05:17.8182500Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c3146f665a095ef0f81cd495a219e095b13f96a3:refs/remotes/origin/task/rust-fold-targets-live
+2026-11-11T17:05:18.3399369Z From https://github.com/nha-org/rust-ci-mirror
+2026-11-11T17:05:18.3402987Z  * [new ref]         c3146f665a095ef0f81cd495a219e095b13f96a3 -> origin/task/rust-fold-targets-live
+2026-11-11T17:05:18.3410754Z ##[endgroup]
+2026-11-11T17:05:18.3413062Z ##[group]Determining the checkout info
+2026-11-11T17:05:18.3416048Z ##[endgroup]
+2026-11-11T17:05:18.3417245Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T17:05:18.3477795Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T17:05:18.3521674Z ##[group]Checking out the ref
+2026-11-11T17:05:18.3526278Z [command]/usr/bin/git checkout --progress --force -B task/rust-fold-targets-live refs/remotes/origin/task/rust-fold-targets-live
+2026-11-11T17:05:18.4337886Z Switched to a new branch 'task/rust-fold-targets-live'
+2026-11-11T17:05:18.4346238Z branch 'task/rust-fold-targets-live' set up to track 'origin/task/rust-fold-targets-live'.
+2026-11-11T17:05:18.4356581Z ##[endgroup]
+2026-11-11T17:05:18.4413799Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T17:05:18.4449481Z c3146f665a095ef0f81cd495a219e095b13f96a3
+2026-11-11T17:05:18.4852620Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-11T17:05:18.4853874Z with:
+2026-11-11T17:05:18.4854986Z   save-if: false
+2026-11-11T17:05:18.4855944Z   cache-on-failure: true
+2026-11-11T17:05:18.4856982Z   prefix-key: v0-rust
+2026-11-11T17:05:18.4857986Z   add-job-id-key: true
+2026-11-11T17:05:18.4859059Z   add-rust-environment-hash-key: true
+2026-11-11T17:05:18.4860270Z   cache-targets: true
+2026-11-11T17:05:18.4861270Z   cache-all-crates: false
+2026-11-11T17:05:18.4862349Z   cache-workspace-crates: false
+2026-11-11T17:05:18.4863472Z   cache-provider: github
+2026-11-11T17:05:18.4864624Z   cache-bin: true
+2026-11-11T17:05:18.4865559Z   lookup-only: false
+2026-11-11T17:05:18.4866522Z   cmd-format: {0}
+2026-11-11T17:05:18.4867428Z env:
+2026-11-11T17:05:18.4868274Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:18.4869309Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:18.4870376Z ##[endgroup]
+2026-11-11T17:05:20.1299605Z ##[group]Cache Configuration
+2026-11-11T17:05:20.1300122Z Cache Provider:
+2026-11-11T17:05:20.1300545Z     github
+2026-11-11T17:05:20.1300909Z Workspaces:
+2026-11-11T17:05:20.1301567Z     /home/runner/work/rust-ci-mirror/rust-ci-mirror
+2026-11-11T17:05:20.1302125Z Cache Paths:
+2026-11-11T17:05:20.1302498Z     /home/runner/.cargo/bin
+2026-11-11T17:05:20.1302947Z     /home/runner/.cargo/.crates.toml
+2026-11-11T17:05:20.1303460Z     /home/runner/.cargo/.crates2.json
+2026-11-11T17:05:20.1303952Z     /home/runner/.cargo/registry
+2026-11-11T17:05:20.1304700Z     /home/runner/.cargo/git
+2026-11-11T17:05:20.1305247Z     /home/runner/work/rust-ci-mirror/rust-ci-mirror/target
+2026-11-11T17:05:20.1305857Z Restore Key:
+2026-11-11T17:05:20.1306225Z     v0-rust-test-Linux-x64-61726f36
+2026-11-11T17:05:20.1306686Z Cache Key:
+2026-11-11T17:05:20.1307117Z     v0-rust-test-Linux-x64-61726f36-65137436
+2026-11-11T17:05:20.1307644Z .. Prefix:
+2026-11-11T17:05:20.1308017Z   - v0-rust-test-Linux-x64
+2026-11-11T17:05:20.1308455Z .. Environment considered:
+2026-11-11T17:05:20.1308882Z   - Rust Versions:
+2026-11-11T17:05:20.1309472Z     - 1.99.1 x86_64-unknown-linux-gnu 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-11T17:05:20.1310165Z   - CARGO_INCREMENTAL
+2026-11-11T17:05:20.1310629Z   - CARGO_PROFILE_DEV_DEBUG
+2026-11-11T17:05:20.1311064Z .. Lockfiles considered:
+2026-11-11T17:05:20.1311617Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/Cargo.lock
+2026-11-11T17:05:20.1312461Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/agent/Cargo.toml
+2026-11-11T17:05:20.1313421Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/bridge/Cargo.toml
+2026-11-11T17:05:20.1314617Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/comments/Cargo.toml
+2026-11-11T17:05:20.1315627Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/core/Cargo.toml
+2026-11-11T17:05:20.1316598Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/dash/Cargo.toml
+2026-11-11T17:05:20.1317669Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/drafts/Cargo.toml
+2026-11-11T17:05:20.1318603Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ext/Cargo.toml
+2026-11-11T17:05:20.1319498Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/forge/Cargo.toml
+2026-11-11T17:05:20.1320421Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/gate/Cargo.toml
+2026-11-11T17:05:20.1321376Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/index/Cargo.toml
+2026-11-11T17:05:20.1322290Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ingest/Cargo.toml
+2026-11-11T17:05:20.1323193Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/jobs/Cargo.toml
+2026-11-11T17:05:20.1324545Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/launcher/Cargo.toml
+2026-11-11T17:05:20.1325509Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/mail/Cargo.toml
+2026-11-11T17:05:20.1326410Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/meter/Cargo.toml
+2026-11-11T17:05:20.1327658Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ml/Cargo.toml
+2026-11-11T17:05:20.1328829Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/orch/Cargo.toml
+2026-11-11T17:05:20.1329752Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/policy/Cargo.toml
+2026-11-11T17:05:20.1330688Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/process/Cargo.toml
+2026-11-11T17:05:20.1331597Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/site/Cargo.toml
+2026-11-11T17:05:20.1332493Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/statsd/Cargo.toml
+2026-11-11T17:05:20.1333411Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/store/Cargo.toml
+2026-11-11T17:05:20.1334549Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/surface/Cargo.toml
+2026-11-11T17:05:20.1335520Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/sync/Cargo.toml
+2026-11-11T17:05:20.1336445Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/terminal/Cargo.toml
+2026-11-11T17:05:20.1337349Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ui/Cargo.toml
+2026-11-11T17:05:20.1337849Z   - /home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/views/Cargo.toml
+2026-11-11T17:05:20.1338450Z ##[endgroup]
+2026-11-11T17:05:20.1338575Z 
+2026-11-11T17:05:20.1338673Z ... Restoring cache ...
+2026-11-11T17:05:20.2012722Z Cache hit for: v0-rust-test-Linux-x64-61726f36-65137436
+2026-11-11T17:05:21.2455385Z Received 201326592 of 974621388 (20.7%), 190.7 MBs/sec
+2026-11-11T17:05:22.2510050Z Received 440401920 of 974621388 (45.2%), 208.2 MBs/sec
+2026-11-11T17:05:23.2565322Z Received 692060160 of 974621388 (71.0%), 218.5 MBs/sec
+2026-11-11T17:05:24.2702323Z Received 947912704 of 974621388 (97.3%), 224.2 MBs/sec
+2026-11-11T17:05:24.3287819Z Received 974621388 of 974621388 (100.0%), 227.0 MBs/sec
+2026-11-11T17:05:24.3288751Z Cache Size: ~929 MB (974621388 B)
+2026-11-11T17:05:24.3422016Z [command]/usr/bin/tar -xf /home/runner/work/_temp/91ad1af5-9796-4974-b79c-0685083744bc/cache.tzst -P -C /home/runner/work/rust-ci-mirror/rust-ci-mirror --use-compress-program unzstd
+2026-11-11T17:05:31.4193174Z Cache restored successfully
+2026-11-11T17:05:31.4602065Z Restored from cache key "v0-rust-test-Linux-x64-61726f36-65137436" full match: true.
+2026-11-11T17:05:31.4888389Z ##[group]Run taiki-e/install-action@v2
+2026-11-11T17:05:31.4888899Z with:
+2026-11-11T17:05:31.4889222Z   tool: nextest
+2026-11-11T17:05:31.4889566Z   checksum: true
+2026-11-11T17:05:31.4889933Z   fallback: cargo-binstall
+2026-11-11T17:05:31.4890318Z env:
+2026-11-11T17:05:31.4890640Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:31.4891034Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:31.4891454Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:31.4891842Z ##[endgroup]
+2026-11-11T17:05:31.5010865Z ##[start-action display=Run bail() {;id=__taiki-e_install-action.__run]
+2026-11-11T17:05:31.6941221Z ##[group]Run bail() {
+2026-11-11T17:05:31.6941773Z [36;1mbail() {[0m
+2026-11-11T17:05:31.6942199Z [36;1m  printf '::error::install-action: %s\n' "$*"[0m
+2026-11-11T17:05:31.6942916Z [36;1m  exit 1[0m
+2026-11-11T17:05:31.6943215Z [36;1m}[0m
+2026-11-11T17:05:31.6943786Z [36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine[0m
+2026-11-11T17:05:31.6944953Z [36;1m# because it also means that it will not be exposed to subprocess.[0m
+2026-11-11T17:05:31.6945733Z [36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then[0m
+2026-11-11T17:05:31.6946736Z [36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'[0m
+2026-11-11T17:05:31.6947654Z [36;1mfi[0m
+2026-11-11T17:05:31.6948050Z [36;1mif ! command -v bash >/dev/null; then[0m
+2026-11-11T17:05:31.6948673Z [36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then[0m
+2026-11-11T17:05:31.6949480Z [36;1m    printf '::group::Install packages required for install-action (bash)\n'[0m
+2026-11-11T17:05:31.6950516Z [36;1m    # NB: sync with apk_install in main.sh[0m
+2026-11-11T17:05:31.6951095Z [36;1m    if command -v sudo >/dev/null; then[0m
+2026-11-11T17:05:31.6951656Z [36;1m      sudo apk --no-cache add bash[0m
+2026-11-11T17:05:31.6952208Z [36;1m    elif command -v doas >/dev/null; then[0m
+2026-11-11T17:05:31.6952769Z [36;1m      doas apk --no-cache add bash[0m
+2026-11-11T17:05:31.6953253Z [36;1m    else[0m
+2026-11-11T17:05:31.6953624Z [36;1m      apk --no-cache add bash[0m
+2026-11-11T17:05:31.6954280Z [36;1m    fi[0m
+2026-11-11T17:05:31.6954657Z [36;1m    printf '::endgroup::\n'[0m
+2026-11-11T17:05:31.6955108Z [36;1m  else[0m
+2026-11-11T17:05:31.6955494Z [36;1m    bail 'this action requires bash'[0m
+2026-11-11T17:05:31.6955984Z [36;1m  fi[0m
+2026-11-11T17:05:31.6956307Z [36;1mfi[0m
+2026-11-11T17:05:31.6956808Z [36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"[0m
+2026-11-11T17:05:31.6961124Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+2026-11-11T17:05:31.6961900Z env:
+2026-11-11T17:05:31.6962236Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:31.6962634Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:31.6963114Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:31.6963507Z   INPUT_TOOL: nextest
+2026-11-11T17:05:31.6963888Z   INPUT_CHECKSUM: true
+2026-11-11T17:05:31.6964527Z   INPUT_FALLBACK: cargo-binstall
+2026-11-11T17:05:31.6969647Z   DEFAULT_GITHUB_TOKEN: ***
+2026-11-11T17:05:31.6970149Z   ACTION_USER_AGENT: taiki-e/install-action (v2)
+2026-11-11T17:05:31.6970643Z   RUNNER_OS: Linux
+2026-11-11T17:05:31.6970999Z   RUNNER_ARCH: X64
+2026-11-11T17:05:31.6971346Z ##[endgroup]
+2026-11-11T17:05:32.1493998Z info: host platform: x86_64_linux
+2026-11-11T17:05:32.2438951Z info: installing cargo-nextest@latest
+2026-11-11T17:05:32.2660145Z info: downloading https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.151/cargo-nextest-0.9.151-x86_64-unknown-linux-gnu.tar.gz
+2026-11-11T17:05:32.7091791Z info: verifying sha256 checksum for cargo-nextest-0.9.151-x86_64-unknown-linux-gnu.tar.gz
+2026-11-11T17:05:32.9682662Z info: cargo-nextest installed at /home/runner/.cargo/bin/cargo-nextest
+2026-11-11T17:05:32.9686685Z + cargo-nextest nextest --version
+2026-11-11T17:05:32.9716421Z cargo-nextest 0.9.151 (6b3f99457 2026-11-02)
+2026-11-11T17:05:32.9716939Z release: 0.9.151
+2026-11-11T17:05:32.9717896Z commit-hash: 6b3f994577a98874a2e0ea5bef77fbbab3434044
+2026-11-11T17:05:32.9718524Z commit-date: 2026-11-02
+2026-11-11T17:05:32.9718961Z host: x86_64-unknown-linux-gnu
+2026-11-11T17:05:32.9720863Z 
+2026-11-11T17:05:32.9743351Z ##[end-action id=__taiki-e_install-action.__run;outcome=success;conclusion=success;duration_ms=1473]
+2026-11-11T17:05:32.9751243Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__taiki-e_install-action.__run_2]
+2026-11-11T17:05:32.9756864Z ##[end-action id=__taiki-e_install-action.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T17:05:32.9824321Z ##[group]Run ci/deno.sh
+2026-11-11T17:05:32.9824665Z [36;1mci/deno.sh[0m
+2026-11-11T17:05:32.9847153Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:05:32.9847420Z env:
+2026-11-11T17:05:32.9847624Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:32.9847877Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:32.9848129Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:32.9848362Z ##[endgroup]
+2026-11-11T17:05:33.3987009Z deno.zip: OK
+2026-11-11T17:05:34.1217164Z ##[group]Run cargo check --locked -p dash --features mimalloc
+2026-11-11T17:05:34.1217668Z [36;1mcargo check --locked -p dash --features mimalloc[0m
+2026-11-11T17:05:34.1239962Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:05:34.1240221Z env:
+2026-11-11T17:05:34.1240421Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:34.1240665Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:34.1240913Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:34.1241146Z ##[endgroup]
+2026-11-11T17:05:34.9253619Z     Updating crates.io index
+2026-11-11T17:05:36.5891754Z     Checking dash-core v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/core)
+2026-11-11T17:05:36.5975881Z     Checking dash-process v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/process)
+2026-11-11T17:05:36.6021713Z     Checking blitz-dom v0.3.0-beta.4 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/vendor/blitz-dom)
+2026-11-11T17:05:36.6073974Z     Checking dash-gate v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/gate)
+2026-11-11T17:05:39.6407019Z     Checking dash-meter v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/meter)
+2026-11-11T17:05:39.6408232Z     Checking dash-drafts v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/drafts)
+2026-11-11T17:05:39.7355729Z     Checking dash-ext v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ext)
+2026-11-11T17:05:39.9076154Z     Checking dash-ingest v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ingest)
+2026-11-11T17:05:39.9711116Z     Checking dash-mail v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/mail)
+2026-11-11T17:05:40.0591375Z     Checking dash-policy v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/policy)
+2026-11-11T17:05:40.1666407Z     Checking dash-terminal v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/terminal)
+2026-11-11T17:05:40.2555744Z     Checking dash-views v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/views)
+2026-11-11T17:05:40.3057836Z     Checking dash-bridge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/bridge)
+2026-11-11T17:05:40.3276240Z     Checking dash-agent v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/agent)
+2026-11-11T17:05:40.3890536Z     Checking dash-launcher v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/launcher)
+2026-11-11T17:05:40.4926064Z     Checking dash-store v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/store)
+2026-11-11T17:05:40.5867349Z     Checking dash-orch v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/orch)
+2026-11-11T17:05:40.6172752Z     Checking dash-comments v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/comments)
+2026-11-11T17:05:40.8474465Z     Checking dash-forge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/forge)
+2026-11-11T17:05:40.9355723Z     Checking dash-statsd v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/statsd)
+2026-11-11T17:05:41.1683568Z     Checking blitz-html v0.3.0-beta.4
+2026-11-11T17:05:41.2712492Z     Checking dash-surface v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/surface)
+2026-11-11T17:05:51.8380659Z     Checking dash v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/dash)
+2026-11-11T17:05:54.9096830Z     Finished `dev` profile [unoptimized] target(s) in 20.77s
+2026-11-11T17:05:54.9538238Z ##[group]Run cargo check --locked -p dash --features jemalloc
+2026-11-11T17:05:54.9538759Z [36;1mcargo check --locked -p dash --features jemalloc[0m
+2026-11-11T17:05:54.9559108Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:05:54.9559361Z env:
+2026-11-11T17:05:54.9559560Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:54.9559816Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:54.9560061Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:54.9560297Z ##[endgroup]
+2026-11-11T17:05:55.1816873Z     Checking dash v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/dash)
+2026-11-11T17:05:57.7944863Z     Finished `dev` profile [unoptimized] target(s) in 2.82s
+2026-11-11T17:05:57.8288462Z ##[group]Run printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.public && sudo mv /etc/resolv.conf.public /etc/resolv.conf && sudo apt-get -o Acquire::Retries=3 update -qq && sudo apt-get -o Acquire::Retries=3 install -y -qq bubblewrap libfontconfig1-dev poppler-utils && sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+2026-11-11T17:05:57.8290823Z [36;1mprintf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' | sudo tee /etc/resolv.conf.public && sudo mv /etc/resolv.conf.public /etc/resolv.conf && sudo apt-get -o Acquire::Retries=3 update -qq && sudo apt-get -o Acquire::Retries=3 install -y -qq bubblewrap libfontconfig1-dev poppler-utils && sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0[0m
+2026-11-11T17:05:57.8311923Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:05:57.8312184Z env:
+2026-11-11T17:05:57.8312389Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:05:57.8312628Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:05:57.8312907Z   CACHE_ON_FAILURE: true
+2026-11-11T17:05:57.8313135Z ##[endgroup]
+2026-11-11T17:05:57.8421698Z nameserver 1.1.1.1
+2026-11-11T17:05:57.8422093Z nameserver 8.8.8.8
+2026-11-11T17:06:05.7296293Z Selecting previously unselected package poppler-data.
+2026-11-11T17:06:05.7613745Z (Reading database ... 
+2026-11-11T17:06:05.7614527Z (Reading database ... 5%
+2026-11-11T17:06:05.7614853Z (Reading database ... 10%
+2026-11-11T17:06:05.7615117Z (Reading database ... 15%
+2026-11-11T17:06:05.7615488Z (Reading database ... 20%
+2026-11-11T17:06:05.7615853Z (Reading database ... 25%
+2026-11-11T17:06:05.7616273Z (Reading database ... 30%
+2026-11-11T17:06:05.7616742Z (Reading database ... 35%
+2026-11-11T17:06:05.7617355Z (Reading database ... 40%
+2026-11-11T17:06:05.7617808Z (Reading database ... 45%
+2026-11-11T17:06:05.7618040Z (Reading database ... 50%
+2026-11-11T17:06:05.7670099Z (Reading database ... 55%
+2026-11-11T17:06:05.9446890Z (Reading database ... 60%
+2026-11-11T17:06:06.0943433Z (Reading database ... 65%
+2026-11-11T17:06:06.6875580Z (Reading database ... 70%
+2026-11-11T17:06:07.6839647Z (Reading database ... 75%
+2026-11-11T17:06:08.3550973Z (Reading database ... 80%
+2026-11-11T17:06:08.5835297Z (Reading database ... 85%
+2026-11-11T17:06:09.1032918Z (Reading database ... 90%
+2026-11-11T17:06:09.2633116Z (Reading database ... 95%
+2026-11-11T17:06:09.2633644Z (Reading database ... 100%
+2026-11-11T17:06:09.2634674Z (Reading database ... 215960 files and directories currently installed.)
+2026-11-11T17:06:09.2675879Z Preparing to unpack .../00-poppler-data_0.4.12-1_all.deb ...
+2026-11-11T17:06:09.2737008Z Unpacking poppler-data (0.4.12-1) ...
+2026-11-11T17:06:09.3970870Z Selecting previously unselected package bubblewrap.
+2026-11-11T17:06:09.4115298Z Preparing to unpack .../01-bubblewrap_0.9.0-1ubuntu0.3_amd64.deb ...
+2026-11-11T17:06:09.4122307Z Unpacking bubblewrap (0.9.0-1ubuntu0.3) ...
+2026-11-11T17:06:09.4409279Z Selecting previously unselected package bzip2-doc.
+2026-11-11T17:06:09.4551007Z Preparing to unpack .../02-bzip2-doc_1.0.8-5.1ubuntu0.1_all.deb ...
+2026-11-11T17:06:09.4557792Z Unpacking bzip2-doc (1.0.8-5.1ubuntu0.1) ...
+2026-11-11T17:06:09.4818790Z Selecting previously unselected package libbrotli-dev:amd64.
+2026-11-11T17:06:09.4962525Z Preparing to unpack .../03-libbrotli-dev_1.1.0-2ubuntu0.1_amd64.deb ...
+2026-11-11T17:06:09.4968901Z Unpacking libbrotli-dev:amd64 (1.1.0-2ubuntu0.1) ...
+2026-11-11T17:06:09.5252837Z Selecting previously unselected package libbz2-dev:amd64.
+2026-11-11T17:06:09.5393621Z Preparing to unpack .../04-libbz2-dev_1.0.8-5.1ubuntu0.1_amd64.deb ...
+2026-11-11T17:06:09.5399451Z Unpacking libbz2-dev:amd64 (1.0.8-5.1ubuntu0.1) ...
+2026-11-11T17:06:09.5621266Z Selecting previously unselected package libpng-dev:amd64.
+2026-11-11T17:06:09.5763858Z Preparing to unpack .../05-libpng-dev_1.6.43-5ubuntu0.7_amd64.deb ...
+2026-11-11T17:06:09.5770245Z Unpacking libpng-dev:amd64 (1.6.43-5ubuntu0.7) ...
+2026-11-11T17:06:09.6084543Z Selecting previously unselected package libfreetype-dev:amd64.
+2026-11-11T17:06:09.6226032Z Preparing to unpack .../06-libfreetype-dev_2.13.2+dfsg-1ubuntu0.2_amd64.deb ...
+2026-11-11T17:06:09.6234312Z Unpacking libfreetype-dev:amd64 (2.13.2+dfsg-1ubuntu0.2) ...
+2026-11-11T17:06:09.6581512Z Selecting previously unselected package uuid-dev:amd64.
+2026-11-11T17:06:09.6721911Z Preparing to unpack .../07-uuid-dev_2.39.3-9ubuntu6.6_amd64.deb ...
+2026-11-11T17:06:09.6728702Z Unpacking uuid-dev:amd64 (2.39.3-9ubuntu6.6) ...
+2026-11-11T17:06:09.6992439Z Selecting previously unselected package libfontconfig-dev:amd64.
+2026-11-11T17:06:09.7136569Z Preparing to unpack .../08-libfontconfig-dev_2.15.0-1.1ubuntu2_amd64.deb ...
+2026-11-11T17:06:09.7143146Z Unpacking libfontconfig-dev:amd64 (2.15.0-1.1ubuntu2) ...
+2026-11-11T17:06:09.7401953Z Selecting previously unselected package libfontconfig1-dev:amd64.
+2026-11-11T17:06:09.7546702Z Preparing to unpack .../09-libfontconfig1-dev_2.15.0-1.1ubuntu2_amd64.deb ...
+2026-11-11T17:06:09.7552913Z Unpacking libfontconfig1-dev:amd64 (2.15.0-1.1ubuntu2) ...
+2026-11-11T17:06:09.7766554Z Selecting previously unselected package libpng-tools.
+2026-11-11T17:06:09.7910144Z Preparing to unpack .../10-libpng-tools_1.6.43-5ubuntu0.7_amd64.deb ...
+2026-11-11T17:06:09.7916696Z Unpacking libpng-tools (1.6.43-5ubuntu0.7) ...
+2026-11-11T17:06:09.8138342Z Selecting previously unselected package libpoppler134:amd64.
+2026-11-11T17:06:09.8281630Z Preparing to unpack .../11-libpoppler134_24.02.0-1ubuntu9.11_amd64.deb ...
+2026-11-11T17:06:09.8297956Z Unpacking libpoppler134:amd64 (24.02.0-1ubuntu9.11) ...
+2026-11-11T17:06:09.8654885Z Selecting previously unselected package poppler-utils.
+2026-11-11T17:06:09.8798748Z Preparing to unpack .../12-poppler-utils_24.02.0-1ubuntu9.11_amd64.deb ...
+2026-11-11T17:06:09.8804814Z Unpacking poppler-utils (24.02.0-1ubuntu9.11) ...
+2026-11-11T17:06:09.9478127Z Setting up bubblewrap (0.9.0-1ubuntu0.3) ...
+2026-11-11T17:06:09.9522080Z Setting up bzip2-doc (1.0.8-5.1ubuntu0.1) ...
+2026-11-11T17:06:09.9538866Z Setting up libpng-tools (1.6.43-5ubuntu0.7) ...
+2026-11-11T17:06:09.9559580Z Setting up libpoppler134:amd64 (24.02.0-1ubuntu9.11) ...
+2026-11-11T17:06:09.9577669Z Setting up libpng-dev:amd64 (1.6.43-5ubuntu0.7) ...
+2026-11-11T17:06:09.9595720Z Setting up poppler-data (0.4.12-1) ...
+2026-11-11T17:06:09.9652133Z Setting up uuid-dev:amd64 (2.39.3-9ubuntu6.6) ...
+2026-11-11T17:06:09.9669324Z Setting up poppler-utils (24.02.0-1ubuntu9.11) ...
+2026-11-11T17:06:09.9686706Z Setting up libbrotli-dev:amd64 (1.1.0-2ubuntu0.1) ...
+2026-11-11T17:06:09.9702191Z Setting up libbz2-dev:amd64 (1.0.8-5.1ubuntu0.1) ...
+2026-11-11T17:06:09.9726943Z Setting up libfreetype-dev:amd64 (2.13.2+dfsg-1ubuntu0.2) ...
+2026-11-11T17:06:09.9744298Z Setting up libfontconfig-dev:amd64 (2.15.0-1.1ubuntu2) ...
+2026-11-11T17:06:09.9761931Z Setting up libfontconfig1-dev:amd64 (2.15.0-1.1ubuntu2) ...
+2026-11-11T17:06:09.9782637Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-11-11T17:06:09.9804445Z Not building database; man-db/auto-update is not 'true'.
+2026-11-11T17:06:09.9816690Z Processing triggers for install-info (7.1-3build2) ...
+2026-11-11T17:06:10.2348518Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+2026-11-11T17:06:10.2827627Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-11-11T17:06:11.0050073Z 
+2026-11-11T17:06:11.0050713Z Running kernel seems to be up-to-date.
+2026-11-11T17:06:11.0051115Z 
+2026-11-11T17:06:11.0051296Z No services need to be restarted.
+2026-11-11T17:06:11.0051607Z 
+2026-11-11T17:06:11.0051775Z No containers need to be restarted.
+2026-11-11T17:06:11.0052095Z 
+2026-11-11T17:06:11.0052311Z No user sessions are running outdated binaries.
+2026-11-11T17:06:11.0052709Z 
+2026-11-11T17:06:11.0053088Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-11-11T17:06:11.9970148Z kernel.apparmor_restrict_unprivileged_userns = 0
+2026-11-11T17:06:12.0032213Z ##[group]Run git fetch -q --depth=1 origin main
+2026-11-11T17:06:12.0032613Z [36;1mgit fetch -q --depth=1 origin main[0m
+2026-11-11T17:06:12.0052223Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:06:12.0052468Z env:
+2026-11-11T17:06:12.0052664Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:06:12.0052902Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:06:12.0053143Z   CACHE_ON_FAILURE: true
+2026-11-11T17:06:12.0053363Z ##[endgroup]
+2026-11-11T17:06:12.3416632Z ##[group]Run cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- clippy --locked --all-targets -- -D warnings
+2026-11-11T17:06:12.3417431Z [36;1mcargo run -q --locked -p dash -- ci affected FETCH_HEAD -- clippy --locked --all-targets -- -D warnings[0m
+2026-11-11T17:06:12.3437319Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:06:12.3437570Z env:
+2026-11-11T17:06:12.3437954Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:06:12.3438190Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:06:12.3438435Z   CACHE_ON_FAILURE: true
+2026-11-11T17:06:12.3438661Z ##[endgroup]
+2026-11-11T17:06:43.6127216Z ci affected: cargo clippy --locked --all-targets -p dash -p dash-gate -p dash-store -- -D warnings
+2026-11-11T17:06:44.1944928Z     Checking dash-core v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/core)
+2026-11-11T17:06:44.2055549Z     Checking dash-meter v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/meter)
+2026-11-11T17:06:44.2105363Z     Checking blitz-dom v0.3.0-beta.4 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/vendor/blitz-dom)
+2026-11-11T17:06:44.2145193Z     Checking dash-process v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/process)
+2026-11-11T17:06:44.7092539Z     Checking dash-gate v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/gate)
+2026-11-11T17:06:45.0466121Z     Checking dash-statsd v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/statsd)
+2026-11-11T17:06:45.0935732Z     Checking dash-store v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/store)
+2026-11-11T17:06:45.2135602Z     Checking dash-terminal v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/terminal)
+2026-11-11T17:06:45.2977136Z     Checking dash-launcher v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/launcher)
+2026-11-11T17:06:45.4345512Z     Checking dash-ingest v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ingest)
+2026-11-11T17:06:45.5155923Z     Checking dash-orch v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/orch)
+2026-11-11T17:06:45.8324748Z     Checking dash-forge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/forge)
+2026-11-11T17:06:45.8795437Z     Checking dash-comments v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/comments)
+2026-11-11T17:06:45.9329925Z     Checking dash-drafts v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/drafts)
+2026-11-11T17:06:45.9791812Z     Checking blitz-html v0.3.0-beta.4
+2026-11-11T17:06:46.1386758Z     Checking dash-surface v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/surface)
+2026-11-11T17:06:46.1734708Z     Checking dioxus-native-dom v0.8.0-alpha.3
+2026-11-11T17:06:46.2345448Z     Checking dash-bridge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/bridge)
+2026-11-11T17:06:46.3327202Z     Checking dash-agent v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/agent)
+2026-11-11T17:06:46.3379358Z     Checking dash-ext v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ext)
+2026-11-11T17:06:46.4775670Z     Checking dash-views v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/views)
+2026-11-11T17:06:46.4862018Z     Checking dash-mail v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/mail)
+2026-11-11T17:06:46.6265604Z     Checking dash-policy v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/policy)
+2026-11-11T17:06:46.7125321Z     Checking dash-ui v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ui)
+2026-11-11T17:06:46.7395458Z     Checking dash-sync v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/sync)
+2026-11-11T17:06:57.5039847Z     Checking dash v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/dash)
+2026-11-11T17:07:02.9407078Z     Finished `dev` profile [unoptimized] target(s) in 19.27s
+2026-11-11T17:07:02.9907136Z ##[group]Run cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked --no-run
+2026-11-11T17:07:02.9907854Z [36;1mcargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked --no-run[0m
+2026-11-11T17:07:02.9927830Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:07:02.9928089Z env:
+2026-11-11T17:07:02.9928287Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:07:02.9928532Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:07:02.9928781Z   CACHE_ON_FAILURE: true
+2026-11-11T17:07:02.9929007Z ##[endgroup]
+2026-11-11T17:07:03.3222511Z ci affected: cargo nextest run --locked --no-run -p dash -p dash-gate -p dash-store
+2026-11-11T17:07:04.1952660Z info: experimental features enabled: setup-scripts
+2026-11-11T17:07:04.4371249Z    Compiling blitz-dom v0.3.0-beta.4 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/vendor/blitz-dom)
+2026-11-11T17:07:04.4373501Z    Compiling dash-gate v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/gate)
+2026-11-11T17:07:04.4487181Z    Compiling dash-store v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/store)
+2026-11-11T17:07:04.4545388Z    Compiling dash-ingest v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ingest)
+2026-11-11T17:07:06.2855526Z    Compiling dash-views v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/views)
+2026-11-11T17:07:07.1382430Z    Compiling dash-launcher v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/launcher)
+2026-11-11T17:07:07.4185775Z    Compiling dash-terminal v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/terminal)
+2026-11-11T17:07:07.6208008Z    Compiling dash-forge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/forge)
+2026-11-11T17:07:07.6449127Z    Compiling dash-bridge v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/bridge)
+2026-11-11T17:07:07.8455634Z    Compiling dash-agent v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/agent)
+2026-11-11T17:07:08.7766394Z    Compiling dash-comments v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/comments)
+2026-11-11T17:07:08.8905822Z    Compiling blitz-html v0.3.0-beta.4
+2026-11-11T17:07:09.8116163Z    Compiling dash-surface v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/surface)
+2026-11-11T17:07:10.0188692Z    Compiling dioxus-native-dom v0.8.0-alpha.3
+2026-11-11T17:07:10.8365424Z    Compiling dash-ext v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ext)
+2026-11-11T17:07:11.3525667Z    Compiling dash-drafts v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/drafts)
+2026-11-11T17:07:12.7485593Z    Compiling dash-mail v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/mail)
+2026-11-11T17:07:13.9445459Z    Compiling dash-ui v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/ui)
+2026-11-11T17:07:14.0035254Z    Compiling dash-sync v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/sync)
+2026-11-11T17:07:28.8691903Z    Compiling dash v0.1.0 (/home/runner/work/rust-ci-mirror/rust-ci-mirror/crates/dash)
+2026-11-11T17:07:41.4436619Z     Finished `test` profile [unoptimized] target(s) in 37.24s
+2026-11-11T17:07:41.6260165Z ##[group]Run timeout 130 cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked
+2026-11-11T17:07:41.6261404Z [36;1mtimeout 130 cargo run -q --locked -p dash -- ci affected FETCH_HEAD -- nextest run --locked[0m
+2026-11-11T17:07:41.6289193Z shell: /usr/bin/bash -e {0}
+2026-11-11T17:07:41.6289622Z env:
+2026-11-11T17:07:41.6289943Z   CARGO_INCREMENTAL: 0
+2026-11-11T17:07:41.6290328Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-11-11T17:07:41.6290752Z   CACHE_ON_FAILURE: true
+2026-11-11T17:07:41.6291131Z ##[endgroup]
+2026-11-11T17:07:41.9468901Z ci affected: cargo nextest run --locked -p dash -p dash-gate -p dash-store
+2026-11-11T17:07:42.2791542Z info: experimental features enabled: setup-scripts
+2026-11-11T17:07:42.4997038Z     Finished `test` profile [unoptimized] target(s) in 0.21s
+2026-11-11T17:07:42.6221871Z ────────────
+2026-11-11T17:07:42.6222599Z  Nextest run ID 20f0c8c4-e19f-4f5a-bb64-3959f8dad8fd with nextest profile: default
+2026-11-11T17:07:42.6223541Z     Starting 531 tests across 27 binaries (1 test skipped)
+2026-11-11T17:07:42.6225181Z        SETUP [      1/1] dash-first-launch: /bin/sh -c 'for p in debug release; do d="${CARGO_TARGET_DIR:-target}/$p/dash"; [ ! -x "$d" ] || "$d" menu > /dev/null || exit 1; done'
+2026-11-11T17:07:42.6317541Z   SETUP PASS [   0.009s] dash-first-launch: /bin/sh -c 'for p in debug release; do d="${CARGO_TARGET_DIR:-target}/$p/dash"; [ ! -x "$d" ] || "$d" menu > /dev/null || exit 1; done'
+2026-11-11T17:07:42.6862315Z         PASS [   0.053s] (  1/531) dash::codex_run a_codex_task_starts_codex_in_its_pane_and_its_outcome_is_recorded
+2026-11-11T17:07:42.7773586Z         PASS [   0.091s] (  2/531) dash::compass a_compass_comment_feeds_the_comment_watcher_on_watchers
+2026-11-11T17:07:42.8725591Z         PASS [   0.240s] (  3/531) dash::comment_queue a_stopped_watcher_shows_on_the_watchers_page_and_in_the_next_wake
+2026-11-11T17:07:42.8954954Z         PASS [   0.022s] (  4/531) dash::compass a_mail_reply_is_this_app_s_and_refuses_a_foreign_page_or_address
+2026-11-11T17:07:42.9238674Z         FAIL [   0.028s] (  5/531) dash::compass a_page_comment_keeps_its_images_and_pdfs
+2026-11-11T17:07:42.9239930Z   stdout ───
+2026-11-11T17:07:42.9240297Z 
+2026-11-11T17:07:42.9240662Z     running 1 test
+2026-11-11T17:07:42.9240974Z     test a_page_comment_keeps_its_images_and_pdfs ... FAILED
+2026-11-11T17:07:42.9241482Z 
+2026-11-11T17:07:42.9241758Z     failures:
+2026-11-11T17:07:42.9242346Z 
+2026-11-11T17:07:42.9242505Z     failures:
+2026-11-11T17:07:42.9242905Z         a_page_comment_keeps_its_images_and_pdfs
+2026-11-11T17:07:42.9243305Z 
+2026-11-11T17:07:42.9243803Z     test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+2026-11-11T17:07:42.9247197Z 
+2026-11-11T17:07:42.9247484Z   stderr ───
+2026-11-11T17:07:42.9247698Z 
+2026-11-11T17:07:42.9248271Z     thread 'a_page_comment_keeps_its_images_and_pdfs' (5057) panicked at crates/dash/tests/compass.rs:550:37:
+2026-11-11T17:07:42.9249424Z     read: Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" }
+2026-11-11T17:07:42.9250182Z     note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-11-11T17:07:42.9250508Z 
+2026-11-11T17:07:42.9250656Z   Cancelling due to test failure: 3 tests still running
+2026-11-11T17:07:42.9822539Z         PASS [   0.350s] (  6/531) dash::compass a_change_asked_files_its_task_and_a_question_is_answered_only
+2026-11-11T17:07:42.9859310Z         PASS [   0.353s] (  7/531) dash::comment_queue a_pass_lands_his_comment_wakes_the_owner_and_makes_no_task
+2026-11-11T17:07:43.1796956Z         PASS [   0.402s] (  8/531) dash::compass a_compass_comment_lands_as_one_row_and_the_agent_answers_the_oldest_first
+2026-11-11T17:07:43.1798349Z ────────────
+2026-11-11T17:07:43.1798815Z      Summary [   0.558s] 8/531 tests run: 7 passed, 1 failed, 1 skipped
+2026-11-11T17:07:43.1799633Z         FAIL [   0.028s] (  5/531) dash::compass a_page_comment_keeps_its_images_and_pdfs
+2026-11-11T17:07:43.1801227Z warning: 523/531 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)
+2026-11-11T17:07:43.1843208Z error: test run failed
+2026-11-11T17:07:43.1883537Z ##[error]Process completed with exit code 100.
+2026-11-11T17:07:43.1999190Z Post job cleanup.
+2026-11-11T17:07:43.3437049Z Post job cleanup.
+2026-11-11T17:07:43.4570350Z [command]/usr/bin/git version
+2026-11-11T17:07:43.4625898Z git version 2.56.0
+2026-11-11T17:07:43.4666892Z Temporarily overriding HOME='/home/runner/work/_temp/f0a95b18-ff6d-4701-aae8-13c0f028c434' before making global git config changes
+2026-11-11T17:07:43.4668321Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T17:07:43.4672630Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/rust-ci-mirror/rust-ci-mirror
+2026-11-11T17:07:43.4732842Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T17:07:43.4777104Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T17:07:43.5103477Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T17:07:43.5142771Z http.https://github.com/.extraheader
+2026-11-11T17:07:43.5166270Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-11T17:07:43.5217689Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T17:07:43.5583107Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T17:07:43.5636221Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T17:07:43.6044554Z Cleaning up orphan processes
+2026-11-11T17:07:43.6408957Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
