@@ -1,0 +1,28 @@
+[package]
+name = "dash-surface"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# /design's Linear cards and Notion comments read the window's document (rust-design-page).
+blitz-dom = { version = "=0.3.0-beta.4", default-features = false }
+# dash parity reads the Elixir page and its Rust port (task rust-port-parity)
+blitz-html = "=0.3.0-beta.4"
+canvist_model = "=0.2.1"
+dash-core.workspace = true
+dioxus = { workspace = true }
+dioxus-ssr = "=0.8.0-alpha.3"
+# Each component registers itself from its own module, as pages do (task rust-components-register).
+inventory.workspace = true
+# pdf.rs ends Chrome's process group with killpg, never a shelled kill (dash-gate's no_group_is_ended_by_a_shelled_kill).
+libc = "0.2"
+# Diagrams drawn to SVG on the server, no script or CDN in the page (@nha, 2026-11-09: « The tool is local first. »).
+mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
+# Each component's terminal form, drawn into a Buffer in-process (task rust-tui-tracer).
+ratatui.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
