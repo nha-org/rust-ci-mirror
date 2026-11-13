@@ -1,0 +1,2090 @@
+//! Adapter of section 3: what the app shows outside. For now the web renderer of an extension's UI tree and the MCP server
+//! of the registry's tools. Hand-written JSON-RPC: rmcp would bring an async runtime for four methods. The later Mac window
+//! draws the same HTML and SVG, so a screen is a tree here and never markup in the crate that fills it.
+use dash_core::registry::Registry;
+use serde::Deserialize;
+use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
+use std::io::{BufRead, Read, Write};
+
+mod board;
+pub mod component;
+pub mod components;
+pub mod design;
+pub mod documents;
+pub use components::Link;
+use components::{More, card_href};
+use documents::IssueStatus;
+pub mod forms;
+pub mod glossary;
+pub mod parity;
+pub mod pdf;
+pub mod screen;
+pub mod theme;
+pub mod words;
+
+use forms::escaped;
+
+/// Section 10's tree: a flat map of elements by id. Parsing it is the check: a bad type or prop is refused here.
+#[derive(Deserialize)]
+struct Tree {
+    root: String,
+    elements: HashMap<String, Node>,
+}
+
+#[derive(Deserialize)]
+struct Node {
+    #[serde(flatten)]
+    element: Element,
+    #[serde(default)]
+    children: Vec<String>,
+}
+
+/// Section 12's catalog, a closed set: a new element type is a rebuild, a new tree of these is not. Props are meaning,
+/// not markup: a plugin gives text, always escaped, and chooses no URL.
+#[derive(Deserialize)]
+#[serde(tag = "type", content = "props", rename_all = "kebab-case")]
+enum Element {
+    Stack,
+    /// The search field (task rust-inbox-search-place): it GETs /search. `value`: the words searched, shown back in it;
+    /// `hidden`: fields sent with them, as /inbox's `in=inbox`, which names the page that draws the results.
+    SearchBar {
+        placeholder: String,
+        #[serde(default)]
+        value: String,
+        #[serde(default)]
+        hidden: Vec<(String, String)>,
+        /// The page it GETs in place of /search, a path of this app: /documents' own search (task rust-doc-cowrite).
+        #[serde(default)]
+        action: Option<String>,
+    },
+    Heading {
+        text: String,
+    },
+    Text {
+        text: String,
+    },
+    TaskGraph {
+        #[serde(deserialize_with = "drawn")]
+        tasks: Vec<GraphTask>,
+    },
+    /// One status's tasks under its name and their count, its children their rows.
+    IssueGroup {
+        status: IssueStatus,
+        /// Its own name where the status's is not: /comments' columns (task comments-by-state).
+        #[serde(default)]
+        title: Option<String>,
+        /// The tasks past the ones it draws, counted in its count and named by one link (task rust-page-latency).
+        #[serde(default)]
+        more: Option<More>,
+    },
+    /// A task's row: the whole of it opens the task. `says`: what it waits on or how it stands. `comments`: his, that it handles.
+    IssueRow {
+        id: String,
+        title: String,
+        status: IssueStatus,
+        says: String,
+        comments: usize,
+        /// Another project's task, which only the older app's board opens (task rust-nav-polish); `None`: one Rust's
+        /// /tasks/<id> opens.
+        #[serde(default)]
+        project: Option<String>,
+        /// Its labels and who it is assigned to, as a Linear card shows them on the board (task rust-board-linear).
+        #[serde(default)]
+        labels: Vec<String>,
+        #[serde(default)]
+        assignee: Option<String>,
+        /// The board's drag moves it to another column (task rust-board-linear-order): a task Rust's board view places.
+        #[serde(default)]
+        movable: bool,
+        /// Where it opens when that is not its task: a comment with no task opens on its page (task comments-by-state).
+        #[serde(default)]
+        href: Option<String>,
+        /// Its task's why, which its board card shows on a hover (task rust-ui-controls).
+        #[serde(default)]
+        why: String,
+        /// The agent's answer to his words, drawn under them: /comments' Answered cards (task comments-answered-shows-answer;
+        /// @nha, 2026-11-10: « I have no way to see the answers. »).
+        #[serde(default)]
+        answer: String,
+    },
+    /// Cards side by side, as many to a row as fit: its children the cards. Only where a card was approved (drafts): a list
+    /// of things is a `list` (@nha, 2026-11-09: « Cards are not the default UI element »; dash-gate's cards_only_where_approved).
+    Cards,
+    /// The default list: its children's cards drawn as rows, one under the other, each its title, its line and its link.
+    List,
+    /// One thing to read or do, Home's unit (task rust-nav-polish; @nha, 2026-11-08: « initial contents should be though
+    /// about »): its title, one line under it, and where it opens. `href`: a path of this app or an http(s) URL, else none.
+    /// `reading`: its title not known yet, the card in its loading state, the same element its title fills (task
+    /// rust-today-doc; @nha, 2026-11-09: « This is a card loading state. same element. always start from the design system »).
+    Card {
+        title: String,
+        line: String,
+        #[serde(default)]
+        href: Option<String>,
+        #[serde(default)]
+        reading: bool,
+    },
+    /// The board: its children the status groups, drawn as columns side by side. `view`: the views' name its cards follow
+    /// (dash_views), so the page takes each of its diffs as a patch (task rust-view-patches).
+    Board {
+        #[serde(default)]
+        view: Option<String>,
+    },
+    /// A queue or a list of records, a row each (components::Table). A row's `href` is checked as a card's.
+    Table {
+        columns: Vec<String>,
+        rows: Vec<components::TableRow>,
+        /// The page's query, which holds its order (components::Order): set by `queried`, never by a page. None: every row,
+        /// no sort.
+        #[serde(default)]
+        query: Option<String>,
+    },
+    /// Links in a row, the one shown marked: an account switcher, a pager. Navigation is links, never cards (@nha, 2026-11-09,
+    /// on /mail: « cards are nonsense here »). An href is checked as a card's.
+    Links {
+        links: Vec<Link>,
+        /// What it selects, said before them: the graph's « Epic » and « Label » selectors (task rust-graph-why-these).
+        #[serde(default)]
+        label: Option<String>,
+    },
+    /// A file sent to a path of this app: its picker, then its button (task dash-settings-backup). `action` is a local path.
+    Upload {
+        action: String,
+        label: String,
+        accept: String,
+    },
+    /// One button that posts to a path of this app: a step he confirms (task dash-settings-backup).
+    Action {
+        action: String,
+        label: String,
+    },
+    /// A page's top line, its children in a row, the first at the left, the rest at the right end: the board's title, then its
+    /// New issue.
+    Bar,
+    /// Linear's « + New issue » and its form (components::NewIssue): `project`, the board's, is sent with its words.
+    NewIssue {
+        #[serde(default)]
+        project: Option<String>,
+    },
+    /// /documents' New document (components::NewDocument): its type, RFC first, and its title (task rust-doc-cowrite).
+    NewDocument,
+    /// The board's three views as links, the one shown marked: the board, the list, the dependency graph.
+    TaskViews {
+        current: TaskView,
+        /// The project the board and the list are filtered to, kept by their links (task rust-nav-polish).
+        #[serde(default)]
+        project: Option<String>,
+    },
+    /// Events in time, drawn by the design system's Timeline (components::Event): `strip`, side by side on one line, as
+    /// /watchers' Automations tab draws a day of runs and the next (task rust-automations-tab). An event's `href` is checked as
+    /// a card's. In the text, a record an event: when, its mark, what, then its link or its detail.
+    Timeline {
+        events: Vec<components::Event>,
+        #[serde(default)]
+        strip: bool,
+    },
+    /// Items on a time axis, drawn by the design system's Gantt (components::Gantt): /plan's roadmap (task
+    /// linear-projects-view). A row's `href` is checked as a card's. In the text, its Mermaid gantt.
+    Gantt {
+        rows: Vec<components::GanttRow>,
+    },
+    /// A titled part of a page, its children the part.
+    Section {
+        title: String,
+        /// For agents alone: its text form whole, nothing of it drawn for him (task rust-tasks-runs-text-off-html; @nha,
+        /// 2026-11-09: « that whole text is what ? for the agent ? don't show on the human pane »).
+        #[serde(default)]
+        agents: bool,
+    },
+    /// Someone's words as written, their line breaks kept.
+    Quote {
+        text: String,
+    },
+    /// A diagram, its text form its Mermaid source, which a browser draws (components::Diagram).
+    Diagram {
+        source: String,
+    },
+    /// Nested boxes, a box's area its size, hovering one outlines its links (components::Treemap): /deps' code map.
+    Treemap {
+        boxes: Vec<components::Nest>,
+    },
+    /// One mail of a conversation (task rust-mail-thread): folded to its line unless `open`, then its words, or its HTML
+    /// framed with no script and nothing remote (components::Frame). `files`: each attachment's name, where it downloads and
+    /// its MIME type (components::Attachment).
+    Mail {
+        from: String,
+        to: String,
+        at: String,
+        text: String,
+        #[serde(default)]
+        html: Option<String>,
+        #[serde(default)]
+        open: bool,
+        #[serde(default)]
+        files: Vec<(String, String, String)>,
+        /// The sender's address, beside the name (task rust-mail-parity).
+        #[serde(default)]
+        address: String,
+    },
+    /// One conversation of /mail's list (components::ThreadRow, /design?tab=mail's thread row): its sender, subject,
+    /// snippet, date and whether it is unread, and where it opens, checked as a card's (task rust-mail-design-parts).
+    ThreadRow {
+        from: String,
+        subject: String,
+        snippet: String,
+        at: String,
+        unread: bool,
+        #[serde(default)]
+        href: Option<String>,
+        /// Its mails, shown past one, and whether it is starred (task rust-mail-parity).
+        #[serde(default)]
+        count: u64,
+        #[serde(default)]
+        starred: bool,
+    },
+    /// /mail's frame (mail::MailShell, task rust-mail-parity): the side column, its account switcher, Compose and the folders
+    /// with their counts, then the search, its children the list or a conversation. Each href is checked as a card's.
+    MailShell {
+        account: String,
+        accounts: Vec<Link>,
+        compose: String,
+        folders: Vec<components::Folder>,
+        #[serde(default)]
+        search: String,
+        #[serde(default)]
+        hidden: Vec<(String, String)>,
+    },
+    /// The list's bar (mail::MailBar): Refresh, the range, the pager's Newer and Older.
+    MailBar {
+        range: String,
+        refresh: String,
+        #[serde(default)]
+        newer: Option<String>,
+        #[serde(default)]
+        older: Option<String>,
+    },
+    /// A conversation's head (mail::MailHead): back to its list, its subject, its folder, its count of mails.
+    MailHead {
+        back: String,
+        subject: String,
+        #[serde(default)]
+        folder: String,
+        count: String,
+    },
+    /// His words and one button that posts them to `action`, a path of this app, with the `hidden` fields: a thread's
+    /// reply box.
+    Compose {
+        action: String,
+        send: String,
+        placeholder: String,
+        #[serde(default)]
+        hidden: Vec<(String, String)>,
+        /// A new mail's head, From to Subject (documents::Field), above the words.
+        #[serde(default)]
+        fields: Vec<documents::Field>,
+        /// Gmail's formatting bar in its toolbar.
+        #[serde(default)]
+        format: bool,
+    },
+    /// Where the page stands when it cannot show its thing: `title`, then `text`, what to do (components::Alert, task
+    /// rust-terminal-no-hc). In the text, the title, then the words.
+    Alert {
+        title: String,
+        text: String,
+    },
+    /// A terminal's screen, `text` as its program left it, and the line he types, posted to `action`, a path of this app
+    /// (components::Terminal, task rust-terminal-page). In the text, the screen's lines as they are, then where a line goes.
+    Terminal {
+        text: String,
+        action: String,
+    },
+    /// One access on its provider's card, its status a chip before its name (task rust-tools-human; @nha, 2026-11-09:
+    /// « /tools unreadable for a human. »): in the text, one record line, its fields a tab apart, the table kept. `source`: where it was
+    /// found (bin/secret, a CLI's config, tfvars, GitHub), its place's label in the HTML and the text's last field.
+    Access {
+        name: String,
+        status: String,
+        usage: String,
+        note: String,
+        place: String,
+        source: String,
+    },
+    /// A document, drawn by its type's template (task rust-doc-types): the page gives its fields, never its layout.
+    // boxed: a task brief is far larger than any other element (clippy large_enum_variant)
+    Document(Box<documents::Doc>),
+    /// A document of the one model drawn by the one component in a view (rust/CLAUDE.md rule 7, task rust-one-doc-component):
+    /// `doc` as canvist saves it, `anchors` the page's comments on its words.
+    DocView {
+        doc: serde_json::Value,
+        #[serde(default)]
+        view: documents::View,
+        #[serde(default)]
+        anchors: Vec<documents::Anchor>,
+    },
+    /// /documents' tree and links, layout A (task design-doc-tree-menu): a document a line, its fields as a link's.
+    DocIndex {
+        docs: Vec<components::Listed>,
+    },
+    /// A tool's card, its logo and name, its children its accesses (task rust-tools-themes). `reading`: how many accesses its
+    /// provider has yet to answer for, drawn as grey lines in a greyed card; 0 once it has.
+    Tool {
+        name: String,
+        #[serde(default)]
+        reading: usize,
+    },
+    /// A part of the page that fills itself from the page's URL while a card in it is reading, with no reload. `view`: the
+    /// views' name it follows (dash_views), so the page takes each diff of that view as a patch of this part, as a board's.
+    Live {
+        #[serde(default)]
+        view: Option<String>,
+    },
+    /// A section whose data is still being read: grey lines, filled in place when it lands (components::Skeleton). Its key is
+    /// the filled element's, so the page swaps one for the other; `what` names what is read.
+    Skeleton {
+        what: String,
+    },
+}
+
+/// A Gantt's rows as the page draws them: a link that is not a card's dropped, so the text names only what the HTML opens.
+pub(crate) fn gantt_rows(rows: &[components::GanttRow]) -> Vec<components::GanttRow> {
+    let mut rows = rows.to_vec();
+    for r in &mut rows {
+        r.href = card_href(&r.href).map(String::from);
+    }
+    rows
+}
+
+/// A section still being read, as a tree element: its text form says so, its HTML is grey lines that fill in place (task
+/// rust-skeleton-live). A page puts it under the key its filled element will have.
+pub fn skeleton(what: &str) -> Value {
+    json!({"type": "skeleton", "props": {"what": what}})
+}
+
+/// A page's one source (rust/CLAUDE.md rule 4). The server's `drawn` makes it HTML or text: no page picks its own form (task
+/// rust-page-forms).
+pub enum Drawing {
+    /// A UI tree: its HTML the Dioxus component's (`screen::page`), its text `text`'s.
+    Tree { title: String, tree: String },
+    /// A page a component of its own draws whole, as /design: its text is its words (`forms::text_of`).
+    Page(String),
+}
+
+/// A record's field in the text: a tab or a line break inside it, as a provider's error text holds, reads as a space, so a
+/// record stays one line and its fields a tab apart (/code-review of rust-page-forms).
+fn field(text: &str) -> String {
+    text.replace(['\t', '\r', '\n'], " ")
+}
+
+/// A record's line: its fields a tab apart, the one separator of the text (a name holds « , », « : » and « | »).
+fn record<S: AsRef<str>>(fields: &[S]) -> String {
+    fields
+        .iter()
+        .map(|f| field(f.as_ref()))
+        .collect::<Vec<_>>()
+        .join("\t")
+}
+
+/// A view of the open tasks at /tasks (task rust-nav-board; @nha, 2026-11-08: « /tasks should have the board with the board
+/// view too by default »). `/graph` answers as the graph's own URL.
+#[derive(Clone, Copy, Deserialize, serde::Serialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TaskView {
+    Board,
+    List,
+    Graph,
+}
+
+impl TaskView {
+    pub const ALL: [TaskView; 3] = [TaskView::Board, TaskView::List, TaskView::Graph];
+
+    /// `?layout=`'s word, `None` for anything else: the board.
+    pub fn of(layout: Option<&str>) -> TaskView {
+        match layout {
+            Some("list") => TaskView::List,
+            Some("graph") => TaskView::Graph,
+            _ => TaskView::Board,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            TaskView::Board => "Board",
+            TaskView::List => "List",
+            TaskView::Graph => "Graph",
+        }
+    }
+
+    /// Its icon in the design system's set, beside its name in the views' toggle.
+    pub(crate) fn icon(self) -> &'static str {
+        use crate::design::families as i;
+        match self {
+            TaskView::Board => i::BOARD,
+            TaskView::List => i::LIST,
+            TaskView::Graph => i::GRAPH,
+        }
+    }
+
+    /// Its URL, the board and the list kept to `project`; the graph is Rust's plan, whole.
+    pub fn href(self, project: Option<&str>) -> String {
+        let (path, on) = match self {
+            TaskView::Board => ("/tasks", true),
+            TaskView::List => ("/tasks?layout=list", true),
+            TaskView::Graph => ("/tasks?layout=graph", false),
+        };
+        match project.filter(|_| on) {
+            Some(p) => format!(
+                "{path}{}project={}",
+                if path.contains('?') { '&' } else { '?' },
+                segment(p)
+            ),
+            None => path.into(),
+        }
+    }
+}
+
+/// A card's line in a text form: its title, its line, where it opens.
+fn card_text(title: &str, line: &str, href: Option<&str>) -> String {
+    // a record as every other: its fields a tab apart, an empty one left out (task rust-page-forms)
+    let fields: Vec<&str> = [Some(title), Some(line), href]
+        .into_iter()
+        .flatten()
+        .filter(|f| !f.is_empty())
+        .collect();
+    record(&fields)
+}
+
+/// The views' line in a text form: each name and URL, the one shown marked.
+fn views_text(current: TaskView, project: Option<&str>) -> String {
+    let each = TaskView::ALL.map(|v| {
+        let shown = if v == current { " (shown)" } else { "" };
+        format!("{} {}{shown}", v.name(), v.href(project))
+    });
+    format!("Views: {}", each.join(", "))
+}
+
+// in words.rs, a module below documents.rs, which links a task page too (no module loop)
+pub use words::{segment, task_href};
+
+/// A terminal's page, by hc's address of it (task rust-terminal-page): a remote one's « m/t2 » stays one segment.
+pub fn terminal_href(address: &str) -> String {
+    format!("/terminal/{}", segment(address))
+}
+
+/// A task in a `task-graph`, drawn as the board's card (task graph-node-is-card). `says`: one line on its state, the why of a
+/// waiting one, the card's line. `waits`: ids in the same graph. `title`, `status`, `labels` and `assignee`: the card's face as
+/// the board draws it; a tree without them draws its id as the title and the status its state reads as.
+#[derive(Deserialize)]
+struct GraphTask {
+    id: String,
+    state: TaskState,
+    says: String,
+    #[serde(default)]
+    waits: Vec<String>,
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    status: Option<IssueStatus>,
+    #[serde(default)]
+    labels: Vec<String>,
+    #[serde(default)]
+    assignee: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum TaskState {
+    Next,
+    Running,
+    Waiting,
+    /// Merged: a wait on it is met.
+    Finished,
+    /// Finished any other way: it holds what waits on it.
+    Ended,
+}
+
+/// A graph's tasks as every form draws them: a merged one left out with each wait on it, met, so the page shows what is still to
+/// do (task rust-graph-queue-edges). An ended one stays: it holds what waits on it. Done here, as the tree is read, so the check,
+/// the HTML, the window and the text agree.
+fn drawn<'de, D: serde::Deserializer<'de>>(from: D) -> Result<Vec<GraphTask>, D::Error> {
+    let mut tasks = Vec::<GraphTask>::deserialize(from)?;
+    let merged: HashSet<String> = (tasks.iter())
+        .filter(|t| matches!(t.state, TaskState::Finished))
+        .map(|t| t.id.clone())
+        .collect();
+    tasks.retain(|t| !merged.contains(&t.id));
+    for task in &mut tasks {
+        task.waits.retain(|w| !merged.contains(w));
+    }
+    Ok(tasks)
+}
+
+impl TaskState {
+    /// The board's status for a tree that names none.
+    fn status(&self) -> IssueStatus {
+        match self {
+            TaskState::Next => IssueStatus::Todo,
+            TaskState::Running => IssueStatus::InProgress,
+            TaskState::Waiting => IssueStatus::Backlog,
+            TaskState::Finished => IssueStatus::Done,
+            // its run over, its work never merged: still to do
+            TaskState::Ended => IssueStatus::Backlog,
+        }
+    }
+
+    fn class(&self) -> &'static str {
+        match self {
+            TaskState::Next => "next",
+            TaskState::Running => "running",
+            TaskState::Waiting => "waiting",
+            TaskState::Finished => "finished",
+            TaskState::Ended => "ended",
+        }
+    }
+}
+
+/// How deep a tree may nest. The flat map parses at any depth, and a deep chain would overflow `walk`'s, `told`'s or
+/// `screen::node`'s stack, all run after `check`: an abort no
+/// `catch_unwind` stops.
+const DEPTH_LIMIT: usize = 64;
+
+/// Tasks one graph may draw: the 50 open ones the cap allows, what the older app offers beside them, and what they name. It keeps
+/// `columns`' scan, quadratic, small whatever a tree says. A screen past it says so in place of its graph: a refused tree loses the page.
+pub const GRAPH_LIMIT: usize = 500;
+
+const NODE_WIDTH: usize = 300;
+/// The board's card with a two-line title and one row of labels.
+const NODE_HEIGHT: usize = 128;
+const GAP_X: usize = 60;
+const GAP_Y: usize = 16;
+const PAD: usize = 8;
+const LANE: usize = 8;
+/// Room left and right of the columns: a loop's arrow leaves the last one and enters the first through it.
+const MARGIN_X: usize = GAP_X;
+/// The x's a long arrow may take in a gap, from 8 in, past the gap's middle, where curves bend.
+const LANE_XS: usize = 43;
+
+/// Each task's column: one past the furthest of what it waits on, so an arrow runs left to right. Each pass takes a task whose
+/// waits all have a column. A loop has none (a merge of two replicas can make one, and it must not stop the page), so it takes a
+/// task on the loop: that task's waits inside the loop then count for nothing, and what only waits on the loop stays right of it.
+/// ponytail: rows keep the given order, no crossing reduction, until a real graph reads as a tangle.
+/// Answers each task's column and the index of each task it waits on.
+fn columns(tasks: &[GraphTask]) -> Result<(Vec<usize>, Vec<Vec<usize>>), String> {
+    if tasks.len() > GRAPH_LIMIT {
+        return Err(format!(
+            "a graph of {} tasks is past {GRAPH_LIMIT}",
+            tasks.len()
+        ));
+    }
+    let mut at = HashMap::new();
+    for (i, task) in tasks.iter().enumerate() {
+        if at.insert(task.id.as_str(), i).is_some() {
+            return Err(format!("{} appears twice", task.id));
+        }
+    }
+    let mut waits = vec![];
+    for task in tasks {
+        let named = task.waits.iter().map(|w| {
+            let found = at.get(w.as_str()).copied();
+            found.ok_or(format!("{} waits on {w}, not in the graph", task.id))
+        });
+        waits.push(named.collect::<Result<Vec<usize>, String>>()?);
+    }
+    let mut column: Vec<Option<usize>> = vec![None; tasks.len()];
+    for _ in 0..tasks.len() {
+        let free = |i: &usize| column[*i].is_none();
+        let settled = |i: &usize| waits[*i].iter().all(|w| column[*w].is_some());
+        let next = (0..tasks.len()).filter(free).find(settled);
+        let next = next.or((0..tasks.len())
+            .find(free)
+            .map(|i| on_a_loop(i, &waits, &column)));
+        let Some(next) = next else { break };
+        let after = waits[next].iter().filter_map(|w| column[*w]).max();
+        column[next] = Some(after.map_or(0, |c| c + 1));
+    }
+    Ok((column.into_iter().flatten().collect(), waits))
+}
+
+/// From a free task, when none is settled: each free task has a free wait, so the walk repeats, and where it repeats is on a loop.
+fn on_a_loop(from: usize, waits: &[Vec<usize>], column: &[Option<usize>]) -> usize {
+    let mut been = HashSet::new();
+    let mut at = from;
+    while been.insert(at) {
+        let Some(wait) = waits[at].iter().find(|w| column[**w].is_none()) else {
+            break;
+        };
+        at = *wait;
+    }
+    at
+}
+
+/// The graph: an SVG of the arrows under HTML nodes, each size here and each colour in page.css, so it needs no script. Words are
+/// HTML as in ui-spike's diagram.rs (retired 2026-11-12): Blitz draws an inline svg as one image with no font for its text, and a reader reads a node.
+/// Each node is the board's card (board.rs), linked to its task page (task graph-node-is-card; @nha, 2026-11-10: « this needs to
+/// be a "graph node" view of a task card, and link to the full task »).
+fn task_graph(raw_id: &str, tasks: &[GraphTask]) -> Result<dioxus::prelude::Element, String> {
+    use dioxus::prelude::*;
+    // the arrows are inner HTML, their ids escaped here; rsx escapes the rest
+    let dom_id = escaped(raw_id);
+    let (column, waits) = columns(tasks)?;
+    let mut used = vec![0; column.iter().max().map_or(0, |c| c + 1)];
+    let mut spots = vec![(0, 0); tasks.len()];
+    // What runs heads its column, the rest in the given order: a reader finds the live work first.
+    let mut order: Vec<usize> = (0..tasks.len()).collect();
+    order.sort_by_key(|&i| !matches!(tasks[i].state, TaskState::Running));
+    for i in order {
+        let c = column[i];
+        spots[i] = (
+            MARGIN_X + c * (NODE_WIDTH + GAP_X),
+            PAD + used[c] * (NODE_HEIGHT + GAP_Y),
+        );
+        used[c] += 1;
+    }
+    let width = MARGIN_X * 2 + (used.len() * (NODE_WIDTH + GAP_X)).saturating_sub(GAP_X);
+    let below = PAD + used.iter().max().unwrap_or(&0) * (NODE_HEIGHT + GAP_Y);
+    let long = |i: usize, from: usize| column[i] != column[from] + 1;
+    let long_arrows: usize = (waits.iter().enumerate())
+        .map(|(i, w)| w.iter().filter(|from| long(i, **from)).count())
+        .sum();
+    let mut lanes = 0;
+    let mut edges = String::new();
+    for (i, task) in tasks.iter().enumerate() {
+        let (x, y) = spots[i];
+        let id = escaped(&task.id);
+        for &from in &waits[i] {
+            let (x1, y1) = (spots[from].0 + NODE_WIDTH, spots[from].1 + NODE_HEIGHT / 2);
+            let (x2, y2) = (x, y + NODE_HEIGHT / 2);
+            // To the next column, a curve through the gap. Any further, or back round a loop, it would run behind a node and read
+            // as feeding it: it goes down to a lane of its own under them all, and through each gap on an x of its own, none the
+            // gap's middle, where curves bend: on one shared line, two arrows would read as one.
+            // ponytail: x's shared by the whole graph, so past LANE_XS long arrows two may share one; per gap if a real graph gets there.
+            let line = if !long(i, from) {
+                let bend = x1.midpoint(x2);
+                format!("C{bend} {y1} {bend} {y2} {x2} {y2}")
+            } else {
+                let lane = below + lanes * LANE;
+                let off = 8 + lanes * LANE_XS / long_arrows;
+                let off = if off < GAP_X / 2 { off } else { off + 2 };
+                lanes += 1;
+                let (out, into) = (x1 + off, x2 - off);
+                format!("H{out}V{lane}H{into}V{y2}H{x2}")
+            };
+            edges += &format!(
+                r##"<path class="edge" data-from="{}" data-to="{id}" d="M{x1} {y1}{line}" marker-end="url(#{dom_id}-arrow)"/>"##,
+                escaped(&tasks[from].id)
+            );
+        }
+    }
+    let height = below + lanes * LANE + PAD;
+    let arrows = format!(
+        r#"<defs><marker id="{dom_id}-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path class="arrow" d="M0 0L8 4L0 8z"/></marker></defs>{edges}"#
+    );
+    let nodes = tasks.iter().enumerate().map(|(i, task)| {
+        let (x, y) = spots[i];
+        let (id, state) = (&task.id, task.state.class());
+        let at = task.status.clone().unwrap_or_else(|| task.state.status());
+        let title = if task.title.is_empty() { id } else { &task.title };
+        let face = board::Face {
+            task: id,
+            title,
+            at: &at,
+            says: &task.says,
+            comments: 0,
+            said: None,
+            href: task_href(id, None),
+            labels: &task.labels,
+            assignee: task.assignee.as_deref(),
+            movable: false,
+            why: "",
+            answer: "",
+        };
+        rsx! {
+            // its card holds `data-task`, the comment box's anchor: once, or its selector finds this div first
+            div { class: "node {state}", style: "left:{x}px;top:{y}px;width:{NODE_WIDTH}px;height:{NODE_HEIGHT}px",
+                {board::card(&format!("{raw_id}-node-{i}"), face)}
+            }
+        }
+    });
+    Ok(rsx! {
+        div { id: "{raw_id}", class: "task-graph",
+            div { class: "canvas", style: "width:{width}px;height:{height}px",
+                svg { "aria-hidden": "true", width: "{width}", height: "{height}", view_box: "0 0 {width} {height}", dangerous_inner_html: arrows }
+                {nodes}
+            }
+        }
+    })
+}
+
+/// The element `id` names, once each walk checks it: never nested past `DEPTH_LIMIT`, never seen twice. `walk` and `told`
+/// share it, so the page and the text refuse the same trees.
+fn checked<'a>(
+    tree: &'a Tree,
+    id: &'a str,
+    seen: &mut HashSet<&'a str>,
+    depth: usize,
+) -> Result<&'a Node, String> {
+    if depth > DEPTH_LIMIT {
+        return Err(format!("{id} is nested past {DEPTH_LIMIT} levels"));
+    }
+    if !seen.insert(id) {
+        return Err(format!("{id} appears twice"));
+    }
+    let node = tree.elements.get(id).ok_or(format!("no element {id}"))?;
+    // an access's HTML is its fields alone: a child would show in the text only
+    if matches!(node.element, Element::Access { .. }) && !node.children.is_empty() {
+        return Err(format!("{id}: an access holds no children"));
+    }
+    // a mail and a reply box draw their props alone; a reply goes to a path of this app only
+    if matches!(
+        node.element,
+        Element::Mail { .. }
+            | Element::Compose { .. }
+            | Element::ThreadRow { .. }
+            | Element::MailBar { .. }
+            | Element::MailHead { .. }
+    ) && !node.children.is_empty()
+    {
+        return Err(format!(
+            "{id}: a mail, a thread row or a reply box holds no children"
+        ));
+    }
+    if let Element::Compose { action, .. } = &node.element
+        && (!action.starts_with('/') || action.starts_with("//") || action.contains('\\'))
+    {
+        return Err(format!("{id}: a reply box posts to a path of this app"));
+    }
+    if matches!(node.element, Element::Alert { .. }) && !node.children.is_empty() {
+        return Err(format!("{id}: an alert holds no children"));
+    }
+    if let Element::Terminal { action, .. } = &node.element {
+        if !node.children.is_empty() {
+            return Err(format!("{id}: a terminal holds no children"));
+        }
+        if !components::local_path(action) {
+            return Err(format!(
+                "{id}: a terminal's line posts to a path of this app"
+            ));
+        }
+    }
+    if matches!(
+        node.element,
+        Element::Timeline { .. } | Element::Gantt { .. }
+    ) && !node.children.is_empty()
+    {
+        return Err(format!("{id}: a timeline draws its events alone"));
+    }
+    if matches!(node.element, Element::DocView { .. }) && !node.children.is_empty() {
+        return Err(format!("{id}: a document holds no children"));
+    }
+    // a document's template lays out its fields alone
+    if let Element::Document(doc) = &node.element {
+        if !node.children.is_empty() {
+            return Err(format!("{id}: a document holds no children"));
+        }
+        doc.check(id)?;
+    }
+    // a table draws its rows alone, each as many cells as it has columns
+    if let Element::Table { columns, rows, .. } = &node.element {
+        if !node.children.is_empty() {
+            return Err(format!("{id}: a table holds no children"));
+        }
+        if let Some(row) = rows.iter().find(|r| r.cells.len() != columns.len()) {
+            return Err(format!(
+                "{id}: a row of {} cells under {} columns",
+                row.cells.len(),
+                columns.len()
+            ));
+        }
+    }
+    // a reading card's HTML is its grey lines alone: an access under it would show in the text only
+    if matches!(node.element, Element::Skeleton { .. }) && !node.children.is_empty() {
+        return Err(format!(
+            "{id}: a skeleton holds no children: its grey lines stand for them"
+        ));
+    }
+    if matches!(node.element, Element::Tool { reading: 1.., .. }) && !node.children.is_empty() {
+        return Err(format!("{id}: a reading tool holds no accesses yet"));
+    }
+    Ok(node)
+}
+
+/// The walk that checks the tree under `id` whole: `seen` refuses a cycle, which would never end, and an element with two
+/// parents, which would repeat its id; a graph past its limit, with an id twice or a wait on no task, by `columns`. It
+/// writes no HTML: a page's is `screen::page`'s, drawn
+/// with the design system's components (task rust-line-cap-main cut the hand-written copy).
+fn walk<'a>(
+    tree: &'a Tree,
+    id: &'a str,
+    seen: &mut HashSet<&'a str>,
+    depth: usize,
+) -> Result<(), String> {
+    let node = checked(tree, id, seen, depth)?;
+    for child in &node.children {
+        walk(tree, child, seen, depth + 1)?;
+    }
+    if let Element::TaskGraph { tasks } = &node.element {
+        columns(tasks)?;
+    }
+    Ok(())
+}
+
+/// A UI tree given as JSON text, checked whole: what `screen::page` draws once this passes.
+fn check(tree: &str) -> Result<Tree, String> {
+    let tree: Tree = serde_json::from_str(tree).map_err(|e| e.to_string())?;
+    walk(&tree, &tree.root, &mut HashSet::new(), 0)?;
+    Ok(tree)
+}
+
+/// Whether a UI tree can be drawn: its shape is checked, nothing of it returned.
+pub fn check_tree(tree: &str) -> Result<(), String> {
+    check(tree).map(|_| ())
+}
+
+/// A drawing with the page's query handed to each of its tables, which orders them (task rust-table-sortable): the server's,
+/// once, for a GET page, so no page reads `?sort=` or `?page=` itself. A table never handed one (a form's answer, a CLI's
+/// text) shows every row under plain heads. A tree with no table is left as it is, unparsed; one that is not JSON is left for
+/// `text` and `screen::page` to refuse.
+pub fn queried(drawing: Drawing, query: &str) -> Drawing {
+    let Drawing::Tree { title, tree } = drawing else {
+        return drawing;
+    };
+    if !tree.contains("\"table\"") {
+        return Drawing::Tree { title, tree };
+    }
+    let Ok(mut value) = serde_json::from_str::<Value>(&tree) else {
+        return Drawing::Tree { title, tree };
+    };
+    let tables = value["elements"]
+        .as_object_mut()
+        .into_iter()
+        .flat_map(|e| e.values_mut());
+    for element in tables.filter(|e| e["type"] == "table") {
+        if let Some(props) = element["props"].as_object_mut() {
+            props.insert("query".into(), query.into());
+        }
+    }
+    Drawing::Tree {
+        title,
+        tree: value.to_string(),
+    }
+}
+
+/// The text of a UI tree, for an agent: drawn from the same tree as the HTML, never written twice (rust/CLAUDE.md point 4;
+/// @nha, 2026-11-08: « don't write twice obviously, make sure there is say html->text. »). A line an element in reading order,
+/// plain: a part's title after a blank line, a record's fields a tab apart. The one text every page answers (task
+/// rust-page-forms).
+pub fn text(tree: &str) -> Result<String, String> {
+    let tree: Tree = serde_json::from_str(tree).map_err(|e| e.to_string())?;
+    let mut lines = vec![];
+    told(&tree, &tree.root, &mut HashSet::new(), 0, &mut lines)?;
+    Ok(lines.join("\n") + "\n")
+}
+
+/// A page's markup without its style and script blocks: what a test asserts a class or an attribute on, so a class name found
+/// only in the page's own stylesheet or script is not found (task rust-test-markup-only: rust-table-sortable's two
+/// assertions passed on class names in the embedded CSS). For tests alone: a page served keeps its blocks. A tag is matched in
+/// any case and by its whole name (`<styled-x>` is markup); an unclosed block drops the rest, as a browser would not draw it.
+pub fn markup(html: &str) -> String {
+    // ASCII lowercasing keeps every byte where it was, so an offset in `lower` is one in `html`
+    let lower = html.to_ascii_lowercase();
+    let opens = |at: usize, tag: &str| {
+        lower[at + 1..].starts_with(tag)
+            && matches!(
+                lower.as_bytes().get(at + 1 + tag.len()),
+                Some(b'>' | b'/' | b' ' | b'\t' | b'\n' | b'\r')
+            )
+    };
+    let (mut kept, mut from, mut at) = (String::with_capacity(html.len()), 0, 0);
+    while let Some(lt) = lower[at..].find('<').map(|i| at + i) {
+        let Some(tag) = ["style", "script"].into_iter().find(|tag| opens(lt, tag)) else {
+            at = lt + 1;
+            continue;
+        };
+        kept.push_str(&html[from..lt]);
+        let close = format!("</{tag}>");
+        let Some(end) = lower[lt..].find(&close) else {
+            return kept;
+        };
+        from = lt + end + close.len();
+        at = from;
+    }
+    kept.push_str(&html[from..]);
+    kept
+}
+
+fn told<'a>(
+    tree: &'a Tree,
+    id: &'a str,
+    seen: &mut HashSet<&'a str>,
+    depth: usize,
+    lines: &mut Vec<String>,
+) -> Result<(), String> {
+    let node = checked(tree, id, seen, depth)?;
+    // what follows its children's lines
+    let mut tail = vec![];
+    match &node.element {
+        // the words searched, as the HTML's field shows them back (/code-review of rust-inbox-search-place)
+        Element::SearchBar { value, .. } if !value.is_empty() => {
+            lines.push(format!("Search: {value}"))
+        }
+        Element::Stack
+        | Element::Bar
+        | Element::SearchBar { .. }
+        | Element::Board { .. }
+        | Element::Cards
+        | Element::List
+        | Element::Live { .. } => {}
+        // a card with no name yet (a part that knows no tool) says nothing an agent could use (/code-review of rust-tools-themes)
+        Element::Tool { name, .. } if name.is_empty() => {}
+        Element::Tool { name, reading: 0 } => lines.push(format!("\n{name}")),
+        Element::Tool { name, reading } => lines.push(format!("\n{name}\t{reading} reading")),
+        Element::Skeleton { what } => lines.push(format!("{what}: being read.")),
+        Element::Card {
+            line,
+            href,
+            reading: true,
+            ..
+        } => lines.push(card_text("being read", line, card_href(href))),
+        Element::Card {
+            title, line, href, ..
+        } => lines.push(card_text(title, line, card_href(href))),
+        // its head, then a record a row, its link last as a card's, empty when it has none: every record one shape
+        // the line its caption says, then its rows as its URL orders them (components::Table)
+        Element::Table {
+            columns,
+            rows,
+            query,
+        } => {
+            // no query handed (a form's answer, a CLI's text): every row, as components::Table draws it
+            let order = components::Order::of(query.as_deref().unwrap_or_default());
+            let per_page = query.as_ref().map_or(rows.len(), |_| components::PER_PAGE);
+            let arranged = components::arranged(columns, rows, &order, per_page);
+            // its line first, as the HTML's caption reads (/code-review)
+            lines.extend(query.as_ref().map(|q| {
+                let line = arranged.line(columns, &order);
+                match arranged.next(&order, q) {
+                    Some(next) => format!("{line} Next page: {next}"),
+                    None => line,
+                }
+            }));
+            lines.push(record(&[&columns[..], &["Link".into()]].concat()));
+            lines.extend(arranged.shown.iter().map(|r| {
+                let link = card_href(&r.href).unwrap_or_default().to_string();
+                record(&[&r.cells[..], &[link]].concat())
+            }));
+        }
+        Element::TaskViews { current, project } => {
+            lines.push(views_text(*current, project.as_deref()))
+        }
+        // as an Action's: where it posts, then what it sends
+        Element::NewIssue { project } => lines.push(format!(
+            "New issue: POST {} title, description{}",
+            components::NEW_ISSUE,
+            project
+                .as_deref()
+                .map_or(String::new(), |p| format!(", project={p}"))
+        )),
+        Element::NewDocument => lines.push(format!(
+            "New document: POST {} type={}, title",
+            components::NEW_DOCUMENT,
+            components::DOC_TYPES.map(|t| t.0).join("|")
+        )),
+        Element::Upload { action, label, .. } | Element::Action { action, label } => {
+            lines.push(format!("{label}: POST {action}"))
+        }
+        Element::Links { links, label } => {
+            let each = links.iter().map(|l| {
+                format!(
+                    "{} {}{}",
+                    l.name,
+                    l.href,
+                    if l.current { " (shown)" } else { "" }
+                )
+            });
+            let each = each.collect::<Vec<_>>().join(", ");
+            lines.push(match label {
+                Some(label) => format!("{label}: {each}"),
+                None => each,
+            })
+        }
+        Element::Heading { text } | Element::Text { text } | Element::Quote { text } => {
+            lines.push(text.clone())
+        }
+        Element::Diagram { source } => lines.push(format!("Mermaid:\n{}", source.trim_end())),
+        Element::Treemap { boxes } => lines.extend(components::treemap_text(boxes)),
+        Element::TaskGraph { tasks } => {
+            // refused as the HTML refuses it: a wait on a task not in the graph
+            columns(tasks)?;
+            lines.extend(tasks.iter().map(|t| {
+                // its card's title, as the HTML's node shows it: the id where it has none, so each row has the same fields
+                let title = if t.title.is_empty() { &t.id } else { &t.title };
+                let mut fields = vec![
+                    t.id.clone(),
+                    title.clone(),
+                    t.state.class().into(),
+                    t.says.clone(),
+                ];
+                if !t.waits.is_empty() {
+                    fields.push(format!("waits on {}", t.waits.join(", ")));
+                }
+                record(&fields)
+            }))
+        }
+        Element::IssueGroup {
+            status,
+            title,
+            more,
+        } => {
+            let name = title.as_deref().unwrap_or(status.name());
+            let shown = node.children.len();
+            let count = shown + more.as_ref().map_or(0, |m| m.count);
+            lines.push(format!("\n{name} ({count})"));
+            // after its rows, as the HTML draws its link after its cards
+            if let Some((more, link)) = more.as_ref().and_then(|m| Some((m, m.link()?))) {
+                tail.push(format!("{} more: {link}", more.count));
+            }
+        }
+        Element::IssueRow {
+            id,
+            title,
+            says,
+            comments,
+            labels,
+            assignee,
+            href,
+            answer,
+            ..
+        } => {
+            let mut fields = vec![id.clone(), title.clone()];
+            // the answer a tab after his words, as the rail's text has them (threads_text), named so it never reads as `says`
+            if !answer.is_empty() {
+                fields.push(format!("answer: {answer}"));
+            }
+            fields.push(says.clone());
+            if *comments > 0 {
+                fields.push(format!("{comments} comments"));
+            }
+            fields.extend(labels.iter().map(|l| format!("#{l}")));
+            fields.extend(assignee.iter().map(|a| format!("@{a}")));
+            // where it opens when that is not its task: an agent follows it as he does (task comments-by-state)
+            fields.extend(href.iter().cloned());
+            lines.push(record(&fields))
+        }
+        Element::Timeline { events, .. } => lines.extend(events.iter().map(|e| {
+            let opens = card_href(&e.href)
+                .or(e.detail.as_deref())
+                .unwrap_or_default();
+            record(&[e.at.as_str(), e.mark.word(), &e.what, opens])
+        })),
+        Element::Gantt { rows } => lines.push(
+            components::gantt_mermaid(&gantt_rows(rows), components::today())
+                .trim_end()
+                .to_string(),
+        ),
+        Element::Section { title, .. } => lines.push(format!("\n{title}")),
+        Element::Access {
+            name,
+            status,
+            usage,
+            note,
+            place,
+            source,
+        } => lines.push(record(&[name, status, usage, note, place, source])),
+        Element::Document(doc) => {
+            lines.extend(documents::forms(id, doc).1.lines().map(String::from))
+        }
+        Element::DocIndex { docs } => lines.extend(
+            docs.iter()
+                .map(|d| record(&[&d.title, &d.kind, &d.stage, &d.href])),
+        ),
+        Element::DocView { doc, view, anchors } => {
+            let text = documents::anchored_forms(doc.clone(), *view, anchors.clone()).1;
+            lines.extend(text.lines().map(String::from))
+        }
+        // every mail whole, folded or not: an agent reads the conversation, his HTML's words when it has no text
+        Element::Mail {
+            from,
+            to,
+            at,
+            text,
+            html,
+            files,
+            ..
+        } => {
+            lines.push(format!("\n{from} · {at} · to {to}"));
+            let words = match html {
+                Some(html) if text.trim().is_empty() => forms::text_of(html),
+                _ => text.clone(),
+            };
+            lines.extend(words.trim_end().lines().map(String::from));
+            lines.extend(
+                files
+                    .iter()
+                    .map(|(name, href, kind)| record(&[name, kind, href])),
+            );
+        }
+        Element::Compose {
+            action,
+            send,
+            fields,
+            ..
+        } => {
+            for f in fields {
+                match f.name.as_str() {
+                    "" => lines.push(format!("{}: {}", f.label, f.value)),
+                    name => lines.push(format!(
+                        "{}: field {name}{}",
+                        f.label,
+                        if f.value.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" = {}", f.value)
+                        }
+                    )),
+                }
+            }
+            lines.push(format!("\n{send}: POST {action}, his words as text"))
+        }
+        Element::MailShell {
+            account,
+            accounts,
+            compose,
+            folders,
+            search,
+            ..
+        } => {
+            let others = accounts
+                .iter()
+                .filter(|a| !a.current)
+                .map(|a| format!("{} {}", a.name, a.href));
+            let others: Vec<String> = others.collect();
+            lines.push(format!("Account: {account}"));
+            if !others.is_empty() {
+                lines.push(format!("Switch to: {}", others.join(", ")));
+            }
+            lines.push(format!("Compose: {compose}"));
+            for f in folders {
+                let count = if f.count > 0 {
+                    f.count.to_string()
+                } else {
+                    String::new()
+                };
+                let shown = if f.current { "shown" } else { "" };
+                lines.push(record(&[f.name.as_str(), &count, &f.href, shown]));
+            }
+            let searched = if search.is_empty() {
+                String::new()
+            } else {
+                format!(" (searched: {search})")
+            };
+            lines.push(format!("Search mail: GET /mail?q=<words>{searched}\n"));
+        }
+        Element::MailBar {
+            range,
+            newer,
+            older,
+            ..
+        } => {
+            let mut pages = vec![range.clone()];
+            pages.extend(newer.iter().map(|h| format!("Newer {h}")));
+            pages.extend(older.iter().map(|h| format!("Older {h}")));
+            lines.push(pages.join(", "))
+        }
+        Element::MailHead {
+            subject,
+            folder,
+            count,
+            back,
+        } => {
+            lines.push(subject.clone());
+            lines.push(record(&[folder.as_str(), count, back]))
+        }
+        Element::Alert { title, text } => {
+            lines.push(title.clone());
+            lines.push(text.clone());
+        }
+        Element::Terminal { text, action } => {
+            lines.extend(text.lines().map(String::from));
+            lines.push(format!("\nType a line: POST {action}, the line as text"))
+        }
+        // a record as a table row's: its fields, then its link
+        Element::ThreadRow {
+            from,
+            subject,
+            snippet,
+            at,
+            unread,
+            href,
+            count,
+            starred,
+        } => {
+            let read = if *unread { "unread" } else { "read" };
+            let link = card_href(href).unwrap_or_default();
+            let mails = count.max(&1).to_string();
+            let star = if *starred { "starred" } else { "" };
+            let fields = [from, subject, snippet, at].map(String::as_str);
+            lines.push(record(
+                &[&fields[..], &[mails.as_str(), read, star, link]].concat(),
+            ))
+        }
+    }
+    for child in &node.children {
+        told(tree, child, seen, depth + 1, lines)?;
+    }
+    lines.extend(tail);
+    Ok(())
+}
+
+/// dash's theme, generated from design.json and kept fresh by the_theme_is_design_json_s: one file, so the window and /design match.
+const THEME: &str = include_str!("theme.css");
+
+fn tools_list(registry: &Registry) -> Value {
+    let tools: Vec<Value> = registry
+        .tools
+        .iter()
+        .map(|(name, _, tool)| {
+            let schema: Value = serde_json::from_str(tool.input_schema())
+                .unwrap_or_else(|_| json!({"type": "object"}));
+            json!({"name": name, "description": tool.description(), "inputSchema": schema})
+        })
+        .collect();
+    json!({"tools": tools})
+}
+
+/// A tool that fails answers `isError`, as MCP asks, so the agent reads why; an unknown tool is a protocol error.
+/// Every call goes through the core's port, which keeps it in the audit log (task rust-audit-log): a record that fails is
+/// said on stderr, never in the answer, as stdout is the protocol.
+fn tools_call(mcp: &Mcp, params: &Value) -> Result<Value, (i64, String)> {
+    let name = params["name"]
+        .as_str()
+        .ok_or((-32602, "no tool name".to_string()))?;
+    let arguments = params
+        .get("arguments")
+        .map_or_else(|| "{}".to_string(), Value::to_string);
+    let (answer, recorded) = mcp
+        .registry
+        .call(name, &arguments, &|| mcp.clock.now_ms(), mcp.audit)
+        .ok_or((-32602, format!("no tool {name}")))?;
+    if let Err(e) = recorded {
+        eprintln!("audit: {name}'s call not kept: {e}");
+    }
+    let (text, is_error) = match answer {
+        Ok(text) => (text, false),
+        Err(e) => (e, true),
+    };
+    Ok(json!({"content": [{"type": "text", "text": text}], "isError": is_error}))
+}
+
+fn answer(mcp: &Mcp, method: &str, params: &Value) -> Result<Value, (i64, String)> {
+    match method {
+        "initialize" => Ok(json!({
+            "protocolVersion": params["protocolVersion"].as_str().unwrap_or("2025-06-18"),
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "dash", "version": env!("CARGO_PKG_VERSION")},
+        })),
+        "ping" => Ok(json!({})),
+        "tools/list" => Ok(tools_list(mcp.registry)),
+        "tools/call" => tools_call(mcp, params),
+        other => Err((-32601, format!("no method {other}"))),
+    }
+}
+
+fn failure(id: &Value, code: i64, text: &str) -> Value {
+    json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": text}})
+}
+
+/// The answer to one line, if it asks for one: a notification, or a client's response (we ask nothing), gets none.
+fn respond(mcp: &Mcp, line: &[u8]) -> Option<Value> {
+    let message: Value = match serde_json::from_slice(line) {
+        Ok(message) => message,
+        Err(e) => return Some(failure(&Value::Null, -32700, &e.to_string())),
+    };
+    if !message.is_object() {
+        return Some(failure(&Value::Null, -32600, "a request is an object"));
+    }
+    let id = message.get("id")?;
+    let method = message["method"].as_str()?;
+    // Answering copies the id: nested, that copy on top of the parse passes the memory cap. JSON-RPC's id is never nested.
+    if id.is_array() || id.is_object() {
+        let text = "an id is a string or a number";
+        return Some(failure(&Value::Null, -32600, text));
+    }
+    Some(match answer(mcp, method, &message["params"]) {
+        Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
+        Err((code, text)) => failure(id, code, &text),
+    })
+}
+
+/// One line's bytes, its newline apart. Small objects nested to the parser's depth, the costliest shape measured, peak at 140 MB
+/// for 1 MB of line (4 MB of flat ones passed the memory cap), so this parses under the cap: a test in
+/// crates/dash/tests/extensions.rs holds that.
+pub const LINE_LIMIT: u64 = 1024 * 1024;
+
+/// What an MCP server answers from: the registry's tools, and the clock and audit log each call is kept with.
+pub struct Mcp<'a> {
+    pub registry: &'a Registry,
+    pub clock: &'a dyn dash_core::WallClock,
+    pub audit: &'a dyn dash_core::registry::Audit,
+}
+
+/// MCP over stdio until its input ends: one JSON message a line. Lines are read as bytes: a stray byte is that line's parse
+/// error, not the end of the server, and a line past `LINE_LIMIT` is refused the same way, without being held.
+pub fn serve_mcp(
+    mcp: &Mcp,
+    mut input: impl BufRead,
+    mut output: impl Write,
+) -> std::io::Result<()> {
+    loop {
+        let mut line = vec![];
+        if (&mut input)
+            .take(LINE_LIMIT + 1)
+            .read_until(b'\n', &mut line)?
+            == 0
+        {
+            return Ok(());
+        }
+        let response = if line.len() as u64 > LINE_LIMIT && line.last() != Some(&b'\n') {
+            input.skip_until(b'\n')?;
+            let text = format!("a line past {LINE_LIMIT} bytes");
+            Some(failure(&Value::Null, -32600, &text))
+        } else if line.trim_ascii().is_empty() {
+            None
+        } else {
+            respond(mcp, &line)
+        };
+        if let Some(response) = response {
+            writeln!(output, "{response}")?;
+            output.flush()?;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dash_core::registry::{Contribution, Tool};
+    use dash_meter::dash_test;
+
+    /// Task linear-projects-view: a gantt element groups its rows, each group's name once above its run and a Mermaid section
+    /// in the text; a row's link opens from its name, one that is not a card's is dropped; a gantt holds no children.
+    #[dash_test]
+    fn a_gantt_groups_its_rows_and_links_their_names() {
+        let row = |id: &str, group: &str, href: &str| json!({"id": id, "name": id.to_uppercase(), "start": "2026-11-02", "target": "2026-11-09", "group": group, "href": href});
+        let rows = [
+            row("a", "Now", "/plan?item=a"),
+            row("b", "Now", "javascript:x"),
+            row("c", "Next", "/plan?item=c"),
+        ];
+        let tree =
+            json!({"root": "g", "elements": {"g": {"type": "gantt", "props": {"rows": rows}}}})
+                .to_string();
+        let html = markup(&screen::page("Plan", &tree).expect("drawn"));
+        assert_eq!(
+            (
+                html.matches(">Now</text>").count(),
+                html.matches(">Next</text>").count()
+            ),
+            (1, 1),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<a href="/plan?item=a">"#)
+                && html.contains(r#"<a href="/plan?item=c">"#),
+            "{html}"
+        );
+        assert!(!html.contains("javascript"), "{html}");
+        let text = text(&tree).expect("its text");
+        assert!(
+            text.contains("  section Now\n  %% a opens /plan?item=a\n  A :a, ")
+                && text.contains("  B :b, ")
+                && text.contains("  section Next\n  %% c opens /plan?item=c\n  C :c, "),
+            "{text}"
+        );
+        assert_eq!(text.matches("section Now").count(), 1, "{text}");
+        let held = json!({"root": "g", "elements": {"g": {"type": "gantt", "props": {"rows": []}, "children": ["t"]},
+            "t": {"type": "text", "props": {"text": "x"}}}});
+        assert!(check_tree(&held.to_string()).is_err());
+    }
+
+    #[dash_test]
+    fn markup_drops_the_pages_style_and_script_so_a_class_only_in_the_css_is_not_found() {
+        let page = screen::page(
+            "t",
+            r#"{"root":"p","elements":{"p":{"type":"text","props":{"text":"hi"}}}}"#,
+        )
+        .unwrap();
+        // components.css styles .pagination; this page draws no table, so the class is in its stylesheet alone
+        assert!(
+            page.contains(".pagination {") && page.contains("<script>"),
+            "{page}"
+        );
+        let markup = markup(&page);
+        assert!(!markup.contains("pagination"), "{markup}");
+        assert!(
+            !markup.contains("<style") && !markup.contains("<script"),
+            "{markup}"
+        );
+        assert!(
+            markup.contains(r#"<html lang="en" class="app light">"#) && markup.contains("hi"),
+            "{markup}"
+        );
+        // an attribute stays, a tag is its whole name in any case, an unclosed block drops the rest
+        assert_eq!(
+            super::markup(
+                r#"<p style="x">a</p><style>.b{}</style><b>c</b><SCRIPT src="s"></Script><styled-x>d</styled-x><script>e"#
+            ),
+            r#"<p style="x">a</p><b>c</b><styled-x>d</styled-x>"#
+        );
+    }
+
+    #[dash_test]
+    fn a_tree_renders_escaped_and_a_bad_one_is_refused() {
+        let html = screen::page(
+            "t",
+            r#"{"root":"page","elements":{
+                "page":{"type":"stack","children":["bar","hint"]},
+                "bar":{"type":"search-bar","props":{"placeholder":"a\"><script>"}},
+                "hint":{"type":"text","props":{"text":"<b>&"}}}}"#,
+        )
+        .unwrap();
+        // the whole tree, from the page's style to its end: nothing of it drawn twice or unescaped elsewhere; its classes
+        // on the markup, the escapes on the raw page, where a script let through would be
+        assert!(
+            html.contains(r#"</style><div id="page">"#) && crate::markup(&html).ends_with(r#"<div id="page"><form class="form" id="bar" role="search" method="get" action="/search"><input class="input" name="q" placeholder="a&#34;&#62;&#60;script&#62;" type="search"/><button class="button">Search</button></form><p id="hint">&#60;b&#62;&#38;</p></div></div></body></html>"#),
+            "{html}"
+        );
+        assert!(
+            !html.contains(r#""><script>"#) && !html.contains("<b>&"),
+            "{html}"
+        );
+        for (bad, says) in [
+            (
+                r#"{"root":"a","elements":{"a":{"type":"iframe"}}}"#,
+                "iframe",
+            ),
+            (r#"{"root":"a","elements":{"a":{"type":"text"}}}"#, "props"),
+            (
+                r#"{"root":"a","elements":{"a":{"type":"text","props":{}}}}"#,
+                "text",
+            ),
+            (r#"{"root":"none","elements":{}}"#, "no element none"),
+            (
+                r#"{"root":"a","elements":{"a":{"type":"stack","children":["a"]}}}"#,
+                "twice",
+            ),
+            (
+                r#"{"root":"a","elements":{"a":{"type":"stack","children":["b","b"]},"b":{"type":"stack"}}}"#,
+                "twice",
+            ),
+            ("not json", "expected"),
+        ] {
+            let e = check(bad).err().unwrap_or_else(|| panic!("{bad} rendered"));
+            assert!(e.contains(says), "{bad}: {e}");
+        }
+    }
+
+    #[dash_test]
+    fn a_tree_nested_too_deep_is_refused() {
+        let chain = |depth: usize| -> String {
+            let elements: Vec<String> = (0..depth)
+                .map(|i| format!(r#""{i}":{{"type":"stack","children":["{}"]}}"#, i + 1))
+                .collect();
+            format!(
+                r#"{{"root":"0","elements":{{{},"{depth}":{{"type":"stack"}}}}}}"#,
+                elements.join(",")
+            )
+        };
+        assert!(check(&chain(DEPTH_LIMIT)).is_ok());
+        for depth in [DEPTH_LIMIT + 1, 20_000] {
+            let e = check(&chain(depth)).err().expect("too deep");
+            assert!(e.contains("nested past"), "{e}");
+        }
+    }
+
+    /// Task rust-graph-why-these: a selector is links with a label, said before them in both forms, the one shown marked.
+    #[dash_test]
+    fn labelled_links_say_what_they_select_in_html_and_text() {
+        let tree = r#"{"root":"s","elements":{"s":{"type":"links","props":{"label":"Epic","links":[
+            {"name":"All","href":"/tasks?layout=graph"},
+            {"name":"rust-poc","href":"/tasks?layout=graph&epic=rust-poc","current":true}]}}}}"#;
+        let html = crate::markup(&screen::page("t", tree).expect("a page"));
+        assert!(
+            html.contains(
+                r#"<span class="tabs-label">Epic</span><a href="/tasks?layout=graph">All</a>"#
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"aria-current="page">rust-poc</a>"#),
+            "{html}"
+        );
+        assert_eq!(
+            text(tree).expect("a text"),
+            "Epic: All /tasks?layout=graph, rust-poc /tasks?layout=graph&epic=rust-poc (shown)\n"
+        );
+    }
+
+    /// The graph's SVG, once the tree around it is checked.
+    fn graph(tasks: &str) -> Result<String, String> {
+        let tree = format!(
+            r#"{{"root":"g","elements":{{"g":{{"type":"task-graph","props":{{"tasks":[{tasks}]}}}}}}}}"#
+        );
+        match check(&tree)?.elements["g"].element {
+            Element::TaskGraph { ref tasks } => {
+                task_graph("g", tasks).map(dioxus_ssr::render_element)
+            }
+            _ => unreachable!("a task-graph"),
+        }
+    }
+
+    fn task(id: &str, waits: &[&str]) -> String {
+        let waits = waits
+            .iter()
+            .map(|w| format!(r#""{w}""#))
+            .collect::<Vec<_>>();
+        format!(
+            r#"{{"id":"{id}","state":"waiting","says":"why","waits":[{}]}}"#,
+            waits.join(",")
+        )
+    }
+
+    #[dash_test]
+    fn a_graph_runs_each_arrow_from_what_a_task_waits_on_to_it() {
+        let svg = graph(&[task("b", &["a"]), task("a", &[])].join(",")).unwrap();
+        assert!(svg.contains(r#"data-from="a" data-to="b""#), "{svg}");
+        // a in the first column though listed last, b in the second.
+        assert_eq!(spot(&svg, "a"), (60, 8), "{svg}");
+        assert_eq!(spot(&svg, "b"), (420, 8), "{svg}");
+    }
+
+    #[dash_test]
+    fn an_arrow_past_the_next_column_runs_under_the_nodes_never_behind_one() {
+        let tasks = [task("a", &[]), task("b", &["a"]), task("c", &["a", "b"])];
+        let svg = graph(&tasks.join(",")).unwrap();
+        // One row of 128 at y 8, its gap of 16 under it: the lane at 152, the graph's height past it.
+        assert!(
+            svg.contains(r#"data-from="a" data-to="c" d="M360 72H368V152H772V72H780""#),
+            "{svg}"
+        );
+        assert!(
+            svg.contains(r#"data-from="b" data-to="c" d="M720 72C750 72"#),
+            "{svg}"
+        );
+        assert!(svg.contains(r#"height="168""#), "{svg}");
+        let lone = graph(&task("a", &[])).unwrap();
+        assert!(
+            lone.contains(r#"width="420" height="160""#),
+            "no gap past the last column: {lone}"
+        );
+    }
+
+    #[dash_test]
+    fn two_long_arrows_share_no_line() {
+        let tasks = [
+            task("a", &[]),
+            task("b", &[]),
+            task("m", &["a"]),
+            task("x", &["m", "a"]),
+            task("y", &["m", "b"]),
+        ];
+        let svg = graph(&tasks.join(",")).unwrap();
+        let drop_at = |edge: &str| {
+            let at = svg.find(edge).expect(edge);
+            let d = &svg[at..];
+            let h = d.find('H').expect("a lane");
+            d[h..d.find('V').expect("a lane")].to_string()
+        };
+        let a = drop_at(r#"data-from="a" data-to="x""#);
+        let b = drop_at(r#"data-from="b" data-to="y""#);
+        assert_ne!(a, b, "{svg}");
+    }
+
+    #[dash_test]
+    fn seven_long_arrows_from_one_column_share_no_line() {
+        let sources: Vec<String> = (0..7).map(|i| format!("s{i}")).collect();
+        let names: Vec<&str> = sources.iter().map(String::as_str).collect();
+        let mut tasks: Vec<String> = names.iter().map(|s| task(s, &[])).collect();
+        tasks.push(task("m", &["s0"]));
+        let mut waits = names.clone();
+        waits.push("m");
+        tasks.push(task("t", &waits));
+        let svg = graph(&tasks.join(",")).unwrap();
+        let drops: HashSet<String> = names
+            .iter()
+            .map(|s| {
+                let edge = format!(r#"data-from="{s}" data-to="t""#);
+                let d = &svg[svg.find(&edge).expect("the arrow")..];
+                d[d.find('H').expect("a lane")..d.find('V').expect("a lane")].to_string()
+            })
+            .collect();
+        assert_eq!(drops.len(), 7, "{svg}");
+    }
+
+    #[dash_test]
+    fn a_task_past_a_loop_stays_right_of_it() {
+        let tasks = [task("c", &["a"]), task("a", &["b"]), task("b", &["a"])];
+        let svg = graph(&tasks.join(",")).unwrap();
+        assert_eq!(spot(&svg, "a").0, 60, "{svg}");
+        assert_eq!(spot(&svg, "c").0, 420, "{svg}");
+    }
+
+    #[dash_test]
+    fn a_merged_wait_is_left_out_and_a_task_that_ended_still_holds() {
+        let done = |id: &str, state: &str| {
+            format!(r#"{{"id":"{id}","state":"{state}","says":"s","waits":[]}}"#)
+        };
+        let tasks = [
+            done("old", "finished"),
+            done("bad", "ended"),
+            task("now", &["old", "bad"]),
+        ];
+        let svg = graph(&tasks.join(",")).unwrap();
+        assert!(!svg.contains(r#""old""#), "{svg}");
+        assert!(svg.contains(r#"class="edge" data-from="bad""#), "{svg}");
+        assert!(svg.contains(r#"class="node ended""#), "{svg}");
+    }
+
+    /// Where a node sits: its column (by its left) and its row (by its top), on the node around its card.
+    fn spot(svg: &str, id: &str) -> (usize, usize) {
+        let card = svg.find(&format!(r#"data-task="{id}""#)).expect(id);
+        let at = svg[..card].rfind("left:").expect("its node");
+        let px = |from: &str| -> usize {
+            let rest = &svg[at..][svg[at..].find(from).expect(from) + from.len()..];
+            rest[..rest.find("px").expect("px")]
+                .parse()
+                .expect("a number")
+        };
+        (px("left:"), px("top:"))
+    }
+
+    /// Done-when 2 and 5 of rust-graph-queue-edges: tasks with real waits never draw as one column of cards; a merged task is
+    /// left out; what runs heads column 0, though listed last; each dependent sits right of every task it waits on.
+    #[dash_test]
+    fn real_waits_draw_columns_running_first_merged_left_out() {
+        let with = |id: &str, state: &str, waits: &[&str]| {
+            let waits: Vec<String> = waits.iter().map(|w| format!(r#""{w}""#)).collect();
+            format!(
+                r#"{{"id":"{id}","state":"{state}","says":"s","waits":[{}]}}"#,
+                waits.join(",")
+            )
+        };
+        let edges: &[(&str, &[&str])] = &[
+            ("ui-media", &[]),
+            ("design-media", &["ui-media", "merged"]),
+            ("crm-photo", &["design-media"]),
+            ("lone", &[]),
+            ("after-run", &["run"]),
+        ];
+        let mut tasks: Vec<String> = edges.iter().map(|(id, w)| with(id, "waiting", w)).collect();
+        tasks.push(with("merged", "finished", &[]));
+        tasks.push(with("run", "running", &[]));
+        let svg = graph(&tasks.join(",")).unwrap();
+        assert!(!svg.contains(r#"data-task="merged""#), "{svg}");
+        assert!(!svg.contains(r#"data-from="merged""#), "{svg}");
+        let lefts: HashSet<usize> = edges.iter().map(|(id, _)| spot(&svg, id).0).collect();
+        assert!(lefts.len() > 1, "one column: {svg}");
+        assert_eq!(spot(&svg, "run"), (MARGIN_X, PAD), "{svg}");
+        for (id, waits) in edges {
+            for wait in waits.iter().filter(|w| **w != "merged") {
+                assert!(
+                    spot(&svg, id).0 > spot(&svg, wait).0,
+                    "{id} right of {wait}: {svg}"
+                );
+            }
+        }
+    }
+
+    /// Done-when 1 of graph-node-is-card: each node draws board.rs's card face, its title, status, labels and line, and links
+    /// to its task page; a tree with no face draws its id as the title and the status its state reads as.
+    #[dash_test]
+    fn each_node_is_the_boards_card_linked_to_its_task() {
+        let tasks = [
+            r#"{"id":"a","state":"running","says":"its run","waits":[],"title":"Draw the card","status":"in-progress","labels":["site_perso","ui"],"assignee":"Rust"}"#,
+            r#"{"id":"b","state":"waiting","says":"waits on a","waits":["a"]}"#,
+        ];
+        let svg = graph(&tasks.join(",")).unwrap();
+        // a node's markup, up to the next node
+        let node = |id: &str| {
+            let card = svg.find(&format!(r#"data-task="{id}""#)).expect(id);
+            let at = svg[..card].rfind(r#"class="node "#).expect("its node");
+            let end = svg[card..]
+                .find(r#"class="node "#)
+                .map_or(svg.len(), |e| card + e);
+            svg[at..end].to_string()
+        };
+        let a = node("a");
+        for part in [
+            r#"<a id="g-node-0" class="card li-card" data-task="a" href="/tasks/a">"#,
+            r#"<div class="li-id">a</div>"#,
+            r#"<div class="li-assign" title="Rust">"#,
+            "<span>Draw the card</span>",
+            r#"<span class="badge li-tag">site_perso</span>"#,
+            r#"<span class="badge li-tag">ui</span>"#,
+            r#"<span class="says">its run</span>"#,
+        ] {
+            assert!(a.contains(part), "{part} in {a}");
+        }
+        let b = node("b");
+        assert!(b.contains(r#"href="/tasks/b""#), "{b}");
+        assert!(b.contains("<span>b</span>"), "the id as its title: {b}");
+        // the status icon the board draws: in progress for a, backlog for b
+        let icon =
+            |kind: &'static str| dioxus_ssr::render_element(crate::design::families::status(kind));
+        assert!(a.contains(&icon("started")), "{a}");
+        assert!(b.contains(&icon("backlog")), "{b}");
+    }
+
+    #[dash_test]
+    fn a_graph_escapes_its_words_and_keeps_long_ones_whole_for_css_to_clip() {
+        let long = "x".repeat(200);
+        let tasks = format!(r#"{{"id":"{long}","state":"next","says":"<b>&\"","waits":[]}}"#,);
+        let svg = graph(&tasks).unwrap();
+        assert!(svg.contains(r#"class="node next""#), "{svg}");
+        assert!(
+            svg.contains(r#"<span class="says">&#60;b&#62;&#38;&#34;</span>"#),
+            "{svg}"
+        );
+        assert!(
+            svg.contains(&format!(r#"<div class="li-id">{long}</div>"#)),
+            "{svg}"
+        );
+        assert!(!svg.contains("<b>"), "{svg}");
+    }
+
+    #[dash_test]
+    fn a_loop_still_draws_and_a_bad_graph_is_refused_by_name() {
+        let looped = graph(&[task("a", &["b"]), task("b", &["a"]), task("c", &["c"])].join(","));
+        let svg = looped.unwrap();
+        for id in ["a", "b", "c"] {
+            assert!(svg.contains(&format!(r#"data-task="{id}""#)), "{svg}");
+        }
+        let many = (0..=GRAPH_LIMIT).map(|i| task(&i.to_string(), &[]));
+        for (bad, says) in [
+            (task("a", &["gone"]), "a waits on gone"),
+            (
+                [task("a", &[]), task("a", &[])].join(","),
+                "a appears twice",
+            ),
+            (many.collect::<Vec<_>>().join(","), "past 500"),
+            (r#"{"id":"a","state":"odd","says":""}"#.to_string(), "odd"),
+        ] {
+            let e = graph(&bad).expect_err(says);
+            assert!(e.contains(says), "{e}");
+        }
+    }
+
+    #[dash_test]
+    fn a_group_counts_its_rows_and_a_row_opens_its_task() {
+        let html = crate::markup(&screen::page(
+            "t",
+            r#"{"root":"g","elements":{
+                "g":{"type":"issue-group","props":{"status":"in-progress"},"children":["a","b"]},
+                "a":{"type":"issue-row","props":{"id":"a b/<c>","title":"<T>","status":"in-progress","says":"s&","comments":0}},
+                "b":{"type":"issue-row","props":{"id":"b","title":"t","status":"in-progress","says":"","comments":2}}}}"#,
+        )
+        .unwrap());
+        assert!(html.contains(r#"data-status="in-progress""#), "{html}");
+        assert!(
+            html.contains(r#"In Progress<span class="badge count">2</span>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"href="/tasks/a%20b%2F%3Cc%3E""#), "{html}");
+        assert!(html.contains(r#"data-task="a b/&#60;c&#62;""#), "{html}");
+        assert!(
+            html.contains(r#"<span class="title">&#60;T&#62;</span>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<span class="says">s&#38;</span>"#),
+            "{html}"
+        );
+        assert_eq!(html.matches("data-comments").count(), 1, "{html}");
+        assert!(html.contains(r#"data-comments="2">2 comments"#), "{html}");
+    }
+
+    /// Task rust-doc-types: a document is its template's, both forms refuse a link that is not GitHub's and a child.
+    #[dash_test]
+    fn a_document_draws_by_its_template_and_both_forms_refuse_alike() {
+        let brief = |pr: &str, children: &str| {
+            format!(
+                r#"{{"root":"d","elements":{{"d":{{"type":"document","props":{{"kind":"task-brief","id":"t","title":"<T>","status":"todo","says":"s","why":"w","checks":[],"no_checks":"None written.","run":"Never run.","pr":"{pr}"}},"children":{children}}},"x":{{"type":"text","props":{{"text":"x"}}}}}}}}"#
+            )
+        };
+        let html = crate::markup(
+            &screen::page("t", &brief("https://github.com/o/r/pull/12", "[]")).expect("drawn"),
+        );
+        assert!(
+            html.contains(r#"<body><div class="app"><article id="d" class="doc doc-task-brief">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<h1 class="li-issue-title">&#60;T&#62;</h1>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<a class="li-tag li-pr" href="https://github.com/o/r/pull/12">"#),
+            "{html}"
+        );
+        let told = text(&brief("https://github.com/o/r/pull/12", "[]")).expect("told");
+        assert!(
+            told.contains(
+                "<T>\nw\nDone when\nNone written.\nLast run\nNever run.\nActivity\nUndo\tRedo\nPreview\nDiscard\tComment\nProperties\nTodo\ns\n"
+            ),
+            "{told}"
+        );
+        let elsewhere = brief("https://evil.example/pull/1", "[]");
+        assert!(check(&elsewhere).is_err_and(|e| e.contains("not a GitHub link")));
+        assert!(text(&elsewhere).is_err_and(|e| e.contains("not a GitHub link")));
+        let parent = brief("https://github.com/o/r/pull/12", r#"["x"]"#);
+        let refused = "d: a document holds no children".to_string();
+        assert_eq!(check(&parent).err(), Some(refused.clone()));
+        assert_eq!(text(&parent), Err(refused));
+    }
+
+    /// Done-when 2 of rust-page-forms, an access since rust-tools-human: one line in the text, a line break or a tab inside
+    /// a field kept out; an access holds no children.
+    #[dash_test]
+    fn a_record_tells_one_line() {
+        let access = |note: &str, children: &str| {
+            json!({"root": "r", "elements": {
+                "r": {"type": "access", "props": {"name": "gh", "status": "works", "usage": "a | b", "note": note, "place": "p", "source": "cli"}, "children": serde_json::from_str::<Value>(children).expect("children")},
+                "t": {"type": "text", "props": {"text": "x"}}}})
+            .to_string()
+        };
+        assert_eq!(
+            text(&access("401\r\nretry", "[]")).expect("text"),
+            "gh\tworks\ta | b\t401  retry\tp\tcli\n"
+        );
+        let tabbed = r#"{"root":"r","elements":{"r":{"type":"issue-row","props":{"id":"a","title":"t\tu\nv","status":"todo","says":"s","comments":0}}}}"#;
+        assert_eq!(text(tabbed).expect("text"), "a\tt u v\ts\n");
+        let stray = r#"{"root":"g","elements":{"g":{"type":"task-graph","props":{"tasks":[{"id":"x","state":"next","says":"go","waits":["y"]}]}}}}"#;
+        assert!(
+            check(stray).is_err() && text(stray).is_err(),
+            "both forms refuse it"
+        );
+        let parent = access("n", r#"["t"]"#);
+        let refused = "r: an access holds no children".to_string();
+        assert_eq!(check(&parent).err(), Some(refused.clone()));
+        assert_eq!(text(&parent), Err(refused));
+    }
+
+    #[dash_test]
+    fn a_tree_s_text_says_what_its_html_shows_unescaped_and_in_order() {
+        let tree = json!({"root": "page", "elements": {
+            "page": {"type": "stack", "children": ["h", "part"]},
+            "h": {"type": "heading", "props": {"text": "A <b>"}},
+            "part": {"type": "section", "props": {"title": "Checks"}, "children": ["c", "q"]},
+            "c": {"type": "text", "props": {"text": "a test"}},
+            "q": {"type": "quote", "props": {"text": "one\ntwo"}}
+        }})
+        .to_string();
+        assert_eq!(
+            text(&tree).expect("text"),
+            "A <b>\n\nChecks\na test\none\ntwo\n"
+        );
+        let looped = r#"{"root":"a","elements":{"a":{"type":"stack","children":["a"]}}}"#;
+        assert!(text(looped).is_err_and(|e| e.contains("appears twice")));
+    }
+
+    /// Done-when 2 of rust-automations-tab: a timeline's event opens its page or unfolds its detail, its dot marked; a link
+    /// that is not ours is dropped, as a card's; the text a record an event.
+    #[dash_test]
+    fn a_timeline_event_opens_its_page_or_its_detail_in_both_forms() {
+        let tree = json!({"root": "t", "elements": {"t": {"type": "timeline", "props": {"strip": true, "events": [
+            {"at": "2026-11-10 07:07 UTC", "what": "filed task morning-run", "href": "/tasks/morning-run"},
+            {"at": "2026-11-10 07:22 UTC", "what": "failed", "mark": "failed", "detail": "timed out <b>"},
+            {"at": "2026-11-10 07:30 UTC", "what": "odd", "mark": "failed", "href": "javascript:alert(1)"},
+            {"at": "tomorrow at 08:07 local", "what": "next run", "mark": "next"}
+        ]}}}})
+        .to_string();
+        let html = crate::markup(&screen::page("t", &tree).expect("html"));
+        assert!(
+            html.contains(r#"<ol class="timeline strip"><li><details class="when">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<a href="/tasks/morning-run">filed task morning-run</a>"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<li class="failed">"#) && html.contains(r#"<li class="next">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(
+                "<details><summary>failed</summary><pre>timed out &#60;b&#62;</pre></details>"
+            ),
+            "{html}"
+        );
+        assert!(!html.contains("javascript:"), "{html}");
+        assert_eq!(
+            text(&tree).expect("text"),
+            "2026-11-10 07:07 UTC\tok\tfiled task morning-run\t/tasks/morning-run\n\
+             2026-11-10 07:22 UTC\tfailed\tfailed\ttimed out <b>\n\
+             2026-11-10 07:30 UTC\tfailed\todd\t\n\
+             tomorrow at 08:07 local\tnext\tnext run\t\n"
+        );
+        let parent = r#"{"root":"t","elements":{"t":{"type":"timeline","props":{"events":[]},"children":["x"]},"x":{"type":"stack"}}}"#;
+        assert!(check_tree(parent).is_err_and(|e| e.contains("draws its events alone")));
+    }
+
+    #[dash_test]
+    fn a_page_carries_the_generated_theme_around_its_tree() {
+        let tree = r#"{"root":"h","elements":{"h":{"type":"heading","props":{"text":"<a>"}}}}"#;
+        let html = screen::page("t<", tree).unwrap();
+        assert!(html.starts_with("<!doctype html>"), "{html}");
+        assert!(html.contains("<title>t&lt;</title>"), "{html}");
+        assert!(html.contains(".app.dark {\n  --color-accent:"), "{html}");
+        assert!(
+            crate::markup(&html).contains(r#"<h1 id="h">&#60;a&#62;</h1>"#),
+            "{html}"
+        );
+        assert!(screen::page("t", "not json").is_err());
+    }
+
+    struct Fails;
+
+    impl Tool for Fails {
+        fn description(&self) -> &str {
+            "It fails"
+        }
+        fn input_schema(&self) -> &str {
+            r#"{"type":"object"}"#
+        }
+        fn call(&self, arguments: &str) -> Result<String, String> {
+            Err(format!("no, given {arguments}"))
+        }
+    }
+
+    #[dash_test]
+    fn mcp_answers_each_request_and_no_notification() {
+        let mut registry = Registry::default();
+        let c = Contribution {
+            tools: vec![("fails".into(), Box::new(Fails))],
+            ..Default::default()
+        };
+        registry.add("t", c).unwrap();
+        let input = [
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}"#,
+            r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
+            r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"fails","arguments":{"a":1}}}"#,
+            r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nope"}}"#,
+            r#"{"jsonrpc":"2.0","id":5,"method":"nope"}"#,
+            "not json",
+            "[1]",
+            r#"{"jsonrpc":"2.0","id":9,"result":{}}"#,
+        ]
+        .join("\n");
+        let mut input = input.into_bytes();
+        input.extend_from_slice(b"\n\xff\n");
+        let mut output = vec![];
+        let kept = Kept::default();
+        let mcp = Mcp {
+            registry: &registry,
+            clock: &Still,
+            audit: &kept,
+        };
+        serve_mcp(&mcp, &input[..], &mut output).unwrap();
+        let lines: Vec<Value> = String::from_utf8(output)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 8, "a response gets no answer: {lines:?}");
+        assert_eq!(lines[0]["result"]["protocolVersion"], "2025-03-26");
+        assert_eq!(lines[1]["result"]["tools"][0]["name"], "fails");
+        assert_eq!(
+            lines[1]["result"]["tools"][0]["inputSchema"]["type"],
+            "object"
+        );
+        assert_eq!(lines[2]["result"]["isError"], true);
+        assert_eq!(
+            lines[2]["result"]["content"][0]["text"],
+            r#"no, given {"a":1}"#
+        );
+        assert_eq!(lines[3]["error"]["code"], -32602);
+        assert_eq!(lines[4]["error"]["code"], -32601);
+        assert_eq!(lines[5]["error"]["code"], -32700);
+        assert_eq!(lines[6]["error"]["code"], -32600);
+        assert_eq!(
+            lines[7]["error"]["code"], -32700,
+            "a stray byte, and it served on"
+        );
+        let kept = kept.0.into_inner();
+        assert_eq!(
+            kept.len(),
+            1,
+            "the one tool called is kept, the unknown one is not"
+        );
+        assert_eq!(
+            (kept[0].tool.as_str(), kept[0].origin.as_str()),
+            ("fails", "t")
+        );
+        assert_eq!(kept[0].answer, Err(r#"no, given {"a":1}"#.into()));
+    }
+
+    struct Still;
+
+    impl dash_core::WallClock for Still {
+        fn now_ms(&self) -> i64 {
+            7
+        }
+    }
+
+    #[derive(Default)]
+    struct Kept(std::cell::RefCell<Vec<dash_core::registry::Call>>);
+
+    impl dash_core::registry::Audit for Kept {
+        fn record(&self, call: &dash_core::registry::Call) -> Result<(), String> {
+            self.0.borrow_mut().push(call.clone());
+            Ok(())
+        }
+    }
+
+    /// dash's assets/css/theme.css as plain rules on the app's root: the window has no Tailwind, so its wrappers become CSS.
+    fn theme_from_dash(source: &str) -> String {
+        let mut out = String::from(
+            "/* Generated from private/dashboard/assets/css/theme.css by dash-surface's test: UPDATE_THEME=1 cargo nextest run -p dash-surface the_theme. */\n",
+        );
+        for line in source.lines().skip(1) {
+            let t = line.trim();
+            if t.starts_with("@plugin") {
+                continue;
+            }
+            if let Some(n) = t.strip_prefix("name: \"") {
+                out += &format!(".app.{} {{\n", n.trim_end_matches("\";"));
+            } else if t.starts_with("@theme") {
+                out += ".app {\n";
+            } else if !["default:", "prefersdark:", "color-scheme:"]
+                .iter()
+                .any(|p| t.starts_with(p))
+            {
+                out += line;
+                out.push('\n');
+            }
+        }
+        out
+    }
+
+    /// theme.css is design.json's, through dash's generated theme: rust/ alone rides to the CI mirror, so the file is a copy
+    /// and this fails when it is stale (moved from rust/ui-spike, task rust-ui-spike-retire). The mirror has nothing to compare.
+    #[dash_test]
+    fn the_theme_is_design_json_s() {
+        let Some(top) = dash_meter::monorepo() else {
+            return;
+        };
+        let source = std::fs::read_to_string(top.join("private/dashboard/assets/css/theme.css"))
+            .expect("dash's theme.css");
+        let want = theme_from_dash(&source);
+        let path = top.join("rust/crates/surface/src/theme.css");
+        if std::env::var_os("UPDATE_THEME").is_some() {
+            std::fs::write(&path, &want).expect("write");
+        }
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read"),
+            want,
+            "theme.css is stale: UPDATE_THEME=1 cargo nextest run -p dash-surface the_theme"
+        );
+    }
+}
