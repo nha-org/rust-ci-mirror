@@ -1,0 +1,12 @@
+[package]
+name = "dash-jobs"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+
+[dev-dependencies]
+dash-core = { workspace = true, features = ["memory-log"] }
+dash-meter.workspace = true

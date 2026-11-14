@@ -1,0 +1,184 @@
+//! The stores under load (task rust-store-load-measured, done-when 3): whether SQLite holds 10 sessions at once, and that a
+//! lock hold counts no wait. Here, not in src: the store reads no clock of its own (dash-gate's simulation rule), and these
+//! time real runs.
+use dash_meter::{TestDir, dash_test};
+use dash_store::Connection;
+use dash_store::timed::{Kind, on_statement, trace};
+use std::cell::{Cell, RefCell};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Barrier, Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
+/// A BEGIN IMMEDIATE that waits 300 ms behind another connection's lock holds it only from when it gets it: the wait is the
+/// BEGIN's own time, never a hold (the load test below first read every wait as one). It measures that wait, never a wall
+/// bound: the clock starts before the lock's owner sleeps, so a hold that excludes the wait leaves at least 250 ms of the
+/// whole call outside it on any runner, and one that counts the wait leaves none (task rust-store-rebuild-write-flake).
+#[dash_test]
+fn a_hold_counts_from_the_lock_taken_never_the_wait_for_it() {
+    static HOLDS: Mutex<Vec<Duration>> = Mutex::new(Vec::new());
+    static WAITS: Mutex<Vec<Duration>> = Mutex::new(Vec::new());
+    static START: OnceLock<Instant> = OnceLock::new();
+    START.get_or_init(Instant::now);
+    on_statement(
+        Box::new(|ran| match ran.kind {
+            Kind::Hold => HOLDS.lock().unwrap().push(ran.took),
+            Kind::Wait => WAITS.lock().unwrap().push(ran.took),
+            Kind::Statement => {}
+        }),
+        // 10 s on, so a hold counted from the BEGIN's start shows the wait rather than stopping at zero
+        || START.get().map_or(Duration::ZERO, Instant::elapsed) + Duration::from_secs(10),
+    );
+    let dir = TestDir::new("timed-wait");
+    let path = dir.0.join("tasks.sqlite");
+    let other = Connection::open(&path).unwrap();
+    other
+        .execute_batch("PRAGMA journal_mode = WAL; CREATE TABLE t (x); BEGIN IMMEDIATE")
+        .unwrap();
+    let mut db = Connection::open(&path).unwrap();
+    db.busy_timeout(Duration::from_secs(5)).unwrap();
+    trace(&mut db, &path).unwrap();
+    let began = Instant::now();
+    let waited = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(300));
+        other.execute_batch("COMMIT").unwrap();
+    });
+    db.execute_batch("BEGIN IMMEDIATE; INSERT INTO t VALUES (1); COMMIT;")
+        .unwrap();
+    let whole = began.elapsed();
+    waited.join().unwrap();
+    let holds = HOLDS.lock().unwrap().clone();
+    assert_eq!(holds.len(), 1, "{holds:?}");
+    assert!(
+        whole.saturating_sub(holds[0]) >= Duration::from_millis(250),
+        "a hold of {holds:?} counts the wait for the lock: the whole call took {whole:?}"
+    );
+    // The wait has its own series (task telemetry-names-raw-queries, done-when 2): one, holding what the hold left out of the
+    // call. Its bounds are the call's own, never a wall bound (dash-gate's): the call is the wait, the hold and the batch's
+    // parse, so the wait is most of what the hold leaves, 250 ms at least, and a wait read from the wrong place (0, 1 ms) fails.
+    // SQLite's profile clock counts whole milliseconds, so its wait may pass the call's `Instant` by under 1 ms (376 ms in a
+    // call of 375.8 ms failed 4 runs in 12, task rust-load-test-no-wall-clock): that 1 ms is its resolution, never a bound.
+    let waits = WAITS.lock().unwrap().clone();
+    assert_eq!(waits.len(), 1, "{waits:?}");
+    assert!(
+        waits[0].saturating_sub(Duration::from_millis(1)) <= whole
+            && waits[0] * 2 >= whole.saturating_sub(holds[0]),
+        "a wait of {waits:?} beside a hold of {holds:?} in a call of {whole:?}"
+    );
+}
+
+/// Done-when 3: 10 sessions, each on its own connection as each dash process is, write a field and read the board at once,
+/// 50 rounds each, on a store holding the live one's 250 listed rows and 40 open tasks. It asserts what the store controls,
+/// never a wall-clock bound (a 200 ms one failed three tries on PR 1555's mirror run; task rust-load-test-no-wall-clock):
+/// every write lands, as its ops in the log, under exactly one lock hold, and contention never adds a statement to a hold,
+/// which runs the same 10 statements as a write made alone. How long a hold lasts is printed beside the slowest write, a
+/// measure for the RFC and Datadog's `lock_hold_ms`, never a verdict. Its sink is the process's one (`on_statement`): nextest
+/// runs each test in its own process (rust/CLAUDE.md rule 1).
+#[dash_test]
+fn ten_sessions_at_once_land_every_write_each_holding_the_lock_for_its_own_statements() {
+    const SESSIONS: usize = 10;
+    const ROUNDS: usize = 50;
+    static HOLD: AtomicU64 = AtomicU64::new(0);
+    static START: OnceLock<Instant> = OnceLock::new();
+    thread_local! {
+        // the statements run since this thread's BEGIN IMMEDIATE took the lock, and each hold's count once released: the
+        // sink runs on the thread that ran the statement, so a session reads its own holds alone
+        static HELD: Cell<Option<usize>> = const { Cell::new(None) };
+        static HOLDS: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+    }
+    START.get_or_init(Instant::now);
+    on_statement(
+        Box::new(|ran| match ran.kind {
+            Kind::Wait => HELD.set(Some(0)),
+            Kind::Statement => HELD.set(HELD.get().map(|n| n + 1)),
+            Kind::Hold => {
+                HOLD.fetch_max(ran.took.as_micros() as u64, Ordering::Relaxed);
+                // 0: a hold no BEGIN IMMEDIATE opened (a lone or deferred write), which this count cannot see into
+                HOLDS.with_borrow_mut(|h| h.push(HELD.take().unwrap_or(0)));
+            }
+        }),
+        || START.get().map_or(Duration::ZERO, Instant::elapsed),
+    );
+    let dir = TestDir::new("tasks-load");
+    let open = || dash_store::tasks::open(&dir.0, &dir.0).expect("open");
+    let mut seed = open();
+    for n in 0..40 {
+        seed.add(&format!("open{n}"), &[]).expect("within the cap");
+    }
+    for n in 0..250 {
+        seed.layer(&format!("listed{n}"), "rfc:storage")
+            .expect("listed");
+    }
+    // a write made alone: the statements a hold runs with no one else at the store
+    HOLDS.with_borrow_mut(Vec::clear);
+    seed.layer("listed0", "rfc:alone").expect("alone");
+    let alone = HOLDS.take();
+    // one hold of 10 statements, counted 2026-11-13: a statement added under the lock (a scan, a read back) changes it, and
+    // that change names itself here (rust/CLAUDE.md rule 5: no lock held across a scan)
+    assert_eq!(alone, [10], "a write alone took these holds, in statements");
+    drop(seed);
+    let ops = || {
+        let log = Connection::open(dir.0.join("tasks.sqlite")).expect("log");
+        log.query_row("SELECT count(*) FROM ops", [], |r| r.get::<_, i64>(0))
+            .expect("count")
+    };
+    let before = ops();
+    let start = Barrier::new(SESSIONS);
+    let sessions: Vec<(Vec<Duration>, Vec<usize>)> = std::thread::scope(|s| {
+        let sessions: Vec<_> = (0..SESSIONS)
+            .map(|session| {
+                let (open, start) = (&open, &start);
+                s.spawn(move || {
+                    let mut tasks = open();
+                    // the open's own schema writes hold the lock too: count from the first round
+                    HOLDS.with_borrow_mut(Vec::clear);
+                    start.wait();
+                    let took = (0..ROUNDS)
+                        .map(|round| {
+                            let id = format!("listed{}", (session * ROUNDS + round) % 250);
+                            let began = Instant::now();
+                            tasks
+                                .layer(&id, &format!("rfc:s{session}r{round}"))
+                                .expect("write");
+                            let write = began.elapsed();
+                            assert_eq!(tasks.rows().expect("read").len(), 40);
+                            write
+                        })
+                        .collect();
+                    (took, HOLDS.take())
+                })
+            })
+            .collect();
+        sessions
+            .into_iter()
+            .map(|h| h.join().expect("session"))
+            .collect()
+    });
+    let writes = SESSIONS * ROUNDS;
+    // writes counted: each `layer` is one commit of two field writes (the layer and `gone`), so the log grows by two per write
+    assert_eq!(
+        ops() - before,
+        writes as i64 * 2,
+        "the log lost or doubled a write"
+    );
+    for (session, (_, holds)) in sessions.iter().enumerate() {
+        // one hold per write, none for a read, each running the statements a write alone runs: no wait, scan or retry inside it
+        assert_eq!(
+            holds,
+            &vec![alone[0]; ROUNDS],
+            "session {session}'s holds, in statements, against {} for a write alone",
+            alone[0]
+        );
+    }
+    let mut took: Vec<Duration> = sessions.into_iter().flat_map(|(t, _)| t).collect();
+    took.sort();
+    let at = |q: usize| took[(took.len() - 1) * q / 100].as_secs_f64() * 1000.0;
+    eprintln!(
+        "{} writes by {SESSIONS} sessions: p50 {:.1} ms, p99 {:.1} ms, max {:.1} ms, longest lock hold {:.1} ms",
+        took.len(),
+        at(50),
+        at(99),
+        at(100),
+        HOLD.load(Ordering::Relaxed) as f64 / 1000.0
+    );
+    assert_eq!(took.len(), writes);
+}
