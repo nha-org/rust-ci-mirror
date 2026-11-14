@@ -1,0 +1,1547 @@
+{
+ "session": {
+  "apiUrl": "https://mail.klar.im/jmap/",
+  "primaryAccounts": {
+   "urn:ietf:params:jmap:mail": "f"
+  },
+  "username": "someone@example.org",
+  "state": "820976ef"
+ },
+ "mailbox": {
+  "methodResponses": [
+   [
+    "Mailbox/query",
+    {
+     "accountId": "f",
+     "queryState": "s12pq",
+     "canCalculateChanges": true,
+     "position": 0,
+     "ids": [
+      "a"
+     ]
+    },
+    "b"
+   ]
+  ],
+  "sessionState": "820976ef"
+ },
+ "inbox": {
+  "methodResponses": [
+   [
+    "Email/query",
+    {
+     "accountId": "f",
+     "queryState": "s3ipq",
+     "canCalculateChanges": true,
+     "position": 0,
+     "ids": [
+      "ggaaaabrq",
+      "gfqaaabrm",
+      "gfmaaabrl",
+      "gfiaaabrk",
+      "gfeaaabrj",
+      "ge2aaabrh",
+      "geyaaabrg",
+      "geqaaabre",
+      "geaaaabra",
+      "gduaaabq0",
+      "gdiaaabq7",
+      "gc2aaabqx",
+      "gcuaaabqv",
+      "gcqaaabqu",
+      "gcmaaabqt",
+      "gciaaabqs",
+      "gbyaaabqo",
+      "gbqaaabqm",
+      "gbaaaabqi",
+      "gamaaabqd",
+      "gaiaaabqc",
+      "gaeaaabqb",
+      "f32aaabp3",
+      "f3yaaabp1",
+      "f3uaaabp0",
+      "f3qaaabp2",
+      "f3maaabp9",
+      "f3eaaabpz",
+      "f3aaaabpy",
+      "f12aaabpx",
+      "f1yaaabpw",
+      "f1maaabpt",
+      "f1qaaabpu",
+      "f1iaaabps",
+      "f1eaaabpr",
+      "f02aaabpp",
+      "f0eaaabpj",
+      "f0aaaabpi",
+      "f22aaabph",
+      "f2uaaabpf",
+      "f2qaaabpe",
+      "f2aaaabpa",
+      "f92aaabo3",
+      "f9maaabo9",
+      "f9eaaaboz",
+      "ei2aaaboy",
+      "f72aaabox",
+      "f7maaabot",
+      "f7eaaabor",
+      "f7aaaaboq"
+     ],
+     "total": 359,
+     "limit": 50
+    },
+    "q"
+   ],
+   [
+    "Email/get",
+    {
+     "accountId": "f",
+     "state": "s3ipq",
+     "list": [
+      {
+       "id": "f7aaaaboq",
+       "threadId": "boq",
+       "subject": "Subject 50",
+       "preview": "Preview of mail 50",
+       "from": [
+        {
+         "name": "Sender 50",
+         "email": "sender50@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T08:28:45Z",
+       "keywords": {}
+      },
+      {
+       "id": "f7eaaabor",
+       "threadId": "bor",
+       "subject": "Subject 49",
+       "preview": "Preview of mail 49",
+       "from": [
+        {
+         "name": "Sender 49",
+         "email": "sender49@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T08:46:51Z",
+       "keywords": {}
+      },
+      {
+       "id": "f7maaabot",
+       "threadId": "bot",
+       "subject": "Subject 48",
+       "preview": "Preview of mail 48",
+       "from": [
+        {
+         "name": "Sender 48",
+         "email": "sender48@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T10:28:42Z",
+       "keywords": {}
+      },
+      {
+       "id": "f72aaabox",
+       "threadId": "box",
+       "subject": "Subject 47",
+       "preview": "Preview of mail 47",
+       "from": [
+        {
+         "name": "Sender 47",
+         "email": "sender47@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T12:46:32Z",
+       "keywords": {}
+      },
+      {
+       "id": "ei2aaaboy",
+       "threadId": "bch",
+       "subject": "Subject 46",
+       "preview": "Preview of mail 46",
+       "from": [
+        {
+         "name": "Sender 46",
+         "email": "sender46@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T13:03:13Z",
+       "keywords": {}
+      },
+      {
+       "id": "f9eaaaboz",
+       "threadId": "boz",
+       "subject": "Subject 45",
+       "preview": "Preview of mail 45",
+       "from": [
+        {
+         "name": "Sender 45",
+         "email": "sender45@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T13:06:23Z",
+       "keywords": {}
+      },
+      {
+       "id": "f9maaabo9",
+       "threadId": "bo9",
+       "subject": "Subject 44",
+       "preview": "Preview of mail 44",
+       "from": [
+        {
+         "name": "Sender 44",
+         "email": "sender44@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T14:28:44Z",
+       "keywords": {}
+      },
+      {
+       "id": "f92aaabo3",
+       "threadId": "bo3",
+       "subject": "Subject 43",
+       "preview": "Preview of mail 43",
+       "from": [
+        {
+         "name": "Sender 43",
+         "email": "sender43@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T16:02:17Z",
+       "keywords": {}
+      },
+      {
+       "id": "f2aaaabpa",
+       "threadId": "bpa",
+       "subject": "Subject 42",
+       "preview": "Preview of mail 42",
+       "from": [
+        {
+         "name": "Sender 42",
+         "email": "sender42@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T16:28:45Z",
+       "keywords": {}
+      },
+      {
+       "id": "f2qaaabpe",
+       "threadId": "bpe",
+       "subject": "Subject 41",
+       "preview": "Preview of mail 41",
+       "from": [
+        {
+         "name": "Sender 41",
+         "email": "sender41@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T18:28:52Z",
+       "keywords": {}
+      },
+      {
+       "id": "f2uaaabpf",
+       "threadId": "bpf",
+       "subject": "Subject 40",
+       "preview": "Preview of mail 40",
+       "from": [
+        {
+         "name": "Sender 40",
+         "email": "sender40@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T19:01:32Z",
+       "keywords": {}
+      },
+      {
+       "id": "f22aaabph",
+       "threadId": "bph",
+       "subject": "Subject 39",
+       "preview": "Preview of mail 39",
+       "from": [
+        {
+         "name": "Sender 39",
+         "email": "sender39@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T19:02:49Z",
+       "keywords": {}
+      },
+      {
+       "id": "f0aaaabpi",
+       "threadId": "bpi",
+       "subject": "Subject 38",
+       "preview": "Preview of mail 38",
+       "from": [
+        {
+         "name": "Sender 38",
+         "email": "sender38@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T19:03:54Z",
+       "keywords": {}
+      },
+      {
+       "id": "f0eaaabpj",
+       "threadId": "bpj",
+       "subject": "Subject 37",
+       "preview": "Preview of mail 37",
+       "from": [
+        {
+         "name": "Sender 37",
+         "email": "sender37@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T19:21:53Z",
+       "keywords": {}
+      },
+      {
+       "id": "f02aaabpp",
+       "threadId": "bpp",
+       "subject": "Subject 36",
+       "preview": "Preview of mail 36",
+       "from": [
+        {
+         "name": "Sender 36",
+         "email": "sender36@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-05T23:09:39Z",
+       "keywords": {}
+      },
+      {
+       "id": "f1eaaabpr",
+       "threadId": "bpr",
+       "subject": "Subject 35",
+       "preview": "Preview of mail 35",
+       "from": [
+        {
+         "name": "Sender 35",
+         "email": "sender35@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T02:53:25Z",
+       "keywords": {}
+      },
+      {
+       "id": "f1iaaabps",
+       "threadId": "bps",
+       "subject": "Subject 34",
+       "preview": "Preview of mail 34",
+       "from": [
+        {
+         "name": "Sender 34",
+         "email": "sender34@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T08:03:09Z",
+       "keywords": {}
+      },
+      {
+       "id": "f1qaaabpu",
+       "threadId": "bpu",
+       "subject": "Subject 33",
+       "preview": "Preview of mail 33",
+       "from": [
+        {
+         "name": "Sender 33",
+         "email": "sender33@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T08:03:17Z",
+       "keywords": {}
+      },
+      {
+       "id": "f1maaabpt",
+       "threadId": "bpt",
+       "subject": "Subject 32",
+       "preview": "Preview of mail 32",
+       "from": [
+        {
+         "name": "Sender 32",
+         "email": "sender32@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T08:03:17Z",
+       "keywords": {}
+      },
+      {
+       "id": "f1yaaabpw",
+       "threadId": "bpw",
+       "subject": "Subject 31",
+       "preview": "Preview of mail 31",
+       "from": [
+        {
+         "name": "Sender 31",
+         "email": "sender31@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T08:28:42Z",
+       "keywords": {}
+      },
+      {
+       "id": "f12aaabpx",
+       "threadId": "bpx",
+       "subject": "Subject 30",
+       "preview": "Preview of mail 30",
+       "from": [
+        {
+         "name": "Sender 30",
+         "email": "sender30@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T09:56:07Z",
+       "keywords": {}
+      },
+      {
+       "id": "f3aaaabpy",
+       "threadId": "bpy",
+       "subject": "Subject 29",
+       "preview": "Preview of mail 29",
+       "from": [
+        {
+         "name": "Sender 29",
+         "email": "sender29@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T10:28:45Z",
+       "keywords": {}
+      },
+      {
+       "id": "f3eaaabpz",
+       "threadId": "bpz",
+       "subject": "Subject 28",
+       "preview": "Preview of mail 28",
+       "from": [
+        {
+         "name": "Sender 28",
+         "email": "sender28@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T11:46:29Z",
+       "keywords": {}
+      },
+      {
+       "id": "f3maaabp9",
+       "threadId": "bp9",
+       "subject": "Subject 27",
+       "preview": "Preview of mail 27",
+       "from": [
+        {
+         "name": "Sender 27",
+         "email": "sender27@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T12:18:47Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "f3qaaabp2",
+       "threadId": "bp2",
+       "subject": "Subject 26",
+       "preview": "Preview of mail 26",
+       "from": [
+        {
+         "name": "Sender 26",
+         "email": "sender26@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T12:19:39Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "f3uaaabp0",
+       "threadId": "bp0",
+       "subject": "Subject 25",
+       "preview": "Preview of mail 25",
+       "from": [
+        {
+         "name": "Sender 25",
+         "email": "sender25@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T12:28:43Z",
+       "keywords": {}
+      },
+      {
+       "id": "f3yaaabp1",
+       "threadId": "bp1",
+       "subject": "Subject 24",
+       "preview": "Preview of mail 24",
+       "from": [
+        {
+         "name": "Sender 24",
+         "email": "sender24@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T12:48:01Z",
+       "keywords": {}
+      },
+      {
+       "id": "f32aaabp3",
+       "threadId": "bp3",
+       "subject": "Subject 23",
+       "preview": "Preview of mail 23",
+       "from": [
+        {
+         "name": "Sender 23",
+         "email": "sender23@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T12:48:14Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gaeaaabqb",
+       "threadId": "bqb",
+       "subject": "Subject 22",
+       "preview": "Preview of mail 22",
+       "from": [
+        {
+         "name": "Sender 22",
+         "email": "sender22@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T13:14:31Z",
+       "keywords": {}
+      },
+      {
+       "id": "gaiaaabqc",
+       "threadId": "bqc",
+       "subject": "Subject 21",
+       "preview": "Preview of mail 21",
+       "from": [
+        {
+         "name": "Sender 21",
+         "email": "sender21@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T13:20:22Z",
+       "keywords": {}
+      },
+      {
+       "id": "gamaaabqd",
+       "threadId": "bqd",
+       "subject": "Subject 20",
+       "preview": "Preview of mail 20",
+       "from": [
+        {
+         "name": "Sender 20",
+         "email": "sender20@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T14:28:43Z",
+       "keywords": {}
+      },
+      {
+       "id": "gbaaaabqi",
+       "threadId": "bqi",
+       "subject": "Subject 19",
+       "preview": "Preview of mail 19",
+       "from": [
+        {
+         "name": "Sender 19",
+         "email": "sender19@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T16:28:42Z",
+       "keywords": {}
+      },
+      {
+       "id": "gbqaaabqm",
+       "threadId": "bqm",
+       "subject": "Subject 18",
+       "preview": "Preview of mail 18",
+       "from": [
+        {
+         "name": "Sender 18",
+         "email": "sender18@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T18:28:42Z",
+       "keywords": {}
+      },
+      {
+       "id": "gbyaaabqo",
+       "threadId": "bqo",
+       "subject": "Subject 17",
+       "preview": "Preview of mail 17",
+       "from": [
+        {
+         "name": "Sender 17",
+         "email": "sender17@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-06T18:43:27Z",
+       "keywords": {}
+      },
+      {
+       "id": "gciaaabqs",
+       "threadId": "bqs",
+       "subject": "Subject 16",
+       "preview": "Preview of mail 16",
+       "from": [
+        {
+         "name": "Sender 16",
+         "email": "sender16@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T08:28:41Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcmaaabqt",
+       "threadId": "bqt",
+       "subject": "Subject 15",
+       "preview": "Preview of mail 15",
+       "from": [
+        {
+         "name": "Sender 15",
+         "email": "sender15@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T10:28:46Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcqaaabqu",
+       "threadId": "bqu",
+       "subject": "Subject 14",
+       "preview": "Preview of mail 14",
+       "from": [
+        {
+         "name": "Sender 14",
+         "email": "sender14@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T12:28:45Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcuaaabqv",
+       "threadId": "bqv",
+       "subject": "Subject 13",
+       "preview": "Preview of mail 13",
+       "from": [
+        {
+         "name": "Sender 13",
+         "email": "sender13@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T14:28:44Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gc2aaabqx",
+       "threadId": "bqx",
+       "subject": "Subject 12",
+       "preview": "Preview of mail 12",
+       "from": [
+        {
+         "name": "Sender 12",
+         "email": "sender12@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T16:28:43Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gdiaaabq7",
+       "threadId": "bq7",
+       "subject": "Subject 11",
+       "preview": "Preview of mail 11",
+       "from": [
+        {
+         "name": "Sender 11",
+         "email": "sender11@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T18:46:01Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gduaaabq0",
+       "threadId": "bq0",
+       "subject": "Subject 10",
+       "preview": "Preview of mail 10",
+       "from": [
+        {
+         "name": "Sender 10",
+         "email": "sender10@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-07T21:32:19Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geaaaabra",
+       "threadId": "bra",
+       "subject": "Subject 9",
+       "preview": "Preview of mail 9",
+       "from": [
+        {
+         "name": "Sender 9",
+         "email": "sender9@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T08:28:44Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geqaaabre",
+       "threadId": "bre",
+       "subject": "Subject 8",
+       "preview": "Preview of mail 8",
+       "from": [
+        {
+         "name": "Sender 8",
+         "email": "sender8@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T10:28:42Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geyaaabrg",
+       "threadId": "brg",
+       "subject": "Subject 7",
+       "preview": "Preview of mail 7",
+       "from": [
+        {
+         "name": "Sender 7",
+         "email": "sender7@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T12:28:46Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "ge2aaabrh",
+       "threadId": "brh",
+       "subject": "Subject 6",
+       "preview": "Preview of mail 6",
+       "from": [
+        {
+         "name": "Sender 6",
+         "email": "sender6@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T14:28:44Z",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gfeaaabrj",
+       "threadId": "brj",
+       "subject": "Subject 5",
+       "preview": "Preview of mail 5",
+       "from": [
+        {
+         "name": "Sender 5",
+         "email": "sender5@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T16:28:42Z",
+       "keywords": {}
+      },
+      {
+       "id": "gfiaaabrk",
+       "threadId": "brk",
+       "subject": "Subject 4",
+       "preview": "Preview of mail 4",
+       "from": [
+        {
+         "name": "Sender 4",
+         "email": "sender4@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T17:06:41Z",
+       "keywords": {}
+      },
+      {
+       "id": "gfmaaabrl",
+       "threadId": "brl",
+       "subject": "Subject 3",
+       "preview": "Preview of mail 3",
+       "from": [
+        {
+         "name": "Sender 3",
+         "email": "sender3@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T17:11:39Z",
+       "keywords": {}
+      },
+      {
+       "id": "gfqaaabrm",
+       "threadId": "brm",
+       "subject": "Subject 2",
+       "preview": "Preview of mail 2",
+       "from": [
+        {
+         "name": "Sender 2",
+         "email": "sender2@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T17:11:43Z",
+       "keywords": {}
+      },
+      {
+       "id": "ggaaaabrq",
+       "threadId": "brq",
+       "subject": "Subject 1",
+       "preview": "Preview of mail 1",
+       "from": [
+        {
+         "name": "Sender 1",
+         "email": "sender1@example.org"
+        }
+       ],
+       "receivedAt": "2026-11-08T20:28:45Z",
+       "keywords": {}
+      }
+     ],
+     "notFound": []
+    },
+    "e"
+   ],
+   [
+    "Thread/get",
+    {
+     "accountId": "f",
+     "state": "s3epq",
+     "list": [
+      {
+       "id": "brq",
+       "emailIds": [
+        "ggaaaabrq"
+       ]
+      },
+      {
+       "id": "brm",
+       "emailIds": [
+        "gfqaaabrm"
+       ]
+      },
+      {
+       "id": "brl",
+       "emailIds": [
+        "gfmaaabrl"
+       ]
+      },
+      {
+       "id": "brk",
+       "emailIds": [
+        "gfiaaabrk"
+       ]
+      },
+      {
+       "id": "brj",
+       "emailIds": [
+        "gfeaaabrj"
+       ]
+      },
+      {
+       "id": "brh",
+       "emailIds": [
+        "ge2aaabrh"
+       ]
+      },
+      {
+       "id": "brg",
+       "emailIds": [
+        "geyaaabrg"
+       ]
+      },
+      {
+       "id": "bre",
+       "emailIds": [
+        "geqaaabre"
+       ]
+      },
+      {
+       "id": "bra",
+       "emailIds": [
+        "geaaaabra"
+       ]
+      },
+      {
+       "id": "bq0",
+       "emailIds": [
+        "gduaaabq0",
+        "gduaaabrf"
+       ]
+      },
+      {
+       "id": "bq7",
+       "emailIds": [
+        "gdiaaabq7"
+       ]
+      },
+      {
+       "id": "bqx",
+       "emailIds": [
+        "gc2aaabqx"
+       ]
+      },
+      {
+       "id": "bqv",
+       "emailIds": [
+        "gcuaaabqv"
+       ]
+      },
+      {
+       "id": "bqu",
+       "emailIds": [
+        "gcqaaabqu"
+       ]
+      },
+      {
+       "id": "bqt",
+       "emailIds": [
+        "gcmaaabqt"
+       ]
+      },
+      {
+       "id": "bqs",
+       "emailIds": [
+        "gciaaabqs"
+       ]
+      },
+      {
+       "id": "bqo",
+       "emailIds": [
+        "gbyaaabqo"
+       ]
+      },
+      {
+       "id": "bqm",
+       "emailIds": [
+        "gbqaaabqm"
+       ]
+      },
+      {
+       "id": "bqi",
+       "emailIds": [
+        "gbaaaabqi"
+       ]
+      },
+      {
+       "id": "bqd",
+       "emailIds": [
+        "gamaaabqd"
+       ]
+      },
+      {
+       "id": "bqc",
+       "emailIds": [
+        "gaiaaabqc"
+       ]
+      },
+      {
+       "id": "bqb",
+       "emailIds": [
+        "gaeaaabqb"
+       ]
+      },
+      {
+       "id": "bp3",
+       "emailIds": [
+        "f32aaabp3"
+       ]
+      },
+      {
+       "id": "bp1",
+       "emailIds": [
+        "f3yaaabp1"
+       ]
+      },
+      {
+       "id": "bp0",
+       "emailIds": [
+        "f3uaaabp0"
+       ]
+      },
+      {
+       "id": "bp2",
+       "emailIds": [
+        "f3qaaabp2"
+       ]
+      },
+      {
+       "id": "bp9",
+       "emailIds": [
+        "f3maaabp9"
+       ]
+      },
+      {
+       "id": "bpz",
+       "emailIds": [
+        "f3eaaabpz"
+       ]
+      },
+      {
+       "id": "bpy",
+       "emailIds": [
+        "f3aaaabpy"
+       ]
+      },
+      {
+       "id": "bpx",
+       "emailIds": [
+        "f12aaabpx"
+       ]
+      },
+      {
+       "id": "bpw",
+       "emailIds": [
+        "f1yaaabpw"
+       ]
+      },
+      {
+       "id": "bpt",
+       "emailIds": [
+        "f1maaabpt"
+       ]
+      },
+      {
+       "id": "bpu",
+       "emailIds": [
+        "f1qaaabpu"
+       ]
+      },
+      {
+       "id": "bps",
+       "emailIds": [
+        "f1iaaabps"
+       ]
+      },
+      {
+       "id": "bpr",
+       "emailIds": [
+        "f1eaaabpr"
+       ]
+      },
+      {
+       "id": "bpp",
+       "emailIds": [
+        "f02aaabpp"
+       ]
+      },
+      {
+       "id": "bpj",
+       "emailIds": [
+        "f0eaaabpj"
+       ]
+      },
+      {
+       "id": "bpi",
+       "emailIds": [
+        "f0aaaabpi"
+       ]
+      },
+      {
+       "id": "bph",
+       "emailIds": [
+        "f22aaabph"
+       ]
+      },
+      {
+       "id": "bpf",
+       "emailIds": [
+        "f2uaaabpf"
+       ]
+      },
+      {
+       "id": "bpe",
+       "emailIds": [
+        "f2qaaabpe"
+       ]
+      },
+      {
+       "id": "bpa",
+       "emailIds": [
+        "f2aaaabpa"
+       ]
+      },
+      {
+       "id": "bo3",
+       "emailIds": [
+        "f92aaabo3"
+       ]
+      },
+      {
+       "id": "bo9",
+       "emailIds": [
+        "f9maaabo9"
+       ]
+      },
+      {
+       "id": "boz",
+       "emailIds": [
+        "f9eaaaboz"
+       ]
+      },
+      {
+       "id": "bch",
+       "emailIds": [
+        "ei2aaabch",
+        "ei2aaabd9",
+        "ei2aaabd2",
+        "ei2aaaben",
+        "ei2aaabe2",
+        "ei2aaabe0",
+        "ei2aaabe1",
+        "ei2aaabhv",
+        "ei2aaabow",
+        "ei2aaaboy",
+        "ei2aaabo7"
+       ]
+      },
+      {
+       "id": "box",
+       "emailIds": [
+        "f72aaabox"
+       ]
+      },
+      {
+       "id": "bot",
+       "emailIds": [
+        "f7maaabot"
+       ]
+      },
+      {
+       "id": "bor",
+       "emailIds": [
+        "f7eaaabor"
+       ]
+      },
+      {
+       "id": "boq",
+       "emailIds": [
+        "f7aaaaboq"
+       ]
+      }
+     ],
+     "notFound": []
+    },
+    "t"
+   ],
+   [
+    "Email/get",
+    {
+     "accountId": "f",
+     "state": "s3ipq",
+     "list": [
+      {
+       "id": "ggaaaabrq",
+       "threadId": "brq",
+       "keywords": {}
+      },
+      {
+       "id": "gfqaaabrm",
+       "threadId": "brm",
+       "keywords": {}
+      },
+      {
+       "id": "gfmaaabrl",
+       "threadId": "brl",
+       "keywords": {}
+      },
+      {
+       "id": "gfiaaabrk",
+       "threadId": "brk",
+       "keywords": {}
+      },
+      {
+       "id": "gfeaaabrj",
+       "threadId": "brj",
+       "keywords": {}
+      },
+      {
+       "id": "ge2aaabrh",
+       "threadId": "brh",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geyaaabrg",
+       "threadId": "brg",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geqaaabre",
+       "threadId": "bre",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "geaaaabra",
+       "threadId": "bra",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gduaaabq0",
+       "threadId": "bq0",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gduaaabrf",
+       "threadId": "bq0",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gdiaaabq7",
+       "threadId": "bq7",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gc2aaabqx",
+       "threadId": "bqx",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcuaaabqv",
+       "threadId": "bqv",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcqaaabqu",
+       "threadId": "bqu",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gcmaaabqt",
+       "threadId": "bqt",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gciaaabqs",
+       "threadId": "bqs",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "gbyaaabqo",
+       "threadId": "bqo",
+       "keywords": {}
+      },
+      {
+       "id": "gbqaaabqm",
+       "threadId": "bqm",
+       "keywords": {}
+      },
+      {
+       "id": "gbaaaabqi",
+       "threadId": "bqi",
+       "keywords": {}
+      },
+      {
+       "id": "gamaaabqd",
+       "threadId": "bqd",
+       "keywords": {}
+      },
+      {
+       "id": "gaiaaabqc",
+       "threadId": "bqc",
+       "keywords": {}
+      },
+      {
+       "id": "gaeaaabqb",
+       "threadId": "bqb",
+       "keywords": {}
+      },
+      {
+       "id": "f32aaabp3",
+       "threadId": "bp3",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "f3yaaabp1",
+       "threadId": "bp1",
+       "keywords": {}
+      },
+      {
+       "id": "f3uaaabp0",
+       "threadId": "bp0",
+       "keywords": {}
+      },
+      {
+       "id": "f3qaaabp2",
+       "threadId": "bp2",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "f3maaabp9",
+       "threadId": "bp9",
+       "keywords": {
+        "$seen": true
+       }
+      },
+      {
+       "id": "f3eaaabpz",
+       "threadId": "bpz",
+       "keywords": {}
+      },
+      {
+       "id": "f3aaaabpy",
+       "threadId": "bpy",
+       "keywords": {}
+      },
+      {
+       "id": "f12aaabpx",
+       "threadId": "bpx",
+       "keywords": {}
+      },
+      {
+       "id": "f1yaaabpw",
+       "threadId": "bpw",
+       "keywords": {}
+      },
+      {
+       "id": "f1maaabpt",
+       "threadId": "bpt",
+       "keywords": {}
+      },
+      {
+       "id": "f1qaaabpu",
+       "threadId": "bpu",
+       "keywords": {}
+      },
+      {
+       "id": "f1iaaabps",
+       "threadId": "bps",
+       "keywords": {}
+      },
+      {
+       "id": "f1eaaabpr",
+       "threadId": "bpr",
+       "keywords": {}
+      },
+      {
+       "id": "f02aaabpp",
+       "threadId": "bpp",
+       "keywords": {}
+      },
+      {
+       "id": "f0eaaabpj",
+       "threadId": "bpj",
+       "keywords": {}
+      },
+      {
+       "id": "f0aaaabpi",
+       "threadId": "bpi",
+       "keywords": {}
+      },
+      {
+       "id": "f22aaabph",
+       "threadId": "bph",
+       "keywords": {}
+      },
+      {
+       "id": "f2uaaabpf",
+       "threadId": "bpf",
+       "keywords": {}
+      },
+      {
+       "id": "f2qaaabpe",
+       "threadId": "bpe",
+       "keywords": {}
+      },
+      {
+       "id": "f2aaaabpa",
+       "threadId": "bpa",
+       "keywords": {}
+      },
+      {
+       "id": "f92aaabo3",
+       "threadId": "bo3",
+       "keywords": {}
+      },
+      {
+       "id": "f9maaabo9",
+       "threadId": "bo9",
+       "keywords": {}
+      },
+      {
+       "id": "f9eaaaboz",
+       "threadId": "boz",
+       "keywords": {}
+      },
+      {
+       "id": "ei2aaabch",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabd9",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabd2",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaaben",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabe2",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabe0",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabe1",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabhv",
+       "threadId": "bch",
+       "keywords": {
+        "$MailFlagBit1": true,
+        "$MailFlagBit0": true,
+        "$flagged": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "ei2aaabow",
+       "threadId": "bch",
+       "keywords": {}
+      },
+      {
+       "id": "ei2aaaboy",
+       "threadId": "bch",
+       "keywords": {}
+      },
+      {
+       "id": "ei2aaabo7",
+       "threadId": "bch",
+       "keywords": {
+        "$draft": true,
+        "$seen": true
+       }
+      },
+      {
+       "id": "f72aaabox",
+       "threadId": "box",
+       "keywords": {}
+      },
+      {
+       "id": "f7maaabot",
+       "threadId": "bot",
+       "keywords": {}
+      },
+      {
+       "id": "f7eaaabor",
+       "threadId": "bor",
+       "keywords": {}
+      },
+      {
+       "id": "f7aaaaboq",
+       "threadId": "boq",
+       "keywords": {}
+      }
+     ],
+     "notFound": []
+    },
+    "all"
+   ]
+  ],
+  "sessionState": "820976ef"
+ }
+}
