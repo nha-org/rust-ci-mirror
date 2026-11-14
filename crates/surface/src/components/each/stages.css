@@ -1,0 +1,13 @@
+/* A document's stage as a horizontal timeline, ported from private/docs/shell/shell.css on the design system's tokens: a node a
+   step on one line, every step reached (the current one too) filled with a check and the line up to it coloured; only the
+   current one's bold name says which (@nha, 2026-10-19: « Why the different UI for review and accepted ? »). */
+ol.stages { display: flex; list-style: none; padding: 0; margin: var(--spacing-s2) 0 var(--spacing-s4); max-width: 32rem; font-size: var(--text-caption); line-height: 1.3; }
+ol.stages > li { flex: 1; position: relative; margin: 0; padding-top: 20px; text-align: center; opacity: 0.7; }
+ol.stages > li::before { content: ""; position: absolute; top: 5px; left: calc(50% - 6px); width: 12px; height: 12px; box-sizing: border-box; border: 2px solid var(--color-base-300); border-radius: 50%; background: var(--color-base-100); z-index: 1; }
+ol.stages > li::after { content: ""; position: absolute; top: 10px; left: calc(-50% + 6px); right: calc(50% + 6px); height: 2px; background: var(--color-base-300); }
+ol.stages > li:first-child::after { display: none; }
+ol.stages > li.done, ol.stages > li[aria-current="step"] { color: var(--color-success); opacity: 1; }
+ol.stages > li.done::before, ol.stages > li[aria-current="step"]::before { content: "✓"; border-color: var(--color-success); background: var(--color-success); color: var(--color-success-content); font-size: 8px; font-weight: 700; line-height: 8px; }
+ol.stages > li.done::after, ol.stages > li[aria-current="step"]::after { background: var(--color-success); }
+ol.stages > li[aria-current="step"] { font-weight: 600; }
+@media print { ol.stages { display: none; } }
