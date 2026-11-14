@@ -1,0 +1,15 @@
+[package]
+name = "dash-launcher"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+libc = "0.2"
+# The agent isolated by MXC (rust-dash-claude): Seatbelt with the approved policy.
+mxc-sdk = "1.0.1"
+serde_json.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
