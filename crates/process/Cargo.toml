@@ -1,0 +1,11 @@
+[package]
+name = "dash-process"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+dash-meter.workspace = true
