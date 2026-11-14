@@ -1,0 +1,11 @@
+codex -m gpt-5.6-terra --sandbox read-only --ask-for-approval never
+➜  codex-rec codex -m gpt-5.6-terra --sandbox read-only --ask-for-approval never
+> You are in /w
+
+  Do you trust the contents of this directory? Working with untrusted contents comes with higher risk of prompt injection. Trusting the directory allows
+  project-local config, hooks, and exec policies to load.
+
+› 1. Yes, continue
+  2. No, quit
+
+  Press enter to continue
