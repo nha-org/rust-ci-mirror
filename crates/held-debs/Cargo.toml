@@ -1,0 +1,15 @@
+[package]
+name = "dash-held-debs"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+# The mirror's Ubuntu packages from the .debs we hold (task rust-ci-apt-retry): std alone, so it builds before them,
+# where dash cannot (it links fontconfig, one of them).
+[dev-dependencies]
+dash-meter.workspace = true
+
+# one crate root (dash-gate): the binary alone
+[[bin]]
+name = "held-debs"
+path = "src/main.rs"
