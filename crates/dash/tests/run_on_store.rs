@@ -1,0 +1,1128 @@
+//! The orchestrator on the real store and the real policy, a stand-in for each tool: what only the store's locks, stamps and
+//! rows can show. The binary is the one crate that may reach both orch and store (section 3).
+use dash_core::tasks::{
+    Agent, Base, Checks, Forge, Launcher, Limit, Outcome, Pick, Pr, Queue, Queued, Screen, Seen,
+    Serving, Task, TaskList, TaskStore, Terminal, Verdict,
+};
+use dash_meter::TestDir;
+use dash_meter::dash_test;
+use dash_orch::{Pace, Ports, hand_backs, next, run_task};
+use dash_policy::Defaults;
+use dash_store::tasks::{SqliteTasks, open};
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
+use std::path::Path;
+use std::time::Duration;
+
+const PACE: Pace = Pace::TEST;
+
+const MINE: &str = "s1";
+const HIS: &str = "his-orchestrator";
+
+/// Each read plays the next entry, the last one stays.
+fn take<T: Clone>(script: &RefCell<VecDeque<T>>) -> Option<T> {
+    let mut script = script.borrow_mut();
+    if script.len() > 1 {
+        return script.pop_front();
+    }
+    script.front().cloned()
+}
+
+/// A session listed in the pane, by id and whether idle.
+type Look = Option<(&'static str, bool)>;
+
+struct Tools<'a> {
+    did: RefCell<Vec<String>>,
+    looks: RefCell<VecDeque<Look>>,
+    outcomes: RefCell<VecDeque<Outcome>>,
+    verdicts: RefCell<VecDeque<Verdict>>,
+    limits: RefCell<VecDeque<Vec<Limit>>>,
+    queue: RefCell<Queue>,
+    on_close: Option<&'a dyn Fn()>,
+    judged: Cell<u32>,
+    /// Its PR merged, by someone after its run.
+    merged: Cell<bool>,
+    /// A run that never reaches a prompt: what makes a failed one to retry.
+    screen: &'static str,
+}
+
+fn tools<'a>(looks: &[Look]) -> Tools<'a> {
+    Tools {
+        did: RefCell::default(),
+        looks: RefCell::new(looks.iter().copied().collect()),
+        outcomes: RefCell::new([Outcome::Done("done".into())].into_iter().collect()),
+        verdicts: RefCell::new([Verdict::Met].into_iter().collect()),
+        limits: RefCell::new([vec![]].into_iter().collect()),
+        queue: RefCell::new(queue(None)),
+        on_close: None,
+        judged: Cell::new(0),
+        merged: Cell::new(false),
+        screen: "up",
+    }
+}
+
+fn queue(reopened_ms: Option<i64>) -> Queue {
+    Queue {
+        seats: 5,
+        seats_why: String::new(),
+        tasks: vec![Queued {
+            held: None,
+            id: "t1".into(),
+            title: String::new(),
+            reopened_ms,
+            waits: vec![],
+            layer: None,
+            builds_nothing: false,
+            rank: Default::default(),
+            free: None,
+            demand: Default::default(),
+            route: None,
+            ..Queued::default()
+        }],
+    }
+}
+
+impl Tools<'_> {
+    fn note(&self, what: String) -> Result<(), String> {
+        self.did.borrow_mut().push(what);
+        Ok(())
+    }
+    fn count(&self, what: &str) -> usize {
+        self.did.borrow().iter().filter(|d| *d == what).count()
+    }
+    fn typed(&self) -> Vec<String> {
+        let did = self.did.borrow();
+        let typed = did.iter().filter(|d| d.starts_with("send"));
+        typed.cloned().collect()
+    }
+}
+
+impl Terminal for Tools<'_> {
+    fn open(&self, _folder: &str, _label: &str) -> Result<String, String> {
+        Ok("p1".into())
+    }
+    fn run(&self, _pane: &str, _line: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn agent(&self, _pane: &str) -> Result<Option<Seen>, String> {
+        Ok(take(&self.looks).flatten().map(|(session, idle)| Seen {
+            idle,
+            asking: false,
+            session: Some(session.to_string()),
+        }))
+    }
+    fn sessions(&self) -> Result<usize, String> {
+        Ok(0)
+    }
+    fn read(&self, _pane: &str) -> Result<String, String> {
+        Ok(self.screen.to_string())
+    }
+    fn send(&self, _pane: &str, text: &str) -> Result<(), String> {
+        self.note(format!("send {text}"))
+    }
+    fn key(&self, _pane: &str, _key: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn close(&self, pane: &str) -> Result<(), String> {
+        if let Some(on_close) = self.on_close {
+            on_close();
+        }
+        self.note(format!("close {pane}"))
+    }
+}
+
+impl Launcher for Tools<'_> {
+    fn command(&self, _task: &Task, _account: Option<&str>) -> Result<String, String> {
+        Ok("start".into())
+    }
+    fn resume(
+        &self,
+        _task: &Task,
+        _account: Option<&str>,
+        _session: &str,
+        _from: &str,
+    ) -> Result<String, String> {
+        Ok("resume".into())
+    }
+}
+
+impl Agent for Tools<'_> {
+    fn screen(&self, shown: &str) -> Screen {
+        match shown {
+            "up" => Screen::Ready,
+            _ => Screen::Starting,
+        }
+    }
+    fn outcome(&self, _folder: &str, _session: &str) -> Result<Option<Outcome>, String> {
+        Ok(take(&self.outcomes))
+    }
+    fn stop_words(&self) -> String {
+        "leave".into()
+    }
+    fn limits(&self) -> Result<Vec<Limit>, String> {
+        Ok(take(&self.limits).unwrap_or_default())
+    }
+    fn reachable(&self) -> bool {
+        true
+    }
+}
+
+impl TaskList for Tools<'_> {
+    fn report_merged(&self, _id: &str, _pr: &str) -> Result<(), String> {
+        Err("no report filed by this stand-in".into())
+    }
+    fn reopen(&self, _id: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn waiting(&self, _id: &str, _on: Option<&Outcome>) -> Result<(), String> {
+        Ok(())
+    }
+    fn brief(&self, id: &str, _folder: &str) -> Result<String, String> {
+        Ok(format!("the brief of {id}"))
+    }
+    fn judge(&self, _id: &str, _said: &str) -> Result<Verdict, String> {
+        self.judged.set(self.judged.get() + 1);
+        take(&self.verdicts).ok_or("no verdict".to_string())
+    }
+    fn merged(&self, _id: &str, _pr: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn ended(&self, _id: &str, _why: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn flag(&self, _id: &str, _what: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+impl Forge for Tools<'_> {
+    fn worktree(&self, id: &str) -> Result<String, String> {
+        Ok(format!("/work/rust-{id}"))
+    }
+    fn pr(&self, _id: &str) -> Result<Option<Pr>, String> {
+        // An open PR comes from the session's work: none before its first words.
+        if self.typed().is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(Pr {
+            number: 7,
+            url: "https://pr/7".into(),
+            head: "abc".into(),
+            merged: self.merged.get(),
+        }))
+    }
+    fn checks(&self, _pr: &Pr) -> Result<Checks, String> {
+        Ok(Checks::Green)
+    }
+    fn base(&self, _pr: &Pr) -> Result<Base, String> {
+        Ok(Base::Holds)
+    }
+    fn merge(&self, _pr: &Pr) -> Result<(), String> {
+        Ok(())
+    }
+    fn update(&self, _id: &str, _pr: &Pr) -> Result<(), String> {
+        Ok(())
+    }
+    fn leave(&self, _id: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn restack(&self, _merged: &Pr, _busy: &[String]) -> Result<Vec<String>, String> {
+        Ok(vec![])
+    }
+    fn clean(&self, _id: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn deploy(&self) -> Result<String, String> {
+        Ok("8a81cbd serves".into())
+    }
+    fn serving(&self) -> Result<Serving, String> {
+        Ok(Serving::Main("8a81cbd serves".into()))
+    }
+    fn save_monitors(&self) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    fn diff(&self, _id: &str) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+fn ports<'a>(tasks: &'a mut SqliteTasks, s: &'a Tools) -> Ports<'a> {
+    // The script's list synced into the real store, as each pass does first: a pick reads only the store.
+    tasks.sync(&s.queue.borrow()).expect("the sync");
+    Ports {
+        tasks,
+        list: s,
+        terminal: s,
+        launcher: s,
+        agent: s,
+        forge: s,
+        policy: &Defaults,
+        step: &|_, _| {},
+        free_memory: &|| None,
+        load: &|| None,
+    }
+}
+
+fn store(dir: &Path) -> SqliteTasks {
+    open(dir, dir).expect("the store")
+}
+
+fn field(tasks: &SqliteTasks, name: &str) -> String {
+    let row = tasks.show("t1").expect("show").expect("row");
+    let line = row
+        .lines()
+        .find_map(|l| l.strip_prefix(&format!("{name}: ")));
+    line.expect(name).to_string()
+}
+
+/// A whole run: listed idle at its brief and its report, still there when told to leave, gone.
+const RUN: [Look; 4] = [
+    Some((MINE, true)),
+    Some((MINE, true)),
+    Some((MINE, true)),
+    None,
+];
+
+/// The audit's finding 11: on the real store, whose finish a reopen must be newer than.
+#[dash_test]
+fn a_task_reopened_after_its_merge_runs_again_one_older_never() {
+    let dir = TestDir::new("run-reopen");
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    let first = run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(first.outcome, Outcome::Merged("https://pr/7".into()));
+    assert_eq!(field(&tasks, "status"), "finished");
+    let finished_ms = tasks.rows().expect("rows")[0].last_ms;
+
+    let look = |tasks: &mut SqliteTasks, s: &Tools| next(&mut ports(tasks, s)).expect("a look");
+    let wait = |pick: Pick| assert!(matches!(pick, Pick::Wait(_)), "{pick:?}");
+    wait(look(&mut tasks, &s));
+    *s.queue.borrow_mut() = queue(Some(finished_ms - 1));
+    wait(look(&mut tasks, &s));
+
+    *s.queue.borrow_mut() = queue(Some(finished_ms + 1));
+    let pick = look(&mut tasks, &s);
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "t1"),
+        "{pick:?}"
+    );
+    let s2 = tools(&RUN);
+    let again = run_task("t1", None, &mut ports(&mut tasks, &s2), PACE).expect("recorded");
+    assert_eq!(again.outcome, Outcome::Merged("https://pr/7".into()));
+    assert_eq!(field(&tasks, "attempts"), "1", "its tries start over");
+    assert_eq!(s2.judged.get(), 1);
+    // Reopened once: its second finish is newer than that reopen.
+    wait(look(&mut tasks, &s2));
+}
+
+/// The real forge's worktree and PR reads, on a real origin with a stand-in for gh; every other step the script's.
+struct RealGit<'a> {
+    github: dash_forge::GitHub,
+    s: &'a Tools<'a>,
+}
+
+impl Forge for RealGit<'_> {
+    fn worktree(&self, id: &str) -> Result<String, String> {
+        self.github.worktree(id)
+    }
+    fn pr(&self, id: &str) -> Result<Option<Pr>, String> {
+        self.github.pr(id)
+    }
+    fn checks(&self, pr: &Pr) -> Result<Checks, String> {
+        self.s.checks(pr)
+    }
+    fn base(&self, pr: &Pr) -> Result<Base, String> {
+        self.s.base(pr)
+    }
+    fn merge(&self, pr: &Pr) -> Result<(), String> {
+        self.s.merge(pr)
+    }
+    fn leave(&self, id: &str) -> Result<(), String> {
+        self.s.leave(id)
+    }
+    fn restack(&self, merged: &Pr, busy: &[String]) -> Result<Vec<String>, String> {
+        self.s.restack(merged, busy)
+    }
+    fn clean(&self, id: &str) -> Result<(), String> {
+        self.s.clean(id)
+    }
+    fn update(&self, id: &str, pr: &Pr) -> Result<(), String> {
+        self.s.update(id, pr)
+    }
+    fn deploy(&self) -> Result<String, String> {
+        self.s.deploy()
+    }
+    fn serving(&self) -> Result<Serving, String> {
+        Ok(Serving::Main("8a81cbd serves".into()))
+    }
+    fn save_monitors(&self) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    fn diff(&self, _id: &str) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+fn git(at: &Path, args: &[&str]) -> String {
+    let out = std::process::Command::new("git")
+        .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+        .args(args)
+        .current_dir(at)
+        .output()
+        .expect("git");
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "git {args:?}: {said}");
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// The script's forge but for the worktree, made and left by the real forge on a real repository.
+struct Pooled<'a> {
+    github: dash_forge::GitHub,
+    s: &'a Tools<'a>,
+}
+
+impl Forge for Pooled<'_> {
+    fn worktree(&self, id: &str) -> Result<String, String> {
+        self.github.worktree(id)
+    }
+    fn pr(&self, id: &str) -> Result<Option<Pr>, String> {
+        self.s.pr(id)
+    }
+    fn checks(&self, pr: &Pr) -> Result<Checks, String> {
+        self.s.checks(pr)
+    }
+    fn base(&self, pr: &Pr) -> Result<Base, String> {
+        self.s.base(pr)
+    }
+    fn merge(&self, pr: &Pr) -> Result<(), String> {
+        self.s.merge(pr)
+    }
+    fn update(&self, id: &str, pr: &Pr) -> Result<(), String> {
+        self.s.update(id, pr)
+    }
+    fn leave(&self, id: &str) -> Result<(), String> {
+        self.github.leave(id)
+    }
+    fn restack(&self, merged: &Pr, busy: &[String]) -> Result<Vec<String>, String> {
+        self.s.restack(merged, busy)
+    }
+    fn clean(&self, id: &str) -> Result<(), String> {
+        self.github.clean(id)
+    }
+    fn deploy(&self) -> Result<String, String> {
+        self.s.deploy()
+    }
+    fn serving(&self) -> Result<Serving, String> {
+        self.s.serving()
+    }
+    fn save_monitors(&self) -> Result<Option<String>, String> {
+        self.s.save_monitors()
+    }
+    fn diff(&self, id: &str) -> Result<String, String> {
+        self.s.diff(id)
+    }
+}
+
+/// rust-merge-leaves-lease's done-when 1, on the real store and a real repository: a run lands t1's PR, and its worktree,
+/// holding a data copy as a brief's live checks make, leaves to the pool, the copy dropped and its branch gone, so `dash
+/// worktree list` reads no held row. 10 merged runs' worktrees stayed held for such a copy on 2026-11-12, as git refused the
+/// leave.
+#[dash_test]
+fn a_run_s_merge_leaves_its_worktree_to_the_pool_and_no_row_is_held() {
+    let dir = TestDir::new("land-leaves-lease");
+    let (origin, repo, root) = (dir.0.join("origin"), dir.0.join("repo"), dir.0.join("wt"));
+    for d in [&origin, &root] {
+        std::fs::create_dir_all(d).expect("dirs");
+    }
+    git(&origin, &["init", "-q", "-b", "main"]);
+    git(&origin, &["commit", "-q", "--allow-empty", "-m", "first"]);
+    let at = |p: &Path| p.to_str().expect("path").to_string();
+    git(&dir.0, &["clone", "-q", &at(&origin), &at(&repo)]);
+    let github = dash_forge::GitHub {
+        repo: repo.clone(),
+        root,
+        base: "main".into(),
+        page: "http://127.0.0.1:9/".into(),
+        cli: "gh-not-called".into(),
+    };
+    let folder = std::path::PathBuf::from(github.worktree("t1").expect("made"));
+    // the copy its session makes for a check on live data
+    std::fs::create_dir_all(folder.join("live-copy")).expect("a copy");
+    std::fs::write(folder.join("live-copy/dash.sqlite"), "his data").expect("a copy");
+    let held = |github: &dash_forge::GitHub| {
+        let rows = github.rows().expect("dash worktree list");
+        rows.into_iter()
+            .filter(|r| r.state == "held")
+            .map(|r| r.path)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(held(&github).len(), 1, "at work, it is held");
+
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    tasks.sync(&s.queue.borrow()).expect("the sync");
+    let forge = Pooled { github, s: &s };
+    let mut real = Ports {
+        tasks: &mut tasks,
+        list: &s,
+        terminal: &s,
+        launcher: &s,
+        agent: &s,
+        forge: &forge,
+        policy: &Defaults,
+        step: &|_, _| {},
+        free_memory: &|| None,
+        load: &|| None,
+    };
+    let run = run_task("t1", None, &mut real, PACE).expect("recorded");
+    assert_eq!(run.outcome, Outcome::Merged("https://pr/7".into()));
+    assert_eq!(held(&forge.github), Vec::<String>::new(), "no row held");
+    let rows = forge.github.rows().expect("dash worktree list");
+    let states: Vec<&str> = rows.iter().map(|r| r.state).collect();
+    assert_eq!(states, ["pool"], "its worktree is the pool's: {rows:?}");
+    assert!(!folder.exists(), "its folder left");
+    assert!(
+        !Path::new(&rows[0].path).join("live-copy").exists(),
+        "its data copy dropped"
+    );
+    let branch = git(&repo, &["branch", "--list", "task/t1"]);
+    assert_eq!(branch, "", "its merged branch gone");
+}
+
+/// rust-forge-stale-worktree-head's done-when 4, on the real store: PR 7 merged by the PM reviewer left its worktree, its local
+/// branch and its branch at the origin at its head (rust-design-components' PR 1247 carried all of 1240 from there). Reopened,
+/// the next run starts on a fresh branch from main, the old one gone at the origin and its tracking ref pruned. Task
+/// rust-rejudge-merged-closes, done-when 2: judged met with no new commit, it lands on squash-merged PR 7, which holds all the
+/// branch's work (1511 and 1513, reopened for a report alone, looped on « no pull request holds the head »); a commit of its
+/// own after that, no PR holds.
+#[dash_test]
+fn a_task_reopened_after_its_merge_runs_on_a_fresh_branch_from_main_its_stale_ref_pruned() {
+    let dir = TestDir::new("run-reopen-fresh");
+    let (origin, repo, root) = (dir.0.join("origin"), dir.0.join("repo"), dir.0.join("wt"));
+    for d in [&origin, &root] {
+        std::fs::create_dir_all(d).expect("dirs");
+    }
+    git(&origin, &["init", "-q", "-b", "main"]);
+    git(&origin, &["commit", "-q", "--allow-empty", "-m", "first"]);
+    git(&origin, &["switch", "-q", "-c", "task/t1"]);
+    git(
+        &origin,
+        &["commit", "-q", "--allow-empty", "-m", "its work"],
+    );
+    let head = git(&origin, &["rev-parse", "HEAD"]);
+    git(&origin, &["update-ref", "refs/pull/7/head", &head]);
+    git(&origin, &["switch", "-q", "main"]);
+    git(
+        &origin,
+        &["commit", "-q", "--allow-empty", "-m", "squash of 7"],
+    );
+    let squash = git(&origin, &["rev-parse", "HEAD"]);
+    let at = |p: &Path| p.to_str().expect("path").to_string();
+    git(&dir.0, &["clone", "-q", &at(&origin), &at(&repo)]);
+    let folder = root.join("rust-t1");
+    let add = [
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        "task/t1",
+        &at(&folder),
+        "origin/task/t1",
+    ];
+    git(&repo, &add);
+    // gh's answer for the branch: PR 7, merged. Any other gh call fails, so a path this stand-in does not mean to serve shows.
+    let gh = dir.0.join("gh");
+    let listed = format!(
+        r#"[{{"number":7,"url":"https://pr/7","state":"MERGED","headRefOid":"{head}","mergeCommit":{{"oid":"{squash}"}}}}]"#
+    );
+    let script = format!(
+        "#!/bin/sh\n[ \"$1 $2\" = 'pr list' ] || {{ echo \"gh $*: not stood in for\" >&2; exit 1; }}\nprintf '%s\\n' '{listed}'\n"
+    );
+    std::fs::write(&gh, script).expect("gh");
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    let first = run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(first.outcome, Outcome::Merged("https://pr/7".into()));
+    let finished_ms = tasks.rows().expect("rows")[0].last_ms;
+    // `dash task reopen`, as the next sync brings it: the row starts over and the next look starts it.
+    *s.queue.borrow_mut() = queue(Some(finished_ms + 1));
+    let pick = next(&mut ports(&mut tasks, &s)).expect("a look");
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "t1"),
+        "{pick:?}"
+    );
+
+    let s2 = tools(&RUN);
+    let github = dash_forge::GitHub {
+        repo: repo.clone(),
+        root,
+        base: "main".into(),
+        page: "http://127.0.0.1:9/".into(),
+        cli: at(&gh),
+    };
+    let forge = RealGit { github, s: &s2 };
+    tasks.sync(&s2.queue.borrow()).expect("the sync");
+    let mut real = Ports {
+        tasks: &mut tasks,
+        list: &s2,
+        terminal: &s2,
+        launcher: &s2,
+        agent: &s2,
+        forge: &forge,
+        policy: &Defaults,
+        step: &|_, _| {},
+        free_memory: &|| None,
+        load: &|| None,
+    };
+    // Judged met with nothing new on the fresh branch: squash-merged PR 7 holds all its work, so it lands there.
+    let idle = Some((MINE, true));
+    *s2.looks.borrow_mut() = [idle, idle, idle, idle, idle, None].into_iter().collect();
+    *s2.outcomes.borrow_mut() = [Outcome::Done("done".into())].into_iter().collect();
+    *s2.verdicts.borrow_mut() = [Verdict::Met].into_iter().collect();
+    let again = run_task("t1", None, &mut real, PACE).expect("recorded");
+    assert_eq!(again.outcome, Outcome::Merged("https://pr/7".into()));
+    let typed = s2.typed();
+    assert!(
+        !typed.iter().any(|t| t.contains("no pull request holds")),
+        "the squash holds its work: {typed:?}"
+    );
+    assert_eq!(git(&folder, &["rev-parse", "HEAD"]), squash, "from main");
+    // A commit of its own past the reopen's start: new work, which no merged PR holds.
+    git(
+        &folder,
+        &["commit", "-q", "--allow-empty", "-m", "new work"],
+    );
+    assert_eq!(
+        forge.pr("t1").expect("read"),
+        None,
+        "its new work is no PR's"
+    );
+    git(&folder, &["reset", "-q", "--hard", &squash]);
+    assert_eq!(git(&folder, &["branch", "--show-current"]), "task/t1");
+    let at_origin = ["ls-remote", "--heads", "origin", "refs/heads/task/t1"];
+    assert_eq!(git(&repo, &at_origin), "", "gone at the origin");
+    let tracked = ["for-each-ref", "refs/remotes/origin/task/t1"];
+    assert_eq!(git(&repo, &tracked), "", "its stale ref pruned");
+}
+
+/// `dash task reopen`'s other half: a run that ended without a merge, its worktree kept, starts over on the newer `:since`.
+#[dash_test]
+fn a_task_reopened_after_its_run_ended_runs_again_with_its_tries_reset() {
+    let dir = TestDir::new("run-reopen-ended");
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    *s.verdicts.borrow_mut() = [Verdict::NotOurs("given up".into())].into_iter().collect();
+    let first = run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(first.outcome, Outcome::Ended("given up".into()));
+    assert_eq!(field(&tasks, "status"), "finished");
+    let finished_ms = tasks.rows().expect("rows")[0].last_ms;
+
+    *s.queue.borrow_mut() = queue(Some(finished_ms + 1));
+    let pick = next(&mut ports(&mut tasks, &s)).expect("a look");
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "t1"),
+        "{pick:?}"
+    );
+    let s2 = tools(&RUN);
+    let again = run_task("t1", None, &mut ports(&mut tasks, &s2), PACE).expect("recorded");
+    assert_eq!(again.outcome, Outcome::Merged("https://pr/7".into()));
+    assert_eq!(field(&tasks, "attempts"), "1");
+}
+
+/// rust-deploy-after-merge-seen's done-when 1: after a merge, `dash task show` names the sha the page serves (#1265 merged and
+/// live stayed on the commit before, its row silent).
+#[dash_test]
+fn show_names_the_deployed_sha_after_a_merge() {
+    let dir = TestDir::new("run-deployed");
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    let ran = run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(ran.outcome, Outcome::Merged("https://pr/7".into()));
+    let shown = shown(&dir.0);
+    assert!(
+        shown.lines().any(|l| l == "deployed: 8a81cbd serves"),
+        "{shown}"
+    );
+}
+
+/// `dash task show`, the real binary, on this store.
+fn shown(dir: &Path) -> String {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_dash"))
+        .args(["task", "show", "--data"])
+        .arg(dir)
+        .arg("t1")
+        // Nothing here may reach his checkout or app.
+        .env("DASH_WORKTREES", dir)
+        .env("DASH_REPO", dir)
+        .env("DASH_CLI", "/nonexistent/dash")
+        .output()
+        .expect("dash task show");
+    assert!(out.status.success(), "{out:?}");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+/// A run given up on, then its PR merged by someone, as four were: what the judge said of it the second time.
+fn given_up_then_merged_and_judged(dir: &Path, verdict: Verdict) -> (SqliteTasks, Tools<'static>) {
+    let mut tasks = store(dir);
+    let s = tools(&RUN);
+    *s.verdicts.borrow_mut() = [Verdict::NotOurs("given up".into())].into_iter().collect();
+    let first = run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(first.outcome, Outcome::Ended("given up".into()));
+    s.merged.set(true);
+    *s.verdicts.borrow_mut() = [verdict].into_iter().collect();
+    let got = hand_backs(&mut ports(&mut tasks, &s)).expect("a pass");
+    assert_eq!(got.len(), 1, "{got:?}");
+    (tasks, s)
+}
+
+/// rust-ended-merged-rejudged's done-when 2, met: `dash task show` names the merged PR and the new verdict.
+#[dash_test]
+fn show_names_the_merged_pr_and_the_new_verdict_of_a_given_up_run_judged_met() {
+    let dir = TestDir::new("run-rejudged-met");
+    given_up_then_merged_and_judged(&dir.0, Verdict::Met);
+    let shown = shown(&dir.0);
+    for line in [
+        "status: finished",
+        "outcome: merged",
+        "said: https://pr/7",
+        "rejudged: abc met: its pull request https://pr/7 merged after its run ended",
+    ] {
+        assert!(shown.lines().any(|l| l == line), "{line} in {shown}");
+    }
+}
+
+/// rust-ended-merged-rejudged's done-when 2, not met: the task reopens, the list's reopen reaches the store and starts its row
+/// over, and `dash task show` still names the merged PR and the reason it reopened (PM check of PR 1264).
+#[dash_test]
+fn show_names_the_merged_pr_and_the_reopen_reason_of_a_given_up_run_judged_not_met() {
+    let dir = TestDir::new("run-rejudged-not-met");
+    let (mut tasks, s) =
+        given_up_then_merged_and_judged(&dir.0, Verdict::NotMet("part 2 has no test".into()));
+    let reason = "rejudged: abc not met, reopened: its pull request https://pr/7 merged after its run ended, but part 2 has no test";
+    let before = shown(&dir.0);
+    assert!(before.lines().any(|l| l == reason), "{before}");
+    // The list's reopen, as the next sync brings it: the row starts over, the verdict stays.
+    let judged_ms = tasks.rows().expect("rows")[0].last_ms;
+    *s.queue.borrow_mut() = queue(Some(judged_ms + 1));
+    let pick = next(&mut ports(&mut tasks, &s)).expect("a look");
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "t1"),
+        "{pick:?}"
+    );
+    let after = shown(&dir.0);
+    // What the report quotes: run with --no-capture.
+    eprintln!("dash task show t1, after the reopen:\n{after}");
+    for line in ["status: open", "outcome: ", reason] {
+        assert!(after.lines().any(|l| l == line), "{line} in {after}");
+    }
+}
+
+/// The audit's finding 12: a limit stop spends no nudge, and its row holds the session for the whole wait.
+#[dash_test]
+fn a_limit_stop_waits_for_room_with_no_nudge_its_claim_held() {
+    let dir = TestDir::new("run-limit");
+    let mut tasks = store(&dir.0);
+    let s = tools(&[
+        Some((MINE, true)),
+        Some((MINE, true)),
+        Some((MINE, true)),
+        Some((MINE, true)),
+        Some((MINE, true)),
+        Some((MINE, false)),
+        Some((MINE, true)),
+        Some((MINE, true)),
+        None,
+    ]);
+    let limit = "You've hit your weekly limit · resets Nov 8 at 6am (Europe/Rome)";
+    *s.outcomes.borrow_mut() = [Outcome::Limited(limit.into()), Outcome::Done("done".into())]
+        .into_iter()
+        .collect();
+    let reading = |week: f64| {
+        vec![Limit {
+            account: "a".into(),
+            five_hours: 0.0,
+            five_hours_resets: 0,
+            week,
+            week_resets: 1,
+            key: false,
+            models: vec![],
+        }]
+    };
+    *s.limits.borrow_mut() = [reading(100.0), reading(100.0), reading(5.0)]
+        .into_iter()
+        .collect();
+    let run = run_task("t1", Some("a"), &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(run.outcome, Outcome::Merged("https://pr/7".into()));
+    assert_eq!(
+        s.typed(),
+        ["send the brief of t1", "send continue", "send leave"],
+        "no nudge"
+    );
+    assert_eq!(s.judged.get(), 1, "its report alone");
+    assert_eq!(field(&tasks, "attempts"), "1");
+    assert_eq!(field(&tasks, "said"), "https://pr/7");
+}
+
+/// The audit's finding 13: at the moment its pane closes the failed run still holds its row and its lock, against this data
+/// folder and any other; once its stop returned the task is free.
+#[dash_test]
+fn a_retry_starts_only_after_the_stop_returned_the_lock_beside_the_worktree() {
+    let dir = TestDir::new("run-retry");
+    let (data, other, worktrees) = (dir.0.join("data"), dir.0.join("other"), dir.0.join("trees"));
+    for folder in [&data, &other] {
+        std::fs::create_dir_all(folder).expect("dir");
+    }
+    let mut tasks = open(&data, &worktrees).expect("the store");
+    let seen = RefCell::new(vec![]);
+    let at_close = || {
+        // A look of `dash orch` on the same data, then a run on another folder's: the same worktree either way.
+        let same = open(&data, &worktrees).expect("the store");
+        let status = same.status("t1").expect("status").expect("a row");
+        let mut second = open(&other, &worktrees).expect("the store");
+        let claimed = second
+            .claim("t1")
+            .map(drop)
+            .map_err(|e| e.contains("a run holds it"));
+        seen.borrow_mut().push((status, claimed));
+    };
+    let mut s = tools(&[Some((MINE, true)), Some((MINE, true)), None]);
+    s.screen = "boot";
+    s.on_close = Some(&at_close);
+    let pace = Pace {
+        start_limit: Duration::ZERO,
+        ..PACE
+    };
+    let run = run_task("t1", None, &mut ports(&mut tasks, &s), pace).expect("released");
+    assert!(matches!(run.outcome, Outcome::Failed(_)), "{run:?}");
+    assert_eq!(s.count("close p1"), 1);
+    assert_eq!(
+        *seen.borrow(),
+        [("claimed".to_string(), Err(true))],
+        "held while it stopped"
+    );
+    assert!(worktrees.join("rust-t1.lock").exists());
+    assert_eq!(field(&tasks, "status"), "open");
+    assert_eq!(field(&tasks, "session"), MINE, "its stop saw it");
+    assert_eq!(tasks.claim("t1").expect("free now"), 2);
+}
+
+/// The audit's finding 10: a reboot's crash, its saved session read back from the store. The same pane id, another session.
+#[dash_test]
+fn after_a_crash_a_reused_pane_is_left_and_the_saved_session_s_is_adopted() {
+    for listed in [HIS, MINE] {
+        let dir = TestDir::new(&format!("run-reused-{}", listed == MINE));
+        let mut run_side = store(&dir.0);
+        run_side.claim("t1").expect("claim");
+        run_side.opened("t1", "p1").expect("opened");
+        run_side.adopted("t1", MINE).expect("adopted");
+        // What a crash does to a claim: the process's handle on its lock ends.
+        drop(run_side);
+        let mut tasks = store(&dir.0);
+        let s = tools(&[Some((listed, true))]);
+        let pick = next(&mut ports(&mut tasks, &s)).expect("a look");
+        assert_eq!(s.count("close p1"), 0, "{listed}");
+        assert!(s.typed().is_empty());
+        if listed == MINE {
+            assert_eq!(pick, Pick::Adopt("t1".into()));
+            assert_eq!(
+                field(&tasks, "status"),
+                "claimed",
+                "its session still works"
+            );
+            continue;
+        }
+        assert!(
+            matches!(pick, Pick::Start { ref id, .. } if id == "t1"),
+            "{pick:?}"
+        );
+        assert_eq!(field(&tasks, "status"), "open");
+    }
+}
+
+/// A live run's session seen once is what the store holds, so a crash at any later moment still names it.
+#[dash_test]
+fn the_session_is_saved_when_first_seen_not_at_the_end() {
+    let dir = TestDir::new("run-saved");
+    let mut tasks = store(&dir.0);
+    let reader = store(&dir.0);
+    let at_close = || assert_eq!(field(&reader, "session"), MINE);
+    let mut s = tools(&RUN);
+    s.on_close = Some(&at_close);
+    run_task("t1", None, &mut ports(&mut tasks, &s), PACE).expect("recorded");
+    assert_eq!(s.count("close p1"), 1);
+}
+
+/// The page's half of this same case is tasks.rs's the_page_names_what_plan_runs_next_and_why_the_others_wait.
+#[dash_test]
+fn the_picker_starts_what_the_page_names() {
+    let dir = TestDir::new("run-plan");
+    let mut tasks = open(&dir.0, &dir.0).expect("open");
+    tasks.add("first", &[]).expect("add");
+    tasks.add("after", &["first".into()]).expect("add");
+    let s = tools(&[]);
+    let queued = |id: &str| Queued {
+        held: None,
+        id: id.into(),
+        title: String::new(),
+        reopened_ms: None,
+        waits: vec![],
+        layer: None,
+        builds_nothing: false,
+        rank: Default::default(),
+        free: None,
+        demand: Default::default(),
+        route: None,
+        ..Queued::default()
+    };
+    let (seats, tasks_queued) = (5, vec![queued("after"), queued("first"), queued("also")]);
+    *s.queue.borrow_mut() = Queue {
+        seats,
+        seats_why: String::new(),
+        tasks: tasks_queued,
+    };
+    let pick = next(&mut ports(&mut tasks, &s)).expect("a look");
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "first"),
+        "{pick:?}"
+    );
+}
+
+/// The older app, asked nothing: a pick that called it would panic here.
+struct NoOlderApp;
+
+impl TaskList for NoOlderApp {
+    fn report_merged(&self, _id: &str, _pr: &str) -> Result<(), String> {
+        Err("no report filed by this stand-in".into())
+    }
+    fn brief(&self, id: &str, _folder: &str) -> Result<String, String> {
+        panic!("the older app was asked the brief of {id}")
+    }
+    fn judge(&self, id: &str, _said: &str) -> Result<Verdict, String> {
+        panic!("the older app was asked to judge {id}")
+    }
+    fn merged(&self, id: &str, _pr: &str) -> Result<(), String> {
+        panic!("the older app was told {id} merged")
+    }
+    fn ended(&self, id: &str, _why: &str) -> Result<(), String> {
+        panic!("the older app was told {id} ended")
+    }
+    fn flag(&self, id: &str, _what: &str) -> Result<(), String> {
+        panic!("the older app was asked to flag {id}")
+    }
+    fn reopen(&self, id: &str) -> Result<(), String> {
+        panic!("the older app was asked to reopen {id}")
+    }
+    fn waiting(&self, id: &str, _on: Option<&Outcome>) -> Result<(), String> {
+        panic!("the older app was told what {id} waits on")
+    }
+}
+
+/// The older app's database as it files tasks.edn rows, as much of it as the sync reads.
+fn older_db(dir: &Path) -> std::path::PathBuf {
+    let path = dir.join("dashboard_dev.db");
+    let db = dash_store::Connection::open(&path).expect("the older app's db");
+    db.execute_batch(&dash_store::older::marked(
+        "CREATE TABLE tasks (collection TEXT, pos INTEGER, id TEXT, stage TEXT, data TEXT NOT NULL, title TEXT,
+           blocked_by TEXT, owner TEXT, priority INTEGER, epic TEXT, why TEXT, done_when TEXT);
+         CREATE TABLE records (collection TEXT, pos INTEGER, id TEXT, data TEXT NOT NULL);
+         CREATE TABLE links (\"from\" TEXT, kind TEXT, \"to\" TEXT, pos INTEGER DEFAULT 0 NOT NULL);
+         CREATE TABLE project_settings (project TEXT, field TEXT, value TEXT NOT NULL);
+         INSERT INTO tasks (collection, pos, id, stage, data, title, blocked_by, owner) VALUES ('tasks.edn', 1, 'after', 'open', '{}', 'After', '⟦@waits-on/0⟧', 'rust'),
+           ('tasks.edn', 2, 'first', 'open', '{}', 'First', NULL, 'rust'),
+           ('tasks.edn', 3, 'his', 'open', '{}', 'His', NULL, 'claude'),
+           ('tasks.edn', 4, 'put-off', 'open', '{\"later\":\"next week\"}', 'Later', NULL, 'rust');
+         INSERT INTO links VALUES ('tasks:after', 'waits-on', 'tasks:first', 0);",
+    ))
+    .expect("its tables");
+    path
+}
+
+/// One look of the picker on `tasks`, the older app a stand-in that panics if anything asks it.
+fn look_alone(tasks: &mut SqliteTasks, s: &Tools) -> Pick {
+    let mut ports = Ports {
+        tasks,
+        list: &NoOlderApp,
+        terminal: s,
+        launcher: s,
+        agent: s,
+        forge: s,
+        policy: &Defaults,
+        step: &|_, _| {},
+        free_memory: &|| None,
+        load: &|| None,
+    };
+    next(&mut ports).expect("a look")
+}
+
+fn listed(id: &str, waits: &[&str]) -> Queued {
+    Queued {
+        held: None,
+        id: id.into(),
+        waits: waits.iter().map(|w| w.to_string()).collect(),
+        ..Queued::default()
+    }
+}
+
+/// rust-own-queue's done-when 1: `dash orch`'s pick reads the open owner-rust tasks, their waits and his seats from Rust's store,
+/// and the older app is asked nothing (2026-11-09: its queue offered one ended task while six were ready).
+#[dash_test]
+fn the_pick_reads_tasks_waits_and_seats_from_rust_s_store_and_never_asks_the_older_app() {
+    let dir = TestDir::new("own-queue-pick");
+    let mut tasks = store(&dir.0);
+    let s = tools(&[]);
+    let err = TaskStore::queue(&tasks).expect_err("no sync yet");
+    assert!(err.contains("no sync"), "{err}");
+    let list = Queue {
+        seats: 5,
+        seats_why: String::new(),
+        tasks: vec![listed("after", &["first"]), listed("first", &[])],
+    };
+    tasks.sync(&list).expect("the sync");
+    let pick = look_alone(&mut tasks, &s);
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "first"),
+        "after waits on first, as the store says: {pick:?}"
+    );
+    // Its wait met once first is merged here: the store's rows decide.
+    tasks.add("first", &[]).expect("a row");
+    tasks.claim("first").expect("claim");
+    let merged = dash_core::tasks::Run {
+        pane: None,
+        session: None,
+        outcome: Outcome::Merged("https://pr/1".into()),
+    };
+    tasks.record("first", &merged).expect("merged");
+    // Its run told the list itself, as run_task does: what is left to tell is a run's, never a pick's.
+    TaskStore::told(&mut tasks, "first").expect("told");
+    let pick = look_alone(&mut tasks, &s);
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "after"),
+        "{pick:?}"
+    );
+    // His seats are the store's: none left, nothing starts.
+    tasks
+        .sync(&Queue {
+            seats: 0,
+            seats_why: String::new(),
+            ..list
+        })
+        .expect("seats");
+    let pick = look_alone(&mut tasks, &s);
+    assert!(matches!(pick, Pick::Wait(_)), "{pick:?}");
+}
+
+/// rust-own-queue's done-when 2: what the older app files in tasks.edn is in Rust's store after one sync, the first step of a
+/// pass, and what it closes leaves the list at the next.
+#[dash_test]
+fn a_task_the_older_app_files_reaches_rust_s_store_within_one_sync() {
+    let dir = TestDir::new("own-queue-sync");
+    let mut tasks = store(&dir.0);
+    let older = older_db(&dir.0);
+    let sync = |tasks: &mut SqliteTasks| {
+        let rows = dash_store::older::queue(&older).expect("the older app's rows");
+        tasks.sync(&rows).expect("the sync")
+    };
+    let ids = |tasks: &SqliteTasks| -> Vec<String> {
+        let list = TaskStore::queue(tasks).expect("the store's list");
+        list.tasks.into_iter().map(|t| t.id).collect()
+    };
+    assert!(sync(&mut tasks) > 0);
+    assert_eq!(sync(&mut tasks), 0, "an unchanged list writes nothing");
+    assert_eq!(
+        ids(&tasks),
+        ["after", "first"],
+        "Rust's open tasks, put-off and his left out"
+    );
+    let waits = &TaskStore::queue(&tasks).expect("list").tasks[0].waits;
+    assert_eq!(waits, &["first"], "its link, its ref's own text left out");
+    let db = dash_store::Connection::open(&older).expect("db");
+    // priority 1: its rank puts it before first, which after waits on (task rust-orch-pick-dynamic, done-when 5)
+    let row =
+        "INSERT INTO tasks (collection, pos, id, stage, data, title, blocked_by, owner, priority)
+      VALUES ('tasks.edn', 0, 'new', 'open', '{}', 'New', NULL, 'rust', 1)";
+    db.execute(row, []).expect("a new task");
+    sync(&mut tasks);
+    assert_eq!(
+        ids(&tasks),
+        ["new", "after", "first"],
+        "filed since, first in its order"
+    );
+    let pick = look_alone(&mut tasks, &tools(&[]));
+    assert!(
+        matches!(pick, Pick::Start { ref id, .. } if id == "new"),
+        "{pick:?}"
+    );
+    db.execute("UPDATE tasks SET stage = 'done' WHERE id = 'new'", [])
+        .expect("done");
+    sync(&mut tasks);
+    assert_eq!(ids(&tasks), ["after", "first"], "done there, unlisted here");
+}
+
+/// Task rust-seats-follow-room, done-when 2, a test each: picks in turn on one real store and policy, each with stand-in readings
+/// of the 5-minute load per core and the free memory, so a wait that wrote to the store would show in the next pick.
+fn picks(builds_nothing: bool, readings: &[(Option<f64>, Option<u8>)]) -> Vec<Pick> {
+    let dir = TestDir::new("run-load");
+    let mut tasks = store(&dir.0);
+    let s = tools(&RUN);
+    s.queue.borrow_mut().seats_why = "day 5".into();
+    s.queue.borrow_mut().tasks[0].builds_nothing = builds_nothing;
+    let pick = |tasks: &mut SqliteTasks, (load, free): (Option<f64>, Option<u8>)| {
+        let mut ports = ports(tasks, &s);
+        let (load, free) = (move || load, move || free);
+        ports.load = &load;
+        ports.free_memory = &free;
+        next(&mut ports).expect("a look")
+    };
+    readings.iter().map(|r| pick(&mut tasks, *r)).collect()
+}
+
+fn started(p: &Pick) -> bool {
+    matches!(p, Pick::Start { id, .. } if id == "t1")
+}
+
+/// Done-when 2, the load: past 3 per core on the 5-minute load, nothing starts, saying so; at 3, it starts.
+#[dash_test]
+fn no_start_past_three_load_per_core() {
+    let [past, at] = picks(false, &[(Some(3.4), Some(80)), (Some(3.0), Some(80))])
+        .try_into()
+        .expect("two picks");
+    assert_eq!(
+        past,
+        Pick::Wait(
+            "t1 waits: no session may start, 0 seats allowed (load: the 5-minute load is 3.40 per core, past 3, so \
+             nothing starts (5 otherwise: day 5))"
+                .into()
+        )
+    );
+    assert!(
+        started(&at),
+        "at the line it starts, on the store the wait left: {at:?}"
+    );
+}
+
+/// Done-when 2, the memory (RFC 20e rule 4): under 25% free memory a task that builds waits and one that builds nothing still
+/// starts (the answer in its question dialog, 2026-11-11: « Light tasks still start »).
+#[dash_test]
+fn under_a_quarter_of_memory_only_building_tasks_wait() {
+    let [low, enough] = picks(false, &[(Some(0.5), Some(12)), (Some(0.5), Some(25))])
+        .try_into()
+        .expect("two picks");
+    assert!(
+        matches!(&low, Pick::Wait(why) if why.contains("12% of memory is free, under the 25% a build needs")),
+        "{low:?}"
+    );
+    assert!(
+        started(&enough),
+        "at 25% a build starts, on the store the wait left: {enough:?}"
+    );
+    let [light] = picks(true, &[(Some(0.5), Some(12))])
+        .try_into()
+        .expect("a pick");
+    assert!(
+        started(&light),
+        "light work starts short of memory: {light:?}"
+    );
+}
