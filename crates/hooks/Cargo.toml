@@ -1,0 +1,21 @@
+[package]
+name = "dash-hooks"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-core.workspace = true
+dash-process.workspace = true
+html-escape.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+# the outbound gate: Jev's log key as draft_ai.key_of hashes it, entities and LinkedIn's Unicode bold read as letters
+sha2.workspace = true
+unicode-normalization = "0.1"
+# the session's terminal: opened without blocking, found through its ancestors on macOS (session::terminal)
+libc = "0.2"
+
+[dev-dependencies]
+dash-core = { workspace = true, features = ["memory-log"] }
+dash-meter.workspace = true

@@ -1,0 +1,396 @@
+{
+ "content": [
+  {
+   "attrs": {
+    "description": "",
+    "id": "0.0",
+    "image": "",
+    "preface": "",
+    "title": "RFC: one document model"
+   },
+   "type": "meta"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.1",
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "RFC: one document model",
+     "type": "text"
+    }
+   ],
+   "type": "title"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "current": "Accepted",
+    "id": "0.2",
+    "page": 0,
+    "steps": "Draft\nReview\nAccepted\nShipped"
+   },
+   "type": "stage"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.3",
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "Every page of private/docs is read into the store and drawn by one component.",
+     "type": "text"
+    }
+   ],
+   "type": "paragraph"
+  },
+  {
+   "attrs": {
+    "anchor": "intent",
+    "id": "0.4",
+    "level": 1,
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "1. Intent",
+     "type": "text"
+    }
+   ],
+   "type": "heading"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.5",
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "His brief, verbatim.",
+     "type": "text"
+    }
+   ],
+   "type": "writer_note"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.6",
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "The check pass drops what is settled.",
+     "type": "text"
+    }
+   ],
+   "type": "writer_note"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.7",
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "Its look is the design system's: ",
+     "type": "text"
+    },
+    {
+     "marks": [
+      {
+       "attrs": {
+        "tone": "ok"
+       },
+       "type": "chip"
+      }
+     ],
+     "text": "settled",
+     "type": "text"
+    },
+    {
+     "text": " since his yes.",
+     "type": "text"
+    }
+   ],
+   "type": "paragraph"
+  },
+  {
+   "attrs": {
+    "anchor": "f-flow",
+    "id": "0.8",
+    "page": 0,
+    "svg": "<svg viewBox=\"0 0 420 90\" role=\"img\" aria-label=\"The file, the store, /v/\"><defs><marker id=\"arrow\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"7\" markerHeight=\"7\" orient=\"auto\"><path d=\"M0 0L10 5L0 10z\" fill=\"currentColor\"></path></marker></defs><rect class=\"box\" x=\"6\" y=\"20\" width=\"110\" height=\"50\" rx=\"8\"></rect><text x=\"61\" y=\"42\" text-anchor=\"middle\">The file</text><text class=\"small\" x=\"61\" y=\"60\" text-anchor=\"middle\">private/docs</text><rect class=\"box accent\" x=\"156\" y=\"20\" width=\"110\" height=\"50\" rx=\"8\"></rect><text x=\"211\" y=\"50\" text-anchor=\"middle\">The store</text><rect class=\"box\" x=\"306\" y=\"20\" width=\"110\" height=\"50\" rx=\"8\"></rect><text x=\"361\" y=\"50\" text-anchor=\"middle\">/v/</text><path class=\"arrow\" d=\"M116 45H152\"></path><path class=\"arrow\" d=\"M266 45H302\"></path></svg>",
+    "text": "The file\nprivate/docs\nThe store\n/v/"
+   },
+   "type": "diagram"
+  },
+  {
+   "attrs": {
+    "anchor": "decision",
+    "id": "0.9",
+    "level": 1,
+    "page": 0,
+    "refs": []
+   },
+   "content": [
+    {
+     "text": "2. Decision",
+     "type": "text"
+    }
+   ],
+   "type": "heading"
+  },
+  {
+   "attrs": {
+    "anchor": "d-look",
+    "caption": "Where does a document's look live?",
+    "id": "0.a",
+    "kind": "decision",
+    "page": 0,
+    "status": "default",
+    "tone": "ok"
+   },
+   "content": [
+    {
+     "attrs": {
+      "anchor": "",
+      "id": "0.b"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.c"
+       },
+       "content": [
+        {
+         "text": "Option",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.d"
+       },
+       "content": [
+        {
+         "text": "Our call",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    },
+    {
+     "attrs": {
+      "anchor": "",
+      "id": "0.e"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.f"
+       },
+       "content": [
+        {
+         "text": "The design system",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.g"
+       },
+       "content": [
+        {
+         "text": "Yes: one fix improves every page",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    },
+    {
+     "attrs": {
+      "anchor": "",
+      "id": "0.h"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.i"
+       },
+       "content": [
+        {
+         "text": "Each document's own style",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.j"
+       },
+       "content": [
+        {
+         "text": "No",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    }
+   ],
+   "type": "table"
+  },
+  {
+   "attrs": {
+    "anchor": "",
+    "id": "0.k",
+    "page": 0
+   },
+   "content": [
+    {
+     "attrs": {
+      "anchor": "",
+      "id": "0.l"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.m"
+       },
+       "content": [
+        {
+         "text": "Question",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.n"
+       },
+       "content": [
+        {
+         "text": "State",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    },
+    {
+     "attrs": {
+      "anchor": "p-colours",
+      "id": "0.o"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.p"
+       },
+       "content": [
+        {
+         "text": "Whether a diagram keeps its own colours",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.q"
+       },
+       "content": [
+        {
+         "marks": [
+          {
+           "attrs": {
+            "tone": "warn"
+           },
+           "type": "chip"
+          }
+         ],
+         "text": "open",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    },
+    {
+     "attrs": {
+      "anchor": "p-print",
+      "id": "0.r"
+     },
+     "content": [
+      {
+       "attrs": {
+        "id": "0.s"
+       },
+       "content": [
+        {
+         "text": "Whether writer notes print",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      },
+      {
+       "attrs": {
+        "id": "0.t"
+       },
+       "content": [
+        {
+         "marks": [
+          {
+           "attrs": {
+            "tone": "ok"
+           },
+           "type": "chip"
+          }
+         ],
+         "text": "settled",
+         "type": "text"
+        }
+       ],
+       "type": "cell"
+      }
+     ],
+     "type": "row"
+    }
+   ],
+   "type": "table"
+  }
+ ],
+ "type": "doc"
+}
