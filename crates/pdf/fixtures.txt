@@ -1,0 +1,8 @@
+# dash_meter::fixtures' list for this crate: `<sha256> <name> <url>`, fetched into target/fixtures, never in git.
+# docling-project/docling's test corpus (MIT), at a pinned commit
+5dfbd8c115a15fd3396b68409124cfee29fc8efac7b5c846634ff924e635e0dc 2206.01062.pdf https://raw.githubusercontent.com/docling-project/docling/9b3ebca24e1c0e8225d60ce3509ab85cc789acf3/tests/data/pdf/sources/2206.01062.pdf
+# llamaindex/liteparse_cicd_data (MIT), the revision graal's corpus vendored
+c1ed97d076ffc74c3f17b3524788a846467fbacb320e472d8d69d3932172d55d who_indicators.pdf https://huggingface.co/datasets/llamaindex/liteparse_cicd_data/resolve/e4cdc87cf71085d99ea12921d85faac11d270b25/data/who_indicators.pdf
+36a63dfddcee2c5b35c7bb561ebfdabd2f828e5943acaabb97805c9a49e3dcf1 encrypted_pwd_is_hello.pdf https://huggingface.co/datasets/llamaindex/liteparse_cicd_data/resolve/e4cdc87cf71085d99ea12921d85faac11d270b25/data/encrypted_pwd_is_hello.pdf
+# image-only, its text layer empty: stands in for graal's image_only_sample.pdf, which graal generated and never published
+176d015461bb7a5360a91864c86c5cff7d4860fe6dcf80f3b89aa3ca43c42d1f flower_pots_images.pdf https://huggingface.co/datasets/llamaindex/liteparse_cicd_data/resolve/e4cdc87cf71085d99ea12921d85faac11d270b25/data/flower_pots_images.pdf

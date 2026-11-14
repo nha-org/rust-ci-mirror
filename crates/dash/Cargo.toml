@@ -1,0 +1,75 @@
+[package]
+name = "dash"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+# Section 4: « the harness picks by measure ». Neither: the system allocator, the pick so far (section 20).
+mimalloc = ["dep:mimalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
+# dash ui's Mac window: make rust/build turns it on; Linux CI builds no windowing stack.
+window = ["dep:dash-ui", "dash-ui/window"]
+
+[dependencies]
+dash-agent.workspace = true
+dash-bridge.workspace = true
+dash-core.workspace = true
+dash-drafts.workspace = true
+dash-comments.workspace = true
+dash-ext.workspace = true
+dash-ingest.workspace = true
+dash-pdf.workspace = true
+dash-forge.workspace = true
+# The code map behind /deps: the gate's crate lists and line count, rust-analyzer's SCIP index read with its crate.
+dash-gate.workspace = true
+dash-hooks.workspace = true
+dash-jev.workspace = true
+dash-launcher.workspace = true
+dash-mail.workspace = true
+dash-hostman.workspace = true
+dash-meter.workspace = true
+dash-orch.workspace = true
+dash-policy.workspace = true
+dash-process.workspace = true
+dash-statsd.workspace = true
+dash-store.workspace = true
+dash-surface.workspace = true
+dash-terminal.workspace = true
+dash-ui = { workspace = true, optional = true }
+dash-views.workspace = true
+# the live compass (live.rs, task rust-window-compass): liveview runs its Rust handlers for the web page over a WebSocket of
+# its own connection thread, on a runtime of that thread's
+dioxus.workspace = true
+dioxus-document = { version = "=0.8.0-alpha.3", default-features = false }
+dioxus-liveview = { version = "=0.8.0-alpha.3", default-features = false }
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+tokio = { version = "1", default-features = false, features = ["rt", "net", "time", "macros"] }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+# each page registers its route from its own module (pages.rs, task rust-registry-no-hubs)
+inventory.workspace = true
+libc = "0.2"
+protobuf = "=3.7.2"
+# `dash tui`: /tasks in the terminal, surface drawing it, crossterm reading the keys (task rust-tui-tracer)
+ratatui = { workspace = true, features = ["crossterm"] }
+# a lesson's fold reads its where and lessons by the older app's patterns (folds.rs)
+regex.workspace = true
+scip = "=0.10.0"
+mimalloc = { version = "0.1", optional = true }
+png = "0.18"
+serde_json.workspace = true
+tikv-jemallocator = { version = "0.6", optional = true }
+
+# The binary is the one crate that may reach both a port's user and its adapter (section 3): crates/dash/tests/sim.rs wires them.
+[dev-dependencies]
+dash-gate.workspace = true
+# the window's document, read with no display
+dash-ui.workspace = true
+# the window's renders, sent to its component as the render thread sends them, and its document polled and hit-tested
+blitz-dom = "=0.3.0-beta.4"
+# the window's compass driven as the shell drives it: its viewport, pointer and keys (window_compass_sends_a_comment)
+blitz-traits = "=0.3.0-beta.4"
+# a page holding the design system's live parts, drawn as dash serve draws it (live.rs's parts tests)
+dioxus-ssr = "=0.8.0-alpha.3"
+futures-channel.workspace = true
+dash-sync.workspace = true
