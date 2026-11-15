@@ -1,0 +1,15 @@
+{
+  "lines": 15,
+  "working": ["esc to interrupt", "Running…", "Running..."],
+  "done": ["TASK_DONE", "TASK_BLOCKED"],
+  "fails": [
+    {"name": "env-no-such-file", "starts": "env: ", "has": ["No such file or directory"],
+     "incident": "2026-11-02: 9 vibe panes printed « env: …: No such file or directory » at their start and sat 3 h"},
+    {"name": "limit-dialog", "has": ["Stop and wait for limit to reset"],
+     "incident": "2026-11-09: merge-gate's run sat on Claude Code's limit menu"},
+    {"name": "error-143", "has": ["Error 143"],
+     "incident": "2026-11-02: panes killed by SIGTERM printed « Error 143 » and sat"},
+    {"name": "bare-prompt", "last_ends": [" %", "$"],
+     "incident": "2026-11-02: an agent ended and left its task's pane at a bare shell prompt"}
+  ]
+}
