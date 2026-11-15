@@ -1,0 +1,9 @@
+[package]
+name = "dash-test-macro"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+# `#[dash_test]`, re-exported by dash-meter: a proc macro needs a crate of its own (task rust-test-budget-attr).
+[lib]
+proc-macro = true
