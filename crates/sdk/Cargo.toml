@@ -1,0 +1,20 @@
+[package]
+name = "dash-sdk"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+inventory.workspace = true
+serde_json.workspace = true
+# the test attribute a plugin's tests take through `testing`, so its Cargo.toml lists dash-sdk alone
+dash-meter = { workspace = true, optional = true }
+
+[features]
+# the stand-in Host and the op log in memory, no dependency added: only dev-dependencies turn it on
+memory-log = []
+# those and `dash_test`, a plugin's tests' one feature: no shipped build holds them
+testing = ["memory-log", "dep:dash-meter"]
+
+[dev-dependencies]
+dash-meter.workspace = true
