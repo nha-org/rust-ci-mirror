@@ -1,0 +1,65 @@
+{
+ "state": "pending",
+ "statuses": [
+  {
+   "context": "issue-labels / cascade (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "issue-labels / release-notes (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "testing / backend-checks (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / frontend-checks (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-unit (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-e2e (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-remote-cacher (redis) (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-remote-cacher (valkey) (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-remote-cacher (garnet) (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-mysql (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-pgsql (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / test-sqlite (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / coverage (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "testing / semgrep/ci (pull_request)",
+   "status": "pending"
+  },
+  {
+   "context": "requirements / merge-conditions (pull_request)",
+   "status": "pending"
+  }
+ ]
+}
