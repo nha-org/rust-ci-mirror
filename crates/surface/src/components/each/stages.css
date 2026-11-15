@@ -1,0 +1,7 @@
+/* A document's stage, one label as Notion's select property (the design page's Stage, design.css .ds-prop): its name muted,
+   then its value as a pill (task rfc-view-doc-type; @nha, 2026-11-14: « draft/review etc. should be a single selector/label.
+   notion-style. »). The rfc skill's p.doc-stage, so a file opened from disk reads the same (private/docs/shell/shell.css). */
+p.doc-stage { display: inline-flex; align-items: center; gap: var(--spacing-s2); margin: 0; font-size: var(--text-caption); line-height: 1.5; }
+p.doc-stage > span { opacity: 0.7; }
+@media print { p.doc-stage { display: none; } }   /* the writer's workflow, never in the reader's PDF */
+p.doc-stage > b { padding: 0 var(--spacing-s2); border-radius: 999px; font-weight: 500; color: var(--color-primary); background: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100)); border: 1px solid color-mix(in oklab, var(--color-primary) 40%, transparent); }
