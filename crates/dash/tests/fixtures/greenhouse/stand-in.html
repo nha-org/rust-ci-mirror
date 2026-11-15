@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8"><title>Job Application for Stand-in at Acme</title>
+<!-- A stand-in Greenhouse form (task rust-apply-greenhouse): the saved form's ids and required marks, a text screening question,
+     a select as Greenhouse draws one (a typed box whose options show as typed; a click puts the pick in a hidden required
+     input), the security code Greenhouse asks after a first submit, and the confirmation page a right code reaches. -->
+<form method="get" action="confirmation.html" id="application-form">
+  <label id="first_name-label" for="first_name">First Name*</label>
+  <input id="first_name" name="first_name" aria-required="true" type="text" value="">
+  <label id="last_name-label" for="last_name">Last Name*</label>
+  <input id="last_name" name="last_name" aria-required="true" type="text" value="">
+  <label id="email-label" for="email">Email*</label>
+  <input id="email" name="email" aria-required="true" type="text" value="">
+  <label class="visually-hidden" for="resume">Attach</label>
+  <input id="resume" name="resume" type="file" accept=".pdf,.doc,.docx,.txt,.rtf">
+  <label class="visually-hidden" for="cover_letter">Attach</label>
+  <input id="cover_letter" name="cover_letter" type="file" accept=".pdf,.doc,.docx,.txt,.rtf">
+  <label id="question_1-label" for="question_1">Do you speak French fluently ?*</label>
+  <input id="question_1" aria-required="true" type="text" value="">
+  <div class="select__container">
+    <label id="question_2-label" for="question_2">Privacy*</label>
+    <input id="question_2" class="select__input" role="combobox" aria-required="true" data-options="Acknowledge|Decline">
+    <div class="select__single-value"></div>
+    <div class="select__menu"></div>
+    <input required tabindex="-1" aria-hidden="true" class="requiredInput" value="">
+  </div>
+  <div id="security"></div>
+  <div class="application--submit"><button type="submit" class="btn btn--pill">Submit application</button></div>
+</form>
+<script>
+document.querySelectorAll('[role=combobox]').forEach(box => {
+  const c = box.closest('.select__container'), menu = c.querySelector('.select__menu');
+  box.addEventListener('input', () => {
+    menu.innerHTML = '';
+    for (const o of box.dataset.options.split('|').filter(o => o.toLowerCase().startsWith(box.value.toLowerCase()))) {
+      const d = document.createElement('div');
+      d.className = 'select__option';
+      d.textContent = o;
+      d.onclick = () => {
+        c.querySelector('.requiredInput').value = o;
+        c.querySelector('.select__single-value').textContent = o;
+        box.value = '';
+        menu.innerHTML = '';
+      };
+      menu.append(d);
+    }
+  });
+});
+// the first submit asks the code; a submit with any other code than the mailed one goes nowhere
+document.getElementById('application-form').addEventListener('submit', e => {
+  const s = document.getElementById('security');
+  if (!s.children.length) {
+    e.preventDefault();
+    s.innerHTML = [...Array(8).keys()].map(i => `<input id="security-input-${i}" maxlength="1">`).join('');
+    return;
+  }
+  if ([...s.querySelectorAll('input')].map(i => i.value).join('') !== 'AB12CD34') e.preventDefault();
+});
+</script>
