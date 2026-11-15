@@ -1,0 +1,16 @@
+35
+agent 3
+bridge 3
+comments 2
+doctor 2
+drafts 0
+forge 3
+hooks 3
+hostman 3
+hostman-ci 2
+jev 2
+launcher 2
+mail 3
+orch 2
+policy 2
+terminal 3
