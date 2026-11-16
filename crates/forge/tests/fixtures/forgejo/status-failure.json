@@ -1,0 +1,81 @@
+{
+ "state": "failure",
+ "statuses": [
+  {
+   "context": "pr-checklist / warn-user (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "requirements / merge-conditions (pull_request)",
+   "status": "skipped"
+  },
+  {
+   "context": "pr-e2e-check / warn-contributors (pull_request_target)",
+   "status": "success"
+  },
+  {
+   "context": "testing / semgrep/ci (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / frontend-checks (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / backend-checks (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-unit (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-remote-cacher (redis) (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-remote-cacher (valkey) (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-remote-cacher (garnet) (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-e2e (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-sqlite (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-mysql (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / coverage (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-pgsql (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / security-check (pull_request)",
+   "status": "failure"
+  },
+  {
+   "context": "issue-labels / backporting (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "milestone / set (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "issue-labels / cascade (pull_request_target)",
+   "status": "success"
+  }
+ ]
+}
