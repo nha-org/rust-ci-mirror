@@ -1,0 +1,65 @@
+{
+ "state": "success",
+ "statuses": [
+  {
+   "context": "issue-labels / release-notes (pull_request_target)",
+   "status": "skipped"
+  },
+  {
+   "context": "requirements / merge-conditions (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / semgrep/ci (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / frontend-checks (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / backend-checks (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-remote-cacher (valkey) (pull_request)",
+   "status": "skipped"
+  },
+  {
+   "context": "testing / test-remote-cacher (garnet) (pull_request)",
+   "status": "skipped"
+  },
+  {
+   "context": "testing / test-unit (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-remote-cacher (redis) (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-e2e (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-mysql (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-sqlite (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / coverage (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "testing / test-pgsql (pull_request)",
+   "status": "success"
+  },
+  {
+   "context": "milestone / set (pull_request_target)",
+   "status": "success"
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+/* A reply draft's card and the drafts' list: what a draft is, read before its words. */
+.draft-card { display: flex; flex-direction: column; gap: var(--spacing-s2); padding: var(--spacing-s3); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); background: var(--color-base-100); }
+.draft-card > header { display: flex; flex-direction: column; gap: var(--spacing-s1); }
+.draft-card .goal { font-weight: 600; }
+.draft-card .who { color: var(--color-base-content-muted, inherit); font-size: var(--text-caption); }
