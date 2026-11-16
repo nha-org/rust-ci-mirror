@@ -1,0 +1,13 @@
+[package]
+name = "dash-drafts"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-sdk.workspace = true
+inventory.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+dash-sdk = { workspace = true, features = ["testing"] }
