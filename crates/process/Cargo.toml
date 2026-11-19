@@ -1,0 +1,13 @@
+[package]
+name = "dash-process"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc = "0.2"
+# on_cut: a command cut mid-run reports, its tools stopped (task ship-outlives-curl); in the lock through crossterm
+signal-hook = "0.3"
+
+[dev-dependencies]
+dash-meter.workspace = true
