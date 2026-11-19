@@ -1,0 +1,1136 @@
+use super::*;
+use dash_core::registry::{Audit, Call, Ports, Registry};
+use dash_meter::dash_test;
+use serde_json::json;
+use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
+
+/// Hostman's answer to GET /api/v1/account/finances, recorded 2026-11-14 on his account (30 USD paid, nothing running).
+const FINANCES_LIVE: &str = r#"{"finances":{"balance":30,"currency":"USD","discount_end_date_at":null,"discount_percent":0,"hourly_cost":0,"hourly_fee":0,"monthly_cost":0,"monthly_fee":0,"total_paid":30,"hours_left":null,"autopay_card_info":null,"total_balance":30},"response_id":"73086bef-7bdf-4738-af5a-12b184960b62"}"#;
+
+/// Three of the 38 presets GET /api/v1/presets/servers answered on 2026-11-14, as recorded, and one with a GPU the
+/// live list does not hold, as a configurator's `gpu` would name it.
+const PRESETS: &str = r#"{"server_presets":[
+{"id":5131,"location":"pl-1","price":35,"cpu":8,"cpu_frequency":"3","ram":16384,"disk":327680,"disk_type":"nvme","bandwidth":200,"description":"","description_short":"Hostman PL 320/2","is_allowed_local_network":true,"vds_node_configuration_name":"euro-kvmnvm","tags":["cp","discount_euro"],"is_dedicated_cpu":false},
+{"id":5157,"location":"nl-1","price":20,"cpu":4,"cpu_frequency":"3.3","ram":8192,"disk":163840,"disk_type":"nvme","bandwidth":200,"description":"","description_short":"Hostman N 160/2","is_allowed_local_network":true,"vds_node_configuration_name":"nl_base","tags":["cp","nl_base"],"is_dedicated_cpu":false},
+{"id":5161,"location":"nl-1","price":5,"cpu":2,"cpu_frequency":"3.3","ram":2048,"disk":61440,"disk_type":"nvme","bandwidth":200,"description":"","description_short":"Hostman N 60/2","is_allowed_local_network":true,"vds_node_configuration_name":"nl_base","tags":["cp","nl_base"],"is_dedicated_cpu":false},
+{"id":9001,"location":"nl-1","price":3,"cpu":2,"ram":2048,"disk":61440,"gpu":1,"tags":["cp"]},
+{"id":5147,"location":"us-2","price":8,"cpu":2,"ram":4096,"disk":81920,"bandwidth":200,"tags":["cp"]}],"meta":{"total":5}}"#;
+
+/// One server running on preset 5161, at 5 USD a month, so the finances say 5 a month.
+const SERVER: &str = r#"{"server":{"id":7,"name":"web","preset_id":5161,"status":"on","root_pass":"hunter2","vnc_pass":"v","networks":[{"ips":[{"ip":"1.2.3.4"}]}]}}"#;
+/// Two of the 17 OSes GET /api/v1/os/servers answered on 2026-11-14, as recorded, and a Windows the live list does not hold.
+const OS: &str = r#"{"servers_os":[{"id":79,"family":"linux","name":"ubuntu","version":"22.04"},{"id":125,"family":"BSD","name":"freebsd","version":"13"},{"id":200,"family":"windows","name":"windows","version":"2022"}]}"#;
+const FINANCES_RUNNING: &str = r#"{"finances":{"balance":30,"currency":"USD","hourly_cost":0.007,"monthly_cost":5,"total_paid":30}}"#;
+
+/// A recorded API: each call is logged as « METHOD path », answered from `finances` and the lists above.
+fn recorded(finances: &'static str) -> (Hostman, Arc<Mutex<Vec<String>>>) {
+    let log = Arc::new(Mutex::new(vec![]));
+    let kept = Arc::clone(&log);
+    let http: Http = Box::new(move |method, path, _body| {
+        kept.lock().unwrap().push(format!("{method} {path}"));
+        Ok(match (method, path) {
+            ("GET", FINANCES) => finances,
+            ("GET", "/api/v1/presets/servers") => PRESETS,
+            ("GET", "/api/v1/os/servers") => OS,
+            ("GET", "/api/v1/servers/7") => SERVER,
+            ("GET", "/api/v1/servers") => r#"{"servers":[]}"#,
+            ("GET", "/api/v1/servers/9") => r#"{"server":{"id":9,"preset_id":5157}}"#,
+            ("GET", "/api/v1/servers/8") => {
+                r#"{"server":{"id":8,"preset_id":null,"configurator_id":26}}"#
+            }
+            _ => r#"{"server":{"id":9}}"#,
+        }
+        .to_string())
+    });
+    (Hostman::new(http), log)
+}
+
+fn call(method: &str, path: &str, body: Value) -> String {
+    json!({"method": method, "path": path, "body": body}).to_string()
+}
+
+/// Part 1: Cloud Servers alone; bare metal, GPU, AI and every other product are refused, and a refused call reaches no API.
+#[dash_test]
+fn only_cloud_servers_are_in_scope_bare_metal_gpu_ai_and_every_other_product_refused() {
+    for (method, path) in [
+        ("GET", "/api/v1/account/finances"),
+        ("GET", "/api/v1/presets/servers"),
+        ("GET", "/api/v1/configurator/servers"),
+        ("GET", "/api/v1/os/servers"),
+        ("GET", "/api/v1/servers"),
+        ("GET", "/api/v1/servers?limit=10"),
+        ("POST", "/api/v1/servers"),
+        ("GET", "/api/v1/servers/7/statistics"),
+        ("POST", "/api/v1/servers/7/reboot"),
+        ("PATCH", "/api/v1/servers/7"),
+        ("DELETE", "/api/v1/servers/7"),
+    ] {
+        assert_eq!(scope(method, path), Ok(()), "{method} {path}");
+    }
+    for (method, path) in [
+        // bare metal
+        ("GET", "/api/v1/dedicated-servers"),
+        ("POST", "/api/v1/dedicated-servers"),
+        // AI
+        ("GET", "/api/v1/cloud-ai/agents"),
+        ("POST", "/api/v1/cloud-ai/agents/1/call"),
+        // every other product
+        ("POST", "/api/v1/k8s/clusters"),
+        ("POST", "/api/v1/databases"),
+        ("POST", "/api/v1/storages/buckets"),
+        ("POST", "/api/v1/balancers"),
+        ("POST", "/api/v1/floating-ips"),
+        ("POST", "/api/v2/apps"),
+        ("PATCH", "/api/v1/account/finances"),
+        ("POST", "/api/v1/presets/servers"),
+        // a path that only looks like one
+        ("GET", "/api/v1/serversx"),
+        ("GET", "/api/v1/servers/../dedicated-servers"),
+        ("GET", "/api/v1/servers/7%2F..%2F..%2Fdedicated-servers"),
+        ("GET", "/api/v1/servers/abc"),
+        ("DELETE", "/api/v1/servers"),
+        ("PUT", "/api/v1/servers/7"),
+        ("GET", "https://hostman.com/api/v1/servers"),
+    ] {
+        let why = scope(method, path).expect_err(path);
+        assert!(
+            why.contains("Cloud Servers (VPS) only"),
+            "{method} {path}: {why}"
+        );
+    }
+    let (tool, log) = recorded(FINANCES_LIVE);
+    let gpu_config = json!({"name": "gpu", "configuration": {"configurator_id": 26, "cpu": 4, "ram": 8192, "disk": 81920, "gpu": 1}});
+    let refusals = [
+        tool.call(&call(
+            "POST",
+            "/api/v1/dedicated-servers",
+            json!({"preset_id": 1}),
+        )),
+        tool.call(&call("POST", "/api/v1/cloud-ai/agents", json!({}))),
+        // a GPU, asked through the configurator or a preset holding one
+        tool.call(&call("POST", "/api/v1/servers", gpu_config)),
+        tool.call(&call("POST", "/api/v1/servers", json!({"preset_id": 9001}))),
+        // a write the tool cannot price
+        tool.call(&call(
+            "POST",
+            "/api/v1/servers/7/disks",
+            json!({"size": 10240}),
+        )),
+        tool.call(&call(
+            "POST",
+            "/api/v1/servers/7/ips",
+            json!({"type": "ipv6"}),
+        )),
+        tool.call(&call(
+            "PATCH",
+            "/api/v1/servers/7",
+            json!({"bandwidth": 1000}),
+        )),
+    ];
+    for (i, refusal) in refusals.iter().enumerate() {
+        assert!(
+            refusal
+                .as_ref()
+                .is_err_and(|e| e.contains("refused") || e.contains("GPU")),
+            "{i}: {refusal:?}"
+        );
+    }
+    assert!(
+        refusals[3]
+            .as_ref()
+            .unwrap_err()
+            .contains("preset 9001 holds a GPU"),
+        "{:?}",
+        refusals[3]
+    );
+    let writes: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| !c.starts_with("GET"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        writes,
+        Vec::<String>::new(),
+        "a refused call writes nothing"
+    );
+}
+
+/// Part 2: the credit left and the month's spend, from the finances Hostman answered live.
+#[dash_test]
+fn usage_reads_the_credit_left_and_the_month_s_spend() {
+    let (tool, log) = recorded(FINANCES_LIVE);
+    assert_eq!(tool.usage(), Some(USAGE));
+    assert_eq!(
+        tool.call(USAGE),
+        Ok("hostman: 30.00 USD of credit left; the month's spend 0.00 USD (0.00 an hour, the servers running now); 0.00 \
+            USD spent of 30.00 paid"
+            .into())
+    );
+    assert_eq!(*log.lock().unwrap(), ["GET /api/v1/account/finances"]);
+    let running = usage_text(FINANCES_RUNNING).expect("read");
+    assert!(
+        running.contains("the month's spend 5.00 USD (0.01 an hour"),
+        "{running}"
+    );
+    assert!(usage_text(r#"{"finances":{}}"#).is_err_and(|e| e.contains("no balance")));
+}
+
+/// The credit nearly spent, as on 2026-11-18: 5 left, 24 a month running.
+const FINANCES_POOR: &str = r#"{"finances":{"balance":5,"currency":"USD","hourly_cost":0.033,"monthly_cost":24,"total_paid":30}}"#;
+
+/// His leave (@nha, 2026-11-18: « feel free to lift gates if this is needed or spin up temporary hostman servers. »): the CI
+/// box ci-2 alone, on one of its own 4 GB presets, is created past the credit left, until the credit's expiry on
+/// 2026-12-23; its cost is still counted. Another name, ci-2 on any other preset, a resize, and ci-2 from that day keep the
+/// cap.
+#[dash_test]
+fn ci_2_alone_is_created_past_the_cap_by_his_leave_until_the_23rd() {
+    let before = || LEAVE_UNTIL_S - 1;
+    let create = |name: &str, preset: i64| {
+        call(
+            "POST",
+            "/api/v1/servers",
+            json!({"name": name, "preset_id": preset}),
+        )
+    };
+    let capped = |r: Result<String, String>| r.is_err_and(|e| e.contains("past the spend cap"));
+    let (mut tool, _) = recorded(FINANCES_POOR);
+    tool.now_s = before;
+    let made = tool.call(&create("ci-2", 5147));
+    assert!(made.is_ok(), "{made:?}");
+    assert_eq!(
+        tool.cost(&create("ci-2", 5147), &made),
+        10.0,
+        "its month counted all the same: 8 and its IPv4's 2"
+    );
+    assert!(
+        capped(tool.call(&create("ci-2", 5157))),
+        "ci-2 on the 8 GB preset keeps the cap"
+    );
+    assert!(
+        capped(tool.call(&create("big", 5147))),
+        "another name keeps the cap"
+    );
+    let resize = call("PATCH", "/api/v1/servers/7", json!({"preset_id": 5131}));
+    let (mut tool, _) = recorded(FINANCES_RUNNING);
+    tool.now_s = before;
+    assert!(capped(tool.call(&resize)), "a resize keeps the cap");
+    let (mut tool, _) = recorded(FINANCES_POOR);
+    tool.now_s = || LEAVE_UNTIL_S;
+    assert!(
+        capped(tool.call(&create("ci-2", 5147))),
+        "from the 23rd, the cap"
+    );
+}
+
+/// The tool on the credit nearly spent, at `now_s`, its servers: 11, ci-2 on its 4 GB preset with the public IPs `ips`;
+/// 7, another server.
+fn ci_2_world(ips: &'static str, now_s: fn() -> u64) -> Hostman {
+    let http: Http = Box::new(move |method, path, _body| {
+        Ok(match (method, path) {
+            ("GET", FINANCES) => FINANCES_POOR.to_string(),
+            ("GET", "/api/v1/presets/servers") => PRESETS.to_string(),
+            ("GET", "/api/v1/servers/11") => format!(
+                r#"{{"server":{{"id":11,"name":"ci-2","preset_id":5147,"networks":[{{"type":"public","ips":{ips}}}]}}}}"#
+            ),
+            ("GET", "/api/v1/servers/7") => SERVER.to_string(),
+            ("GET", "/api/v1/servers/5") => {
+                r#"{"server":{"id":5,"name":"ci","preset_id":5147,"networks":[{"type":"public","ips":[]}]}}"#
+                    .to_string()
+            }
+            _ => r#"{"server_ip":{"ip":"5.6.7.8","type":"ipv4"}}"#.to_string(),
+        })
+    });
+    let mut tool = Hostman::new(http);
+    tool.now_s = now_s;
+    tool
+}
+
+/// The review of PR 1783: the leave keys on the name ci-2, so no server is renamed to it while the leave holds; ci-2's own
+/// reinstall, which names it again, passes; from the 23rd a CI box may take the name as before.
+#[dash_test]
+fn no_server_is_renamed_ci_2_while_the_leave_holds() {
+    let rename = |server: u32| {
+        call(
+            "PATCH",
+            &format!("/api/v1/servers/{server}"),
+            json!({"name": "ci-2"}),
+        )
+    };
+    let tool = ci_2_world("[]", || LEAVE_UNTIL_S - 1);
+    let refused = tool.call(&rename(5));
+    assert!(
+        refused
+            .as_ref()
+            .is_err_and(|e| e.contains("renamed ci-2 while his leave holds")),
+        "{refused:?}"
+    );
+    assert!(tool.call(&rename(11)).is_ok(), "ci-2 keeps its own name");
+    let later = ci_2_world("[]", || LEAVE_UNTIL_S);
+    assert!(
+        later.call(&rename(5)).is_ok(),
+        "from the 23rd, a CI box may take it"
+    );
+}
+
+/// His leave covers ci-2's one public IPv4 too (@nha, 2026-11-18: « Why do we create public IPs ? not free and no use for
+/// it », then « if our tool cannot delete then it must reuse »): a Hostman server with no public IPv4 reaches nothing, as
+/// ci-2 (server 9639793) read with « "ips": [] » and no IPv6 (us-1 alone has it; github.com has no AAAA), and NAT needs a
+/// public IP on its gateway at the same 2 USD (hostman.com/docs/vpc/nat/). So ci-2's first IPv4 passes the cap until the
+/// 23rd, its month counted; a second on ci-2, another server's, and ci-2's from the 23rd keep the cap.
+#[dash_test]
+fn ci_2_s_one_public_ipv4_passes_by_his_leave_never_a_second() {
+    let before = || LEAVE_UNTIL_S - 1;
+    let ipv4 = |server: u32| {
+        call(
+            "POST",
+            &format!("/api/v1/servers/{server}/ips"),
+            json!({"type": "ipv4"}),
+        )
+    };
+    let capped = |r: Result<String, String>| r.is_err_and(|e| e.contains("past the spend cap"));
+    let tool = ci_2_world("[]", before);
+    let added = tool.call(&ipv4(11));
+    assert!(added.is_ok(), "{added:?}");
+    assert_eq!(
+        tool.cost(&ipv4(11), &added),
+        2.0,
+        "its month counted all the same"
+    );
+    let second = ci_2_world(r#"[{"ip":"1.2.3.4","type":"ipv4"}]"#, before);
+    assert!(
+        capped(second.call(&ipv4(11))),
+        "a second IPv4 on ci-2 keeps the cap"
+    );
+    assert!(
+        capped(tool.call(&ipv4(7))),
+        "another server's IPv4 keeps the cap"
+    );
+    let late = ci_2_world("[]", || LEAVE_UNTIL_S);
+    assert!(capped(late.call(&ipv4(11))), "from the 23rd, the cap");
+}
+
+/// Part 3: a create or resize whose month passes the credit left is refused with its cost, before any write; one
+/// inside it goes through, and its cost is what it adds to the month.
+#[dash_test]
+fn a_create_or_resize_past_the_credit_left_is_refused_with_its_cost() {
+    let (tool, log) = recorded(FINANCES_LIVE);
+    let big = tool.call(&call(
+        "POST",
+        "/api/v1/servers",
+        json!({"name": "big", "preset_id": 5131}),
+    ));
+    assert_eq!(
+        big,
+        Err("hostman: refused: a server on preset 5131 with its public IPv4 costs 37.00 USD a month, 37.00 USD a month \
+             with the servers running, past the spend cap of 30 USD of credit left"
+            .into())
+    );
+    assert_eq!(tool.cost("", &big), 0.0, "a refusal spends nothing");
+    let small = call(
+        "POST",
+        "/api/v1/servers",
+        json!({"name": "ci", "preset_id": 5161}),
+    );
+    let made = tool.call(&small);
+    assert!(made.is_ok(), "{made:?}");
+    assert_eq!(tool.cost(&small, &made), 7.0, "5 and its IPv4's 2");
+    let writes: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| !c.starts_with("GET"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        writes,
+        ["POST /api/v1/servers"],
+        "the refused create never ran"
+    );
+
+    // server 7 runs at 5 a month: to 5131 adds 30, so 35 a month against 30 left; to 5157 adds 15, so 20
+    let (tool, log) = recorded(FINANCES_RUNNING);
+    let past = tool.call(&call(
+        "PATCH",
+        "/api/v1/servers/7",
+        json!({"preset_id": 5131}),
+    ));
+    assert_eq!(
+        past,
+        Err("hostman: refused: server 7 resized to preset 5131 costs 30.00 USD a month, 35.00 USD a month with the \
+             servers running, past the spend cap of 30 USD of credit left"
+            .into())
+    );
+    let inside = call("PATCH", "/api/v1/servers/7", json!({"preset_id": 5157}));
+    let resized = tool.call(&inside);
+    assert!(resized.is_ok(), "{resized:?}");
+    assert_eq!(tool.cost(&inside, &resized), 15.0);
+    let clone = tool.call(&call("POST", "/api/v1/servers/7/clone", Value::Null));
+    assert!(clone.is_err_and(|e| e.contains("it adds to the bill")));
+    let unknown = tool.call(&call(
+        "PATCH",
+        "/api/v1/servers/8",
+        json!({"preset_id": 5161}),
+    ));
+    assert!(unknown.is_err_and(|e| e.contains("server 8 has no preset")));
+    // not ci-2, a CI server's name since the pool, which only a CI server takes
+    let renamed = tool.call(&call(
+        "PATCH",
+        "/api/v1/servers/7",
+        json!({"name": "web-2"}),
+    ));
+    assert!(renamed.is_ok(), "a rename costs nothing: {renamed:?}");
+    let writes: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| !c.starts_with("GET"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        writes,
+        ["PATCH /api/v1/servers/7", "PATCH /api/v1/servers/7"],
+        "the refused resizes never ran"
+    );
+}
+
+#[derive(Default)]
+struct Kept(RefCell<Vec<Call>>);
+
+impl Audit for Kept {
+    fn record(&self, call: &Call) -> Result<(), String> {
+        self.0.borrow_mut().push(call.clone());
+        Ok(())
+    }
+}
+
+/// Part 4: registered as a plugin, its calls reach the core's audit log through `Registry::call`, with no line of its own.
+#[dash_test]
+fn its_calls_reach_the_audit_log_through_the_port_with_no_line_of_its_own() {
+    let (tool, _) = recorded(FINANCES_LIVE);
+    let mut registry = Registry::default();
+    let plugin = Contribution {
+        tools: vec![("hostman".into(), Box::new(tool) as Box<dyn Tool>)],
+        ..Default::default()
+    };
+    registry.add(plugin.by("hostman")).expect("it lands");
+    let kept = Kept::default();
+    let host = dash_core::StandIn {
+        now_ms: 1_000,
+        ..Default::default()
+    };
+    let ports = Ports {
+        audit: &kept,
+        ..Ports::untracked(&host)
+    };
+    let small = call("POST", "/api/v1/servers", json!({"preset_id": 5161}));
+    for asked in [
+        USAGE,
+        &small,
+        &call("POST", "/api/v1/dedicated-servers", json!({})),
+    ] {
+        let (_, recorded) = registry.call("hostman", asked, &ports).expect("a tool");
+        assert_eq!(recorded, Ok(()));
+    }
+    let calls = kept.0.into_inner();
+    let kept: Vec<(&str, bool, f64)> = calls
+        .iter()
+        .map(|c| (c.tool.as_str(), c.answer.is_ok(), c.cost))
+        .collect();
+    assert_eq!(
+        kept,
+        [
+            ("hostman", true, 0.0),
+            ("hostman", true, 7.0),
+            ("hostman", false, 0.0)
+        ]
+    );
+    assert!(
+        calls[2]
+            .answer
+            .as_ref()
+            .is_err_and(|e| e.contains("Cloud Servers (VPS) only"))
+    );
+    let source = include_str!("lib.rs");
+    for word in ["Audit", "record(", "eprintln", "println", "log::"] {
+        assert!(!source.contains(word), "the tool's source holds {word}");
+    }
+}
+
+/// The key is read from its file, by its variable; a file without it names the file, never a value.
+#[dash_test]
+fn the_key_comes_from_secrets_hostman_env() {
+    let dir = dash_meter::TestDir::new("hostman-key");
+    std::fs::create_dir_all(dir.0.join(".secrets")).expect("folder");
+    let file = dir.0.join(KEY_FILE);
+    assert!(key(&dir.0).is_err_and(|e| e.contains("hostman.env")));
+    std::fs::write(&file, "OTHER=1\nHOSTMAN_API_KEY=\"abc\"\n").expect("write");
+    assert_eq!(key(&dir.0), Ok("abc".into()));
+    std::fs::write(&file, "HOSTMAN_API_KEY_OLD=s3cr3t-old\n").expect("write");
+    assert!(
+        key(&dir.0).is_err_and(|e| e.contains("holds no HOSTMAN_API_KEY") && !e.contains("s3cr3t"))
+    );
+}
+
+/// /code-review's findings, each held: a glob curl would expand, an action that clones, a body key Hostman bills unpriced,
+/// a downgrade's cost, the presets read once, and the key's usual env-file forms.
+#[dash_test]
+fn what_the_review_found_stays_refused_or_priced() {
+    for path in [
+        "/api/v1/servers?x=[1-20]",
+        "/api/v1/servers/7/reboot?{a,b,c}",
+        "/api/v1/servers/{7,8}",
+    ] {
+        assert!(scope("POST", path).is_err(), "{path}");
+    }
+    let (tool, log) = recorded(FINANCES_RUNNING);
+    let clone = tool.call(&call(
+        "POST",
+        "/api/v1/servers/7/action",
+        json!({"action": "clone"}),
+    ));
+    assert!(
+        clone.is_err_and(|e| e.contains("a clone, which copies its disks")),
+        "a clone copies what the tool does not price"
+    );
+    let reboot = tool.call(&call(
+        "POST",
+        "/api/v1/servers/7/action",
+        json!({"action": "hard_reboot"}),
+    ));
+    assert!(
+        reboot.is_ok() && tool.cost("", &reboot) == 0.0,
+        "{reboot:?}"
+    );
+    let odd = tool.call(&call(
+        "POST",
+        "/api/v1/servers/7/action",
+        json!({"action": "upgrade"}),
+    ));
+    assert!(odd.is_err_and(|e| e.contains("an action it does not know")));
+    for (body, says) in [
+        (
+            json!({"preset_id": 5161, "is_ddos_guard": true}),
+            "its is_ddos_guard",
+        ),
+        (
+            json!({"preset_id": 5161, "software_id": 3}),
+            "its software_id",
+        ),
+        (
+            json!({"preset_id": 5161, "network": {"id": "n"}}),
+            "its network",
+        ),
+        (
+            json!({"preset_id": 5161, "bandwidth": 1000}),
+            "more bandwidth than its own",
+        ),
+    ] {
+        let made = tool.call(&call("POST", "/api/v1/servers", body.clone()));
+        assert!(
+            made.as_ref().is_err_and(|e| e.contains(says)),
+            "{body}: {made:?}"
+        );
+    }
+    let required =
+        json!({"name": "ci", "preset_id": 5161, "is_ddos_guard": false, "bandwidth": 200});
+    assert!(
+        tool.call(&call("POST", "/api/v1/servers", required))
+            .is_ok(),
+        "what Hostman requires passes"
+    );
+    let patch = tool.call(&call(
+        "PATCH",
+        "/api/v1/servers/7",
+        json!({"software_id": 3}),
+    ));
+    assert!(patch.is_err_and(|e| e.contains("its software_id")));
+
+    // server 9 on 5157 (20) down to 5161 (5): the way down costs 0, never -15
+    let (tool, log2) = recorded(FINANCES_RUNNING);
+    let down = call("PATCH", "/api/v1/servers/9", json!({"preset_id": 5161}));
+    let resized = tool.call(&down);
+    assert!(
+        resized.is_ok() && tool.cost(&down, &resized) == 0.0,
+        "{resized:?}"
+    );
+    let presets = log2
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| c.ends_with("/presets/servers"))
+        .count();
+    assert_eq!(
+        presets,
+        1,
+        "a resize reads the presets once: {:?}",
+        log2.lock().unwrap()
+    );
+    assert!(
+        log.lock().unwrap().iter().all(|c| !c.contains('[')),
+        "no glob reached the API"
+    );
+
+    let dir = dash_meter::TestDir::new("hostman-key-forms");
+    std::fs::create_dir_all(dir.0.join(".secrets")).expect("folder");
+    for line in [
+        "export HOSTMAN_API_KEY='abc'",
+        "HOSTMAN_API_KEY = abc",
+        "  HOSTMAN_API_KEY=\"abc\"  ",
+    ] {
+        std::fs::write(dir.0.join(KEY_FILE), format!("{line}\n")).expect("write");
+        assert_eq!(key(&dir.0), Ok("abc".into()), "{line}");
+    }
+}
+
+/// The second /code-review's findings: a fragment, a deep path ending in a free verb, a body key on a clone or an action, and
+/// a preset or bandwidth of the wrong type are each refused before any write; the key's inline comment is no part of it.
+#[dash_test]
+fn the_gate_lists_what_passes_never_what_does_not() {
+    let (tool, log) = recorded(FINANCES_RUNNING);
+    for (method, path, body, says) in [
+        (
+            "POST",
+            "/api/v1/servers/7/clone#/start",
+            Value::Null,
+            "Cloud Servers (VPS) only",
+        ),
+        (
+            "POST",
+            "/api/v1/servers/7/disks/3/start",
+            Value::Null,
+            "it adds to the bill",
+        ),
+        (
+            "PATCH",
+            "/api/v1/servers/7",
+            json!({"preset_id": "5131"}),
+            "its preset_id",
+        ),
+        (
+            "PATCH",
+            "/api/v1/servers/7",
+            json!({"preset_id": 5131.0}),
+            "its preset_id",
+        ),
+        (
+            "POST",
+            "/api/v1/servers",
+            json!({"preset_id": 5161, "is_ddos_guard": false, "bandwidth": "1000"}),
+            "its bandwidth",
+        ),
+        (
+            "POST",
+            "/api/v1/servers/7/action",
+            json!({"action": "install", "software_id": 3}),
+            "the install action leaves an installed server in error",
+        ),
+        (
+            "POST",
+            "/api/v1/servers/7/clone",
+            json!({"preset_id": 5131}),
+            "it adds to the bill",
+        ),
+        (
+            "POST",
+            "/api/v1/servers/7/reboot",
+            json!({"bandwidth": 1000}),
+            "its bandwidth",
+        ),
+        (
+            "PUT",
+            "/api/v1/servers/7",
+            json!({}),
+            "Cloud Servers (VPS) only",
+        ),
+    ] {
+        let got = tool.call(&call(method, path, body.clone()));
+        assert!(
+            got.as_ref().is_err_and(|e| e.contains(says)),
+            "{method} {path} {body}: {got:?}"
+        );
+    }
+    let boot = tool.call(&call(
+        "POST",
+        "/api/v1/servers/7/boot-mode",
+        json!({"boot_mode": "single"}),
+    ));
+    assert!(boot.is_ok(), "a free verb's own key passes: {boot:?}");
+    let writes: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| !c.starts_with("GET"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        writes,
+        ["POST /api/v1/servers/7/boot-mode"],
+        "nothing refused was written"
+    );
+
+    let dir = dash_meter::TestDir::new("hostman-key-comment");
+    std::fs::create_dir_all(dir.0.join(".secrets")).expect("folder");
+    for (line, key_is) in [
+        ("HOSTMAN_API_KEY=abc # prod", "abc"),
+        ("HOSTMAN_API_KEY=\"a#b\"", "a#b"),
+    ] {
+        std::fs::write(dir.0.join(KEY_FILE), format!("{line}\n")).expect("write");
+        assert_eq!(key(&dir.0), Ok(key_is.into()), "{line}");
+    }
+}
+
+/// The third /code-review's findings: no password reaches the audit log, a write with no undo is refused, an OS that may bill
+/// a licence is refused, a write with no answer keeps its cost and says to look, and the cap's lock is held across the write.
+#[dash_test]
+fn no_password_kept_no_undo_no_licence_and_a_lost_answer_priced() {
+    let (tool, log) = recorded(FINANCES_RUNNING);
+    let read = tool
+        .call(&call("GET", "/api/v1/servers/7", Value::Null))
+        .expect("read");
+    assert!(
+        !read.contains("hunter2") && read.contains(r#""root_pass":"(masked)""#),
+        "{read}"
+    );
+    assert!(
+        read.contains("1.2.3.4") && !read.contains(r#""vnc_pass":"v""#),
+        "{read}"
+    );
+    for (method, path, body) in [
+        ("DELETE", "/api/v1/servers/7", Value::Null),
+        ("DELETE", "/api/v1/servers/7/disks/3", Value::Null),
+        (
+            "POST",
+            "/api/v1/servers/7/action",
+            json!({"action": "remove"}),
+        ),
+    ] {
+        let got = tool.call(&call(method, path, body.clone()));
+        assert!(
+            got.as_ref().is_err_and(|e| e.contains("it has no undo")),
+            "{method} {path} {body}: {got:?}"
+        );
+    }
+    let reinstall = tool.call(&call("PATCH", "/api/v1/servers/7", json!({"os_id": 79})));
+    assert!(reinstall.is_err_and(|e| e.contains("it has no undo")));
+    for (os, passes) in [(79, true), (125, true), (200, false), (4, false)] {
+        let made = tool.call(&call(
+            "POST",
+            "/api/v1/servers",
+            json!({"preset_id": 5161, "os_id": os}),
+        ));
+        assert_eq!(made.is_ok(), passes, "os {os}: {made:?}");
+    }
+    let writes: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| !c.starts_with("GET"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        writes,
+        ["POST /api/v1/servers", "POST /api/v1/servers"],
+        "nothing refused was written"
+    );
+
+    let dir = dash_meter::TestDir::new("hostman-lock");
+    let at = dir.0.join("run/hostman.lock");
+    let seen = at.clone();
+    let held = Arc::new(Mutex::new(None));
+    let saw = Arc::clone(&held);
+    let lost: Http = Box::new(move |method, path, _| match (method, path) {
+        ("GET", FINANCES) => Ok(FINANCES_RUNNING.into()),
+        ("GET", _) => Ok(PRESETS.into()),
+        _ => {
+            let other = File::open(&seen).expect("the lock file");
+            *saw.lock().unwrap() = Some(matches!(
+                other.try_lock(),
+                Err(std::fs::TryLockError::WouldBlock)
+            ));
+            Err(format!("{NO_ANSWER}: curl: (28) Operation timed out"))
+        }
+    });
+    let mut tool = Hostman::new(lost);
+    tool.lock = Some(Box::new(move || at.clone()));
+    let create = call("POST", "/api/v1/servers", json!({"preset_id": 5161}));
+    let got = tool.call(&create);
+    assert!(
+        got.as_ref()
+            .is_err_and(|e| e.contains("it may have gone through")),
+        "{got:?}"
+    );
+    assert_eq!(
+        tool.cost(&create, &got),
+        7.0,
+        "a write with no answer keeps its cost, its preset's and its IPv4's"
+    );
+    assert_eq!(
+        *held.lock().unwrap(),
+        Some(true),
+        "the lock is held across the write"
+    );
+}
+
+/// The fourth /code-review's findings: a create from an image is refused, masking keeps a private IP, a write curl may
+/// have sent says so (a 5xx, a timeout) and one it never sent does not, and the lock file's month caps a second write
+/// whose finances lag behind the first.
+#[dash_test]
+fn an_image_a_private_ip_a_lost_write_and_a_lagging_balance() {
+    let (tool, log) = recorded(FINANCES_RUNNING);
+    let image = tool.call(&call(
+        "POST",
+        "/api/v1/servers",
+        json!({"preset_id": 5161, "image_id": "w"}),
+    ));
+    assert!(image.is_err_and(|e| e.contains("its image_id")));
+    assert!(log.lock().unwrap().iter().all(|c| c.starts_with("GET")));
+
+    let kept = masked(
+        r#"{"is_private":true,"private_ip":"10.0.0.2","root_pass":"x","ssh_keys_ids":[1]}"#.into(),
+    );
+    assert_eq!(
+        kept,
+        r#"{"is_private":true,"private_ip":"10.0.0.2","root_pass":"(masked)","ssh_keys_ids":[1]}"#
+    );
+
+    for (exit, text, lost) in [
+        (Some(0), "{}\n504", true),
+        (Some(28), "", true),
+        (Some(6), "", false),
+        (Some(7), "", false),
+        (Some(0), "{}\n422", false),
+    ] {
+        let got = answered(exit, text, "why");
+        assert!(
+            got.as_ref()
+                .is_err_and(|e| e.starts_with(NO_ANSWER) == lost),
+            "{exit:?} {text}: {got:?}"
+        );
+    }
+    assert_eq!(
+        answered(Some(0), "{\"a\":1}\n201", ""),
+        Ok("{\"a\":1}".into())
+    );
+    // one refusal, one reason: Hostman's response_id, new at each call, is left out of it
+    let refusal = |id: &str| {
+        let text =
+            format!(r#"{{"status_code":409,"error_code":"no_free_node","response_id":"{id}"}}"#);
+        answered(Some(0), &format!("{text}\n409"), "")
+    };
+    assert_eq!(refusal("71a8"), refusal("cc9b"));
+    assert_eq!(
+        refusal("71a8"),
+        Err(r#"hostman answered 409: {"error_code":"no_free_node","status_code":409}"#.into())
+    );
+
+    let dir = dash_meter::TestDir::new("hostman-ledger");
+    let at = dir.0.join("run/hostman.lock");
+    let (mut tool, _) = recorded(FINANCES_RUNNING);
+    tool.lock = Some(Box::new(move || at.clone()));
+    let create = call("POST", "/api/v1/servers", json!({"preset_id": 5157}));
+    assert!(
+        tool.call(&create).is_ok(),
+        "5 running and 22 more (20 and its IPv4) fit in 30"
+    );
+    let again = tool.call(&create);
+    assert!(
+        again.is_err_and(|e| e.contains("49.00 USD a month")),
+        "the finances still say 5: the lock file's 27 stands in"
+    );
+}
+
+/// Exactly one server a name (@nha, 2026-11-14: « take one 8GB machine please. »; /code-review of PR 1639): a create sent
+/// again under the lock file's 10 minutes is refused though the cap has room for both, whether the first answered or was
+/// lost on the way back; another name passes.
+#[dash_test]
+fn a_create_of_the_same_name_is_never_sent_twice() {
+    let dir = dash_meter::TestDir::new("hostman-one-name");
+    let at = dir.0.join("run/hostman.lock");
+    let (mut tool, log) = recorded(FINANCES_LIVE);
+    let lock = at.clone();
+    tool.lock = Some(Box::new(move || lock.clone()));
+    let named = |name: &str| {
+        let body = json!({"preset_id": 5161, "name": name});
+        call("POST", "/api/v1/servers", body)
+    };
+    assert!(tool.call(&named("site-perso-ci")).is_ok());
+    let again = tool.call(&named("site-perso-ci"));
+    assert!(
+        again.is_err_and(|e| e.contains("a server named site-perso-ci was created")),
+        "5 and 5 fit in 30: the name refuses it"
+    );
+    let posts = || {
+        log.lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c.starts_with("POST"))
+            .count()
+    };
+    assert_eq!(posts(), 1, "the second was never sent");
+    assert!(tool.call(&named("another")).is_ok());
+
+    // a create whose answer was lost keeps its name too: a second process, as the live server restarted, is refused
+    let lost: Http = Box::new(|method, path, _| match (method, path) {
+        ("POST", _) => Err(format!("{NO_ANSWER}: timed out")),
+        ("GET", FINANCES) => Ok(FINANCES_LIVE.into()),
+        ("GET", "/api/v1/os/servers") => Ok(OS.into()),
+        ("GET", "/api/v1/servers") => Ok(r#"{"servers":[]}"#.into()),
+        _ => Ok(PRESETS.into()),
+    });
+    let mut first = Hostman::new(lost);
+    let lock = at.clone();
+    first.lock = Some(Box::new(move || lock.clone()));
+    assert!(
+        first
+            .call(&named("lost"))
+            .is_err_and(|e| e.contains("may have gone through"))
+    );
+    assert!(
+        tool.call(&named("lost"))
+            .is_err_and(|e| e.contains("a server named lost"))
+    );
+    assert_eq!(posts(), 2);
+}
+
+/// The CI box's heal (task rust-hostman-ci-wire, 2026-11-15): a public IPv4 is priced at 2 USD a month under the cap; a
+/// reinstall, a PATCH of its os_id (« install » is refused), passes for the CI server alone (ci, once site-perso-ci) and a free OS;
+/// a create is refused while a server of its name, or of either CI name, exists; and curl's not-sent reasons stay the same
+/// from one call to the next, DNS said as such.
+#[dash_test]
+fn the_ci_box_gets_an_ip_a_reinstall_and_never_a_second() {
+    let ci = r#"{"server":{"id":5,"name":"site-perso-ci","preset_id":5161}}"#;
+    let listed = Arc::new(Mutex::new(r#"{"servers":[]}"#));
+    let seen = Arc::clone(&listed);
+    let log = Arc::new(Mutex::new(vec![]));
+    let kept = Arc::clone(&log);
+    let http: Http = Box::new(move |method, path, _| {
+        kept.lock().unwrap().push(format!("{method} {path}"));
+        Ok(match (method, path) {
+            ("GET", FINANCES) => FINANCES_RUNNING.into(),
+            ("GET", "/api/v1/presets/servers") => PRESETS.into(),
+            ("GET", "/api/v1/os/servers") => OS.into(),
+            ("GET", "/api/v1/servers/5") => ci.into(),
+            ("GET", "/api/v1/servers/7") => SERVER.into(),
+            ("GET", "/api/v1/servers") => seen.lock().unwrap().to_string(),
+            _ => "{}".into(),
+        })
+    });
+    let tool = Hostman::new(http);
+    let ip = call("POST", "/api/v1/servers/5/ips", json!({"type": "ipv4"}));
+    let got = tool.call(&ip);
+    assert!(got.is_ok() && tool.cost(&ip, &got) == 2.0, "{got:?}");
+    let poor = Hostman::new(Box::new(|_, path, _| match path {
+        FINANCES => Ok(r#"{"finances":{"balance":21,"monthly_cost":20}}"#.into()),
+        _ => Ok("{}".into()),
+    }));
+    assert!(
+        poor.call(&ip)
+            .is_err_and(|e| e.contains("past the spend cap")),
+        "the cap holds an IP too"
+    );
+
+    let install = |id: i64| {
+        call(
+            "POST",
+            &format!("/api/v1/servers/{id}/action"),
+            json!({"action": "install"}),
+        )
+    };
+    // the deprecated install action left server 9602127 in error (2026-11-15 12:02): refused on every server, the CI
+    // box's too, before any call
+    for id in [5, 7] {
+        let sent = log.lock().unwrap().len();
+        assert!(
+            tool.call(&install(id))
+                .is_err_and(|e| e.contains("reinstall by a PATCH of its os_id")),
+            "server {id}"
+        );
+        assert_eq!(
+            log.lock().unwrap().len(),
+            sent,
+            "nothing sent for server {id}"
+        );
+    }
+    let new_os = |id: i64, os: i64| {
+        let body = json!({"name": "ci", "os_id": os, "cloud_init": "#cloud-config"});
+        call("PATCH", &format!("/api/v1/servers/{id}"), body)
+    };
+    assert!(
+        tool.call(&new_os(5, 79)).is_ok(),
+        "renamed and reinstalled on a listed OS"
+    );
+    assert!(
+        tool.call(&new_os(5, 200))
+            .is_err_and(|e| e.contains("os 200 refused")),
+        "no licence"
+    );
+    // web, named ci in the same PATCH: refused before its reinstall is weighed
+    assert!(
+        tool.call(&new_os(7, 79))
+            .is_err_and(|e| e.contains("a CI server's name"))
+    );
+    let resize = call(
+        "PATCH",
+        "/api/v1/servers/5",
+        json!({"os_id": 79, "preset_id": 5157}),
+    );
+    assert!(
+        tool.call(&resize).is_err(),
+        "never a reinstall with a resize"
+    );
+
+    // site-perso-ci exists: a create of ci, or of site-perso-ci, is refused before any write
+    *listed.lock().unwrap() = r#"{"servers":[{"id":5,"name":"site-perso-ci"}]}"#;
+    let create = |name: &str| {
+        call(
+            "POST",
+            "/api/v1/servers",
+            json!({"preset_id": 5161, "name": name}),
+        )
+    };
+    for name in ["ci", "site-perso-ci"] {
+        let got = tool.call(&create(name));
+        assert!(
+            got.is_err_and(|e| e.contains("a server named site-perso-ci exists")),
+            "{name}"
+        );
+    }
+    assert!(tool.call(&create("web")).is_ok(), "another name passes");
+    *listed.lock().unwrap() = "{}";
+    assert!(
+        tool.call(&create("web"))
+            .is_err_and(|e| e.contains("does not read"))
+    );
+    let creates = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| *c == "POST /api/v1/servers")
+        .count();
+    assert_eq!(creates, 1, "only the other name's create was sent");
+
+    for exit in [5, 6, 7, 35, 60] {
+        let first = answered(Some(exit), "", "curl: failed after 10 ms");
+        let again = answered(Some(exit), "", "curl: failed after 2 ms");
+        assert_eq!(first, again, "curl {exit}: the same reason each call");
+        assert!(first.is_err_and(|e| e.starts_with("hostman: not sent: ")));
+    }
+    assert_eq!(
+        answered(Some(6), "", "curl: (6) Could not resolve host: hostman.com"),
+        Err("hostman: not sent: this Mac's DNS does not resolve hostman.com (curl 6)".into())
+    );
+}
+
+/// The CI pool (task ci-runner-pool; @nha, 2026-11-18: « I suggest spinning the second server and seeing how it holds. »):
+/// ci-2 is a CI box of its own, created while ci stands and reinstallable as ci is, never an alias of it; a server's
+/// statistics are read over a time window, whose ISO times hold colons in the query alone, never in the path.
+#[dash_test]
+fn the_second_ci_box_is_created_beside_the_first_and_its_statistics_read() {
+    let listed: &'static str = r#"{"servers":[{"id":5,"name":"ci"}]}"#;
+    let log = Arc::new(Mutex::new(vec![]));
+    let kept = Arc::clone(&log);
+    let http: Http = Box::new(move |method, path, _| {
+        kept.lock().unwrap().push(format!("{method} {path}"));
+        Ok(match (method, path) {
+            ("GET", FINANCES) => FINANCES_RUNNING.into(),
+            ("GET", "/api/v1/presets/servers") => PRESETS.into(),
+            ("GET", "/api/v1/servers") => listed.into(),
+            ("GET", "/api/v1/os/servers") => OS.into(),
+            ("GET", "/api/v1/servers/6") => r#"{"server":{"id":6,"name":"ci-2"}}"#.into(),
+            _ => "{}".into(),
+        })
+    });
+    let tool = Hostman::new(http);
+    let create = call(
+        "POST",
+        "/api/v1/servers",
+        json!({"preset_id": 5161, "name": "ci-2"}),
+    );
+    assert!(tool.call(&create).is_ok(), "ci-2 beside ci");
+    let reinstall = call(
+        "PATCH",
+        "/api/v1/servers/6",
+        json!({"name": "ci-2", "os_id": 79, "cloud_init": "#cloud-config"}),
+    );
+    assert!(
+        tool.call(&reinstall).is_ok(),
+        "ci-2 is reinstalled as ci is"
+    );
+    let stats =
+        "/api/v1/servers/5/statistics?date_from=2026-11-18T11:00:00&date_to=2026-11-18T16:59:00";
+    assert_eq!(scope("GET", stats), Ok(()));
+    assert!(tool.call(&call("GET", stats, Value::Null)).is_ok());
+    assert!(
+        scope("GET", "/api/v1/servers/5:6/statistics").is_err(),
+        "a colon in the path is refused"
+    );
+}
+
+/// The independent review of PR 1767: a create is priced with the public IPv4 every CI box is given next (one price, the
+/// tool's); a rename into a CI name, which the reinstall allowlist reads, is refused unless the server is a CI box already,
+/// so no server is renamed into the list and then wiped; a colon in a query passes for a read alone.
+#[dash_test]
+fn a_create_prices_its_ipv4_no_server_is_renamed_into_the_ci_list_and_a_colon_is_for_reads() {
+    let (tool, log) = recorded(r#"{"finances":{"balance":6,"monthly_cost":0}}"#);
+    let create = call(
+        "POST",
+        "/api/v1/servers",
+        json!({"preset_id": 5161, "name": "small"}),
+    );
+    assert!(
+        tool.call(&create)
+            .is_err_and(|e| e.contains("costs 7.00 USD a month")),
+        "5 for the preset, 2 for its IPv4, past 6"
+    );
+    let posts = |log: &Arc<Mutex<Vec<String>>>| {
+        log.lock()
+            .unwrap()
+            .iter()
+            .filter(|c| !c.starts_with("GET"))
+            .count()
+    };
+    assert_eq!(posts(&log), 0);
+
+    // server 7 is « web »: renamed ci-2, it would then be reinstallable
+    let (tool, log) = recorded(FINANCES_LIVE);
+    for name in ["ci-2", "ci", "site-perso-ci"] {
+        let rename = call("PATCH", "/api/v1/servers/7", json!({"name": name}));
+        assert!(
+            tool.call(&rename)
+                .is_err_and(|e| e.contains("a CI server's name")),
+            "{name}"
+        );
+    }
+    let wipe = call("PATCH", "/api/v1/servers/7", json!({"os_id": 79}));
+    assert!(
+        tool.call(&wipe)
+            .is_err_and(|e| e.contains("it has no undo"))
+    );
+    assert_eq!(posts(&log), 0, "nothing renamed, nothing wiped");
+    assert!(
+        tool.call(&call(
+            "PATCH",
+            "/api/v1/servers/7",
+            json!({"name": "web-2"})
+        ))
+        .is_ok(),
+        "another name passes"
+    );
+
+    assert_eq!(
+        scope(
+            "GET",
+            "/api/v1/servers/5/statistics?date_from=2026-11-18T11:00:00"
+        ),
+        Ok(())
+    );
+    for method in ["POST", "PATCH", "DELETE"] {
+        assert!(
+            scope(method, "/api/v1/servers/5?at=11:00").is_err(),
+            "{method} with a colon"
+        );
+    }
+}
