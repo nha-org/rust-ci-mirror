@@ -1,0 +1,18 @@
+[package]
+name = "dash-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-sdk.workspace = true
+inventory.workspace = true
+serde_json.workspace = true
+
+[features]
+# MemoryLog, a test double: only dev-dependencies turn it on, so no shipped build holds it.
+memory-log = ["dash-sdk/memory-log"]
+
+[dev-dependencies]
+dash-sdk = { workspace = true, features = ["testing"] }
+dash-meter.workspace = true
