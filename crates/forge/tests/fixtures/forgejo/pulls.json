@@ -1,0 +1,34 @@
+[
+ {
+  "number": 15270,
+  "html_url": "https://codeberg.org/forgejo/forgejo/pulls/15270",
+  "title": "fix(actions): don't duplicate the sub-path in ACTIONS_ID_TOKEN_REQUEST_URL",
+  "mergeable": true,
+  "draft": false,
+  "head": {
+   "ref": "fix-actions-id-token-url-subpath",
+   "sha": "2c7efd830af0c1be3bce11e3d3441fd8aba21d18",
+   "repo_id": 2889961
+  },
+  "base": {
+   "ref": "forgejo",
+   "repo_id": 73144
+  }
+ },
+ {
+  "number": 15269,
+  "html_url": "https://codeberg.org/forgejo/forgejo/pulls/15269",
+  "title": "WIP: fix(api): adjust operations issueAddSubscription & issueDelSubscription",
+  "mergeable": false,
+  "draft": true,
+  "head": {
+   "ref": "fix/api-issue-sub-unsub",
+   "sha": "97382279c40184b45a7bff798a52be59bce5924a",
+   "repo_id": 2889502
+  },
+  "base": {
+   "ref": "forgejo",
+   "repo_id": 73144
+  }
+ }
+]
