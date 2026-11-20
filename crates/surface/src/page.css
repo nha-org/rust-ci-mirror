@@ -1,0 +1,44 @@
+
+/* Layout only: every colour, text size and radius is design.json's, through theme.css. */
+html { background: var(--color-base-200); color: var(--color-base-content); }
+body { margin: 0; padding: var(--spacing-s4); font-family: Inter, system-ui, sans-serif; font-size: var(--text-ui); line-height: var(--text-ui--line-height); }
+h1 { font-size: var(--text-title); font-weight: 600; margin: 0 0 var(--spacing-s2); }
+p { margin: var(--spacing-s1) 0; overflow-wrap: anywhere; }
+.task-graph { overflow-x: auto; margin: var(--spacing-s3) 0; }
+.task-graph .canvas { position: relative; }
+.task-graph svg { display: block; }
+.task-graph .edge { fill: none; stroke: var(--color-base-content); stroke-opacity: 0.45; stroke-width: 1.5; }
+.task-graph .arrow { fill: var(--color-base-content); fill-opacity: 0.6; }
+.task-graph .node { position: absolute; }
+/* a node is a fixed box: each part of its card keeps to it, the hover card alone past it (not clipped by an overflow on the card) */
+.task-graph .li-card { height: 100%; }
+.task-graph .li-id, .task-graph .li-card .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-graph .li-title span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.task-graph .li-tags { overflow: hidden; }
+/* its state an outline, so the card keeps its own shadow and hover lift */
+.task-graph .next .li-card { outline: 2.5px solid var(--color-accent); }
+.task-graph .running .li-card { outline: 2px solid var(--color-primary); }
+.task-graph .ended .li-card { outline: 2px solid var(--color-error); }
+.task-graph .next .says { color: var(--color-accent); font-weight: 600; }
+.task-graph .ended .says { color: var(--color-error); }
+/* Issue rows, the task's page and its parts: sizes in design tokens, flex only, so the window's Blitz draws them alike. */
+.issue-group { margin: var(--spacing-s4) 0; }
+.issue-group h2 { display: flex; align-items: center; margin: 0; padding: var(--spacing-s2) var(--spacing-s3); font-size: var(--text-ui); font-weight: 600; background: var(--color-base-300); border-radius: var(--radius-field); }
+.issue-group .count { margin-left: var(--spacing-s2); font-weight: 400; opacity: 0.7; }
+.comments { font-size: var(--text-caption); font-weight: 600; color: var(--color-warning); }
+/* The board: one column a status, the four sharing the page's width, so 1280 px beside the menu holds them all; each column
+   scrolls inside its own height, its heading kept on top (task rust-nav-polish). Under a phone's width the board scrolls sideways. */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--spacing-s3); align-items: start; }
+/* Its columns and cards are /design?tab=linear's (cards.css), each column the grid's width (task rust-board-linear). */
+.board .li-column { width: auto; min-width: 0; margin-top: var(--spacing-s2); max-height: calc(100vh - 12rem); overflow-y: auto; }
+.board .li-column-head { position: sticky; top: 0; z-index: 1; margin: 0; font-size: var(--text-ui); background: var(--color-base-200); }
+.board .li-card, .task-graph .li-card { display: block; color: inherit; text-decoration: none; }
+.board .li-card .li-id, .task-graph .li-card .li-id { padding-right: var(--spacing-s5); overflow-wrap: anywhere; }
+@media (max-width: 700px) { .board { grid-auto-columns: minmax(240px, 1fr); overflow-x: auto; } }
+/* Home's cards (task rust-nav-polish): as many to a row as fit, each a title, one line, and the whole card its link. */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--spacing-s2); margin: var(--spacing-s2) 0; }
+/* Each read keeps to its share of the screen, so today's daily and what runs stay in sight under a long handoff. */
+#waits, #daily { max-height: 60vh; overflow-y: auto; }
+/* /tools: a card a provider, each access a status chip before its name, then its usage, note and place (task rust-tools-human). */
+.cards > .issue-part { align-self: start; margin: 0; min-width: 0; padding: var(--spacing-s2) var(--spacing-s3); background: var(--color-base-100); border: 1px solid var(--color-base-300); border-radius: var(--radius-box); }
+.cards > .issue-part h2 { opacity: 1; }
