@@ -1,0 +1,12 @@
+# dash parity's marks (task rust-port-parity; rust/CLAUDE.md rule 9), read by dash parity and dash land. Tab-separated:
+#   <route>	sample	<path>	a page to compare for a route with a :parameter or *rest
+#   <pattern>	moved	<rust pattern>	an Elixir link pattern and the Rust one it moved to: such a link is there at its new path
+#   <route>	dropped	<control|link|section|field>	<label>	(@nha, <date>: « … »)	a gap he let go, in his words
+# <route> is the older app's (private/dashboard/lib/dashboard_web/router.ex), as /mail/t/:thread, or « menu » for the
+# menu every page shares (dash parity menu). A dropped line with no words of his drops nothing.
+/d/:id	moved	/drafts/:id
+/projects/:name/issue/:issue	moved	/projects/:name?issue=:issue
+/dashboard/tasks	moved	/tasks
+/dashboard/tasks	sample	/dashboard/tasks	/tasks
+/design/:family	dropped	section	Charts	(@nha, 2026-11-11: « suggestion: a new presentation/charts section in the design. the treemap and some others belong there too »)
+/design/:family	dropped	section	Figures as visuals	(@nha, 2026-11-11: « suggestion: a new presentation/charts section in the design. the treemap and some others belong there too »)
