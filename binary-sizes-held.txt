@@ -1,0 +1,7 @@
+# Each role's dev build on the Mac (arm64): role, its bytes, its __eh_frame's bytes. Ceilings that only go down (dash-gate's
+# sizes.rs, task rust-binary-split), each __eh_frame one under ld's 16 MB. Set 2026-11-14 about 10 % above the builds then:
+# cli 136,139,360 and 9,851,732; serve 138,734,480 and 10,062,712; window 162,392,672 and 11,834,360. rust/bin/dash builds
+# each role as target/debug/dash-<role>; each_role_s_binary_stays_under_its_held_size measures the ones built here.
+cli 150000000 11000000
+serve 153000000 11100000
+window 179000000 13100000
