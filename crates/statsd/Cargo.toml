@@ -1,0 +1,13 @@
+[package]
+name = "dash-statsd"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# the telemetry port it adapts (task rust-jev-tool)
+dash-core.workspace = true
+
+[dev-dependencies]
+dash-meter.workspace = true
+serde_json.workspace = true

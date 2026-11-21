@@ -1,0 +1,7 @@
+.island-live:not(:empty) + .island-picture { display: none; }
+.workspace { display: flex; flex-direction: column; gap: var(--spacing-s2); }
+.workspace .button[aria-pressed="true"] { background: var(--color-base-300); }
+.workspace .split { border: 1px solid var(--color-base-300); border-radius: 8px; overflow: hidden; }
+.workspace .split > :not(.splitter) { padding: var(--spacing-s2); }
+.workspace .ds-menu .doc-tree { margin-top: var(--spacing-s2); padding-top: var(--spacing-s2); border-top: 1px solid var(--color-base-300); }
+.workspace-page { padding: var(--spacing-s3) var(--spacing-s4); }
