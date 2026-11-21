@@ -1,0 +1,32 @@
+# What dash ci mirror rust pushes to nha-org/rust-ci-mirror (rfc-rust-unified section 17): paths under rust/, one a
+# line, a folder taking its tracked files. Only these ride: never sandbox files, notes or markdown from the rest.
+Cargo.toml
+Cargo.lock
+rustfmt.toml
+crates/
+vendor/
+ci/
+.config/nextest.toml
+.github/workflows/ci.yml
+# crates/dash's tests compile in dash parity's marks; this list rides so the gate reads it on the mirror too
+parity.tsv
+ci-mirror.txt
+# the gate's inline_js_only_goes_down compiles in the held inline script bytes (task rust-components-no-js)
+inline-js-held.txt
+# the gate's browser_tests_only_go_down compiles in the held browser test count (task rust-browser-tests-fewer)
+browser-tests-held.txt
+# the gate's plugins_reach_past_the_sdk_no_more_than_held compiles in the held reaches (task rust-arch-tests)
+sdk-reach-held.txt
+# the gate's a_plugin_takes_dash_sdk_alone_held_per_crate compiles in each plugin's held count (task untangle-sdk-crate)
+plugin-deps-held.txt
+# the gate's feature_loops_only_go_down compiles in the held loop count (task rust-arch-tests)
+feature-loops-held.txt
+# the gate's the_binary_registers_and_helps_no_more_than_held compiles in both held counts (task rust-arch-tests)
+binary-registrations-held.txt
+binary-helpers-held.txt
+# the gate's the_plugin_widgets_in_the_design_system_are_no_more_than_held compiles in the held count (task untangle-one-editor)
+plugin-widgets-held.txt
+# the gate's no_static_holds_a_path_or_a_host_outside_main compiles in the held count (task untangle-one-host)
+host-statics-held.txt
+# the gate's each_role_s_binary_stays_under_its_held_size compiles in the held sizes (task rust-binary-split)
+binary-sizes-held.txt
