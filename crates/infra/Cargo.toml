@@ -1,0 +1,15 @@
+[package]
+name = "dash-infra"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+dash-sdk.workspace = true
+inventory.workspace = true
+serde_json.workspace = true
+# the saved plan removed on a signal, which no Drop sees (lib.rs)
+signal-hook = "0.3"
+
+[dev-dependencies]
+dash-sdk = { workspace = true, features = ["testing"] }
