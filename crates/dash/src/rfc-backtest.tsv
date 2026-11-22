@@ -1,0 +1,22 @@
+# rfc-rust-unified#conformance's back-test through dash task rfc-check <sha> --section ui-lib, jev-1.13.0, 2026-11-11: kind, commit, score
+breach	d29942c8d	0.21
+breach	cb090e8c0	0.17
+breach	66a14d466	0.41
+breach	9309bcc6d	0.21
+breach	a8aa64dea	0.20
+breach	70afa3774	0.31
+breach	0a53e2e1a	0.28
+breach	630ddaf7e	0.31
+breach	0725e6ca3	0.18
+breach	b2f4162e5	0.17
+keeper	579cd9362	0.72
+keeper	f93430c86	0.38
+keeper	c6baaee0a	0.77
+keeper	d78057e58	0.83
+keeper	7e66a430d	0.84
+keeper	ef51cddd5	0.74
+keeper	8b61b7404	0.75
+keeper	35d8e19d0	0.83
+keeper	409a1c0e9	0.68
+keeper	aad410929	0.72
+keeper	47ff4baec	0.69
